@@ -60,7 +60,8 @@ class SyncReport:
     merge_requests: dict[str, list[dict]] = field(default_factory=dict)
     drift: list[Drift] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)   # forge reads or writes that failed: the report is incomplete
+    errors: list[str] = field(default_factory=list)   # forge reads that failed: the report is incomplete
+    write_errors: list[str] = field(default_factory=list)  # epic writes that failed after every read succeeded
     cleared: list[str] = field(default_factory=list)  # issues whose recorded merge requests are gone
 
     @property
@@ -73,7 +74,8 @@ class SyncReport:
                 "merge_requests": self.merge_requests,
                 "drift": [asdict(d) for d in self.drift],
                 "notes": self.notes,
-                "errors": self.errors}
+                "errors": self.errors,
+                "write_errors": self.write_errors}
 
     def text(self) -> str:
         lines = ["Sync is read-only on the forge and Orca unless --update-epics is given. "
@@ -82,6 +84,10 @@ class SyncReport:
             lines += ["Incomplete: these forge calls failed, so the report below misses what they would have "
                       "shown. Nothing is saved; run sync again once the forge answers."]
             lines += [f"  {e}" for e in self.errors] + [""]
+        if self.write_errors:
+            lines += ["These epic writes failed. The report is complete and roadmap.json can be saved; the epics "
+                      "named here show the old section until the next sync --update-epics."]
+            lines += [f"  {e}" for e in self.write_errors] + [""]
         lines.append("Status changes")
         lines += [f"  {c.issue}: {model.STATUSES[c.old]} -> {model.STATUSES[c.new]} ({c.why})"
                   for c in self.status_changes] or ["  none"]
@@ -346,7 +352,9 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         return report
 
     # Epics: open issues the roadmap does not list, and the generated section.
+    # Sections are written last, once every read has succeeded.
     native = getattr(fg, "native_epics", True)
+    epic_writes: list[tuple[dict, dict, str]] = []
     for ep in data["epics"]:
         if not ep.get("ref"):
             continue
@@ -379,15 +387,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             continue
         if body == (epic.get("body") or ""):
             continue
-        if update_epics and report.errors:
-            report.notes.append(f'did not update epic {ep["ref"]} ({ep["id"]}): the report is incomplete')
-        elif update_epics:
-            try:
-                fg.update_epic_body(epic, body)
-            except forge.ForgeError as exc:
-                report.errors.append(f'{ep["id"]}: writing the roadmap section of epic {ep["ref"]} failed: {exc}')
-                continue
-            report.notes.append(f'updated the roadmap section in epic {ep["ref"]} ({ep["id"]})')
+        if update_epics:
+            epic_writes.append((ep, epic, body))
         else:
             report.notes.append(f'the roadmap section in epic {ep["ref"]} ({ep["id"]}) is out of date; '
                                 "run sync --update-epics to rewrite only that section")
@@ -426,4 +427,16 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             if waiting:
                 report.drift.append(Drift("started-early", iid,
                                           f'Orca task {t["id"]} started before these were Done: {", ".join(waiting)}'))
+
+    # Epic sections, only when the report is complete.
+    for ep, epic, body in epic_writes:
+        if report.errors:
+            report.notes.append(f'did not update epic {ep["ref"]} ({ep["id"]}): the report is incomplete')
+            continue
+        try:
+            fg.update_epic_body(epic, body)
+        except forge.ForgeError as exc:
+            report.write_errors.append(f'{ep["id"]}: writing the roadmap section of epic {ep["ref"]} failed: {exc}')
+            continue
+        report.notes.append(f'updated the roadmap section in epic {ep["ref"]} ({ep["id"]})')
     return report

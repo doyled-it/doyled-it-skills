@@ -73,7 +73,8 @@ class ForgeErrors(unittest.TestCase):
 
         report = sync.sync(sync_roadmap(), gitlab(Refusing(responses)), orca_tasks=[], now="2026-11-17",
                            update_epics=True)
-        self.assertTrue(any("acme&10" in e and "HTTP 403" in e for e in report.errors))
+        self.assertTrue(any("acme&10" in e and "HTTP 403" in e for e in report.write_errors))
+        self.assertEqual(report.errors, [])
 
     def test_cli_exits_1_and_saves_nothing_when_reads_failed(self):
         fg = gitlab(Flaky(fixture("gitlab_sync.json"), {ISSUE12}))
@@ -87,6 +88,77 @@ class ForgeErrors(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertEqual(path.read_text(), before)
             self.assertIn("HTTP 502", out.getvalue())
+
+
+EPIC10 = {"id": 510, "iid": 10, "title": "Better ranking", "description": "Hand text.",
+          "web_url": "https://gitlab.example.com/groups/acme/-/epics/10"}
+EPIC11 = {"id": 511, "iid": 11, "title": "Search page", "description": "Plan.",
+          "web_url": "https://gitlab.example.com/groups/acme/-/epics/11"}
+
+
+class Writer(Recorder):
+    """Recorded reads (some failing) and recorded writes (one failing, counted from 1)."""
+
+    def __init__(self, responses, failing=(), fail_write=None):
+        super().__init__(responses)
+        self.failing, self.fail_write = set(failing), fail_write
+
+    def get(self, path):
+        if f"GET {path}" in self.failing:
+            raise forge.ForgeError(f"GET {path} failed: HTTP 502")
+        return super().get(path)
+
+    def send(self, method, path, body=None, allow_close=False):
+        if self.fail_write is not None and len(self.calls) + 1 == self.fail_write:
+            raise forge.ForgeError(f"{method} {path} failed: HTTP 403")
+        return super().send(method, path, body, allow_close)
+
+
+def two_epics() -> tuple[dict, dict]:
+    data = sync_roadmap()
+    data["epics"][1]["ref"] = "acme&11"
+    responses = dict(fixture("gitlab_sync.json"))
+    responses["GET groups/acme/epics/10"] = EPIC10
+    responses["GET groups/acme/epics/11"] = EPIC11
+    responses["GET groups/acme/epics/11/issues"] = []
+    return data, responses
+
+
+class EpicWritesComeLast(unittest.TestCase):
+    """Epics are rewritten only after every read succeeded, so forge and roadmap.json agree."""
+
+    def run_sync(self, transport, data):
+        return sync.sync(data, gitlab(transport), orca_tasks=[], now="2026-11-17", update_epics=True)
+
+    def test_no_epic_write_when_an_issue_read_failed(self):
+        data, responses = two_epics()
+        rec = Writer(responses, failing={ISSUE12})
+        report = self.run_sync(rec, data)
+        self.assertEqual(rec.calls, [])
+        self.assertTrue(any("did not update epic acme&10" in n for n in report.notes))
+
+    def test_no_epic_write_when_open_merge_requests_cannot_be_read(self):
+        data, responses = two_epics()
+        rec = Writer(responses, failing={"GET projects/acme%2Fsearch/merge_requests?state=opened"})
+        report = self.run_sync(rec, data)
+        self.assertEqual(rec.calls, [])
+        self.assertTrue(report.errors)
+
+    def test_a_failed_epic_write_still_saves_roadmap_json(self):
+        """The first epic now shows the synced status, so roadmap.json must too."""
+        data, responses = two_epics()
+        rec = Writer(responses, fail_write=2)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            path.write_text(json.dumps(data))
+            out = io.StringIO()
+            with mock.patch.object(forge, "from_args", return_value=gitlab(rec)), redirect_stdout(out):
+                code = cli.main(["sync", str(path), "--write", "--update-epics", "--no-orca", "--now", "2026-11-17"])
+            saved = json.loads(path.read_text())
+        self.assertEqual(code, 1, out.getvalue())
+        self.assertEqual(len(rec.calls), 1)
+        self.assertEqual(issue(saved, "ranking-model")["status"], "in_review")
+        self.assertIn("HTTP 403", out.getvalue())
 
 
 class RefusalsBeforeWrites(unittest.TestCase):

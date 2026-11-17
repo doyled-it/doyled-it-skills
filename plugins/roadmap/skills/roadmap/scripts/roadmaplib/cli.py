@@ -116,7 +116,7 @@ def cmd_sync(args) -> int:
     if args.write and report.changed:
         model.save(args.roadmap, report.roadmap)
         print(f"updated status and gates in {args.roadmap}; re-render the page next")
-    return 0
+    return 1 if report.write_errors else 0
 
 
 def cmd_check_mr(args) -> int:
