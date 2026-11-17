@@ -117,6 +117,16 @@ class MergedTicks(unittest.TestCase):
             dict(merged_mr("Closes acme/search#12", project="stranger/fork", iid=5), state="opened")]})
         self.assertNotIn("ranking-model", {c.issue for c in report.status_changes})
 
+    def test_a_forge_rule_that_names_a_lead_gate_never_ticks_it(self):
+        """validate reports such a rule, but read-only sync still runs with it: the lead gate stays open."""
+        data = roadmap()
+        data["forge"]["gate_rules"] = {"U": "mr_merged", "D": "mr_green"}
+        issue(data, "click-signals")["gates"] = ["D", "M", "U"]
+        _, ticks = run(data, **{MRS11: [merged_mr("Closes #11")]})
+        self.assertIn(("click-signals", "M"), ticks)
+        self.assertNotIn(("click-signals", "U"), ticks)
+        self.assertNotIn(("click-signals", "D"), ticks)
+
     def test_a_merge_request_the_roadmap_names_ticks_m(self):
         data = roadmap()
         issue(data, "click-signals")["detail"] = "Shipped in !30."

@@ -101,7 +101,8 @@ class GuardRefusesCommandsAndMultiLineTitles(unittest.TestCase):
             self.assertIn("command", str(ctx.exception))
         for payload in ({"description": "see a/b\n\\/close"}, {"description": CODE_STEPS},
                         {"description": "  /reopen"}, {"title": "/api/v2 endpoints return 500", "description": "x"},
-                        {"description": "/etc is full\n/health returns 503"}):
+                        {"description": "/etc is full\n/health returns 503"},
+                        {"title": "/close the old tracker", "description": "x"}):
             with self.subTest(payload=payload):
                 guard.check("PUT", "projects/1/issues/2", payload)
 
@@ -249,6 +250,33 @@ class ValidateRejectsUnsafeText(unittest.TestCase):
         data = example()
         issue(data, "page-build")["detail"] = "Do not write <!-- roadmap:end --> here"
         self.assertIn("marker-text", self.codes(data))
+
+
+class OnlyGitLabHoldsHandText(unittest.TestCase):
+    """GitHub and Forgejo run no commands from a description, so hand text there never holds a write back."""
+
+    def test_command_hold_is_for_gitlab_only(self):
+        from fakeforge import FakeGitHub, github
+
+        hand = "Notes.\n/close\n"
+        gitlab = forge.GitLab(NoWrites({}), host="gitlab.example.com", project="acme/search", group="acme")
+        self.assertIn("/close", forge.command_hold(gitlab, hand))
+        self.assertIsNone(forge.command_hold(github(FakeGitHub()), hand))
+        self.assertIsNone(forge.command_hold(forgejo("forgejo_sync.json"), hand))
+
+    def test_github_publish_updates_an_issue_whose_hand_text_has_a_slash_line(self):
+        from fakeforge import FakeGitHub, github
+
+        fake = FakeGitHub()
+        repo = "example-org/search-service"
+        fake.add_issue(repo, 10, "Better ranking", "Ranking work.")
+        fake.add_issue(repo, 11, "Record which results people open", "Anonymous counts.", state="closed")
+        fake.add_issue(repo, 12, "Rank results by open rate", "Blend.\n/close")
+        report = publish.publish(example(), github(fake), apply=True)
+        self.assertIsNone(report.failed)
+        self.assertEqual([a for a in report.actions if a.kind == "hand-fix"], [])
+        self.assertTrue(fake.issues[(repo, 12)]["body"].startswith("Blend.\n/close"))
+        self.assertIn(blocks.ISSUE_START, fake.issues[(repo, 12)]["body"])
 
 
 if __name__ == "__main__":
