@@ -6,10 +6,9 @@ import re
 import unittest
 
 from helpers import example, fixture
+from roadmaplib import forge, render, sync
 from test_forgejo import forgejo_roadmap
 from test_publish import NoWrites
-
-from roadmaplib import forge, render, sync
 
 
 class FocusableNodesHaveNames(unittest.TestCase):

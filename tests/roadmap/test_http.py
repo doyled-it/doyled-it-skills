@@ -15,7 +15,6 @@ import urllib.request
 from unittest import mock
 
 from helpers import example
-
 from roadmaplib import forge, validate
 
 TOKEN = "s3cret-token-value"

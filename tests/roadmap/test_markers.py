@@ -9,10 +9,9 @@ from __future__ import annotations
 import unittest
 
 from helpers import example, fixture, issue
+from roadmaplib import blocks, forge, model, publish, sync
 from test_publish import NoWrites, Recorder, gitlab_roadmap
 from test_sync import sync_roadmap
-
-from roadmaplib import blocks, forge, model, publish, sync
 
 S, E = blocks.EPIC_START, blocks.EPIC_END
 IS, IE = blocks.ISSUE_START, blocks.ISSUE_END

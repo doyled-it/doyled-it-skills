@@ -12,7 +12,6 @@ from unittest import mock
 
 from fakeforge import FakeGitHub, github
 from helpers import CLI, EXAMPLE, example
-
 from roadmaplib import forge, preview, publish, render
 
 SRI = "sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
@@ -37,7 +36,7 @@ class GuardsRunBeforeTheForge(unittest.TestCase):
         fake.add_issue("example-org/search-service", 12, "Rank results by open rate")
         publish.publish(example(), github(fake), apply=True)
         self.assertTrue(fake.writes)
-        for method, path, body in fake.writes:
+        for method, _path, body in fake.writes:
             self.assertNotEqual(method, "DELETE")
             self.assertNotIn("state", body or {})
         self.assertEqual(fake.issues[("example-org/search-service", 11)]["state"], "closed")

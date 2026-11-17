@@ -10,9 +10,8 @@ import unittest
 from pathlib import Path
 
 from helpers import CLI, FIXTURES, fixture, issue
-from test_publish import NoWrites, gitlab_roadmap
-
 from roadmaplib import forge, orca, sync
+from test_publish import NoWrites, gitlab_roadmap
 
 
 def sync_roadmap() -> dict:

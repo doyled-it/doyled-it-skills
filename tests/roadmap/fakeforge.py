@@ -11,7 +11,6 @@ import copy
 import re
 
 import helpers  # noqa: F401  (puts the roadmap scripts on sys.path)
-
 from roadmaplib import forge
 
 

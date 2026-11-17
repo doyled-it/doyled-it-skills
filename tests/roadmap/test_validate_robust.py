@@ -10,7 +10,6 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from helpers import example, issue
-
 from roadmaplib import cli, render, validate
 
 

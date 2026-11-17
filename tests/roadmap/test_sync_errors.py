@@ -13,10 +13,9 @@ from pathlib import Path
 from unittest import mock
 
 from helpers import CLI, FIXTURES, fixture, issue
+from roadmaplib import cli, forge, orca, sync
 from test_publish import NoWrites, Recorder
 from test_sync import run_sync, sync_roadmap
-
-from roadmaplib import cli, forge, orca, sync
 
 ISSUE12 = "GET projects/acme%2Fsearch/issues/12"
 

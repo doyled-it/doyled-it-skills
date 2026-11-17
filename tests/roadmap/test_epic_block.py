@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import subprocess
 import sys
 import tempfile
@@ -10,10 +9,9 @@ import unittest
 from pathlib import Path
 
 from helpers import CLI, EXAMPLE, example, fixture, issue
+from roadmaplib import blocks, forge, preview, render, sync
 from test_publish import NoWrites, Recorder
 from test_sync import sync_roadmap
-
-from roadmaplib import blocks, forge, preview, render, sync
 
 
 class EpicBlock(unittest.TestCase):
@@ -147,7 +145,8 @@ class PageLinks(unittest.TestCase):
                     "https://github.com/example-org/search-service/pull/21"):           # gate evidence
             self.assertIn(f'href="{url}"', html)
         # Issue boxes in the diagram are links too.
-        self.assertRegex(html, r'<a href="https://github\.com/example-org/search-service/issues/12"[^>]*><g class="node')
+        self.assertRegex(html,
+                         r'<a href="https://github\.com/example-org/search-service/issues/12"[^>]*><g class="node')
         self.assertIn("pipeline success", html)
 
 

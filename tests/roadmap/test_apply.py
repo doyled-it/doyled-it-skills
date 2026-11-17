@@ -12,7 +12,6 @@ from unittest import mock
 
 from fakeforge import FakeGitHub, github
 from helpers import example, issue
-
 from roadmaplib import cli, forge, publish, validate
 
 REPO = "example-org/search-service"

@@ -13,10 +13,10 @@ import unittest
 from unittest import mock
 
 from helpers import example, fixture, issue
-from test_forgejo import forgejo_roadmap, make as forgejo
-from test_publish import NoWrites, gitlab_roadmap
-
 from roadmaplib import blocks, forge, publish, validate
+from test_forgejo import forgejo_roadmap
+from test_forgejo import make as forgejo
+from test_publish import NoWrites, gitlab_roadmap
 
 COMMAND = re.compile(r"^[ \t]*/", re.MULTILINE)
 
@@ -55,7 +55,8 @@ class CommandsAreNeutralized(unittest.TestCase):
         self.check(publish.publish(with_commands(forgejo_roadmap()), forgejo("forgejo_publish.json"), apply=False))
 
     def test_defang_keeps_ordinary_slashes(self):
-        self.assertEqual(blocks.defang("/close\n  /move x\nsee a/b and /usr"), "\\/close\n  \\/move x\nsee a/b and /usr")
+        self.assertEqual(blocks.defang("/close\n  /move x\nsee a/b and /usr"),
+                         "\\/close\n  \\/move x\nsee a/b and /usr")
 
 
 class GuardRefusesCommandsAndMultiLineTitles(unittest.TestCase):

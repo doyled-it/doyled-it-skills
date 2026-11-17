@@ -13,10 +13,9 @@ from __future__ import annotations
 import unittest
 
 from helpers import example, fixture, issue
+from roadmaplib import blocks, forge, publish, sync, validate
 from test_publish import NoWrites, gitlab_roadmap
 from test_sync import sync_roadmap
-
-from roadmaplib import blocks, forge, publish, sync, validate
 
 IS, IE = blocks.ISSUE_START, blocks.ISSUE_END
 ISSUE20 = "GET projects/acme%2Fsearch/issues/20"

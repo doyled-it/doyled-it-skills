@@ -10,7 +10,6 @@ import unittest
 from pathlib import Path
 
 from helpers import CLI, FIXTURES, example, fixture, issue
-
 from roadmaplib import forge, publish
 
 

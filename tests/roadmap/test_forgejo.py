@@ -6,9 +6,8 @@ import unittest
 from unittest import mock
 
 from helpers import example, fixture, issue
-from test_publish import NoWrites
-
 from roadmaplib import blocks, forge, publish, sync, validate
+from test_publish import NoWrites
 
 
 def forgejo_roadmap() -> dict:

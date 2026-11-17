@@ -5,9 +5,8 @@ from __future__ import annotations
 import unittest
 
 from helpers import example, fixture, issue
-from test_publish import NoWrites
-
 from roadmaplib import blocks, forge, model, preview, render, validate
+from test_publish import NoWrites
 
 BAD = "javascript:alert(1)"
 

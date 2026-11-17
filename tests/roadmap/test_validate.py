@@ -10,7 +10,6 @@ import unittest
 from pathlib import Path
 
 from helpers import CLI, EXAMPLE, SCHEMA, example, issue
-
 from roadmaplib import model, validate
 
 

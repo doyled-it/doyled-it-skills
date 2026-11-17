@@ -291,7 +291,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             report.drift.append(Drift("marker-problem", fi["ref"], f"{exc}. Its gate checklist was not read"))
         ticks = blocks.ticked_gates(fi["body"])
         merged = [m for m in linked if m["state"] == "merged"]
-        on_forge = sorted(g["gate"] for g in it["gates"] if not g["passed"] and g["gate"] in lead and g["gate"] in ticks)
+        on_forge = sorted(g["gate"] for g in it["gates"]
+                          if not g["passed"] and g["gate"] in lead and g["gate"] in ticks)
         if on_forge:
             report.drift.append(Drift("lead-gate-ticked-on-forge", iid,
                                       f'{" ".join(on_forge)} ticked on {fi["ref"]}; the lead\'s approval counts only '
