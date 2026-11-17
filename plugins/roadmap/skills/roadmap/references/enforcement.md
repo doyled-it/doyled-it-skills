@@ -75,8 +75,10 @@ someone else opened is left alone. Text outside the marker block does not
 matter: a note a person adds there is kept, and so is an intro worded by an
 older release, and neither leads to a second issue. When the token's user has
 several such issues (another workflow can open issues under the same bot
-user), the one holding only the tool's text is kept current, else the oldest,
-and a note names the count. `--apply` stops, and creates nothing, if the forge will
+user), the oldest is kept current, even after a person adds a note to it, so a
+later copy never displaces it. One note names every other open "Roadmap drift"
+issue, whoever opened it, so one left behind by a token change or a broken
+marker stays visible. `--apply` stops, and creates nothing, if the forge will
 not say whose token it is. The one exception is the GitHub Actions workflow
 token: GitHub answers its `GET /user` with 403 "Resource not accessible by
 integration", and its issues are by `github-actions[bot]`; a rate limit, a

@@ -46,6 +46,15 @@ def run(data, fake, apply=True):
     return driftissue.run(data, fg, report, apply=apply, today=NOW)
 
 
+def run_listed(data, fake, listed, apply=True):
+    """run(), with the forge's issue list passed through listed (to try another order)."""
+    fg = github(fake)
+    report = sync.sync(data, fg, orca_tasks=None, now=NOW)
+    every = fg.all_issues
+    with mock.patch.object(fg, "all_issues", lambda project: listed(every(project))):
+        return driftissue.run(data, fg, report, apply=apply, today=NOW)
+
+
 def drift_issues(fake):
     return [d for d in fake.issues.values() if d["title"] == "Roadmap drift"]
 
@@ -223,17 +232,32 @@ class FoundByItsMarkers(unittest.TestCase):
             run(quiet(), fake)
         self.assertEqual([d["state"] for d in drift_issues(fake)], ["closed"])
 
-    def test_the_tools_own_text_is_kept_current_before_a_copy(self):
-        """Two of the user's issues carry the markers: the one holding only the tool's text wins, in any order."""
+    def test_the_oldest_is_kept_current_whatever_order_the_forge_lists_them(self):
+        """Two of the user's issues with only the tool's text: the earlier one wins, never the later copy."""
         own = driftissue.skeleton("- **old** item: gone")
-        for numbers in ((50, 51), (51, 50)):
-            with self.subTest(numbers=numbers):
+        for listed in (lambda xs: xs, lambda xs: list(reversed(xs))):
+            with self.subTest(reversed=listed([1, 2]) == [2, 1]):
                 fake = fresh_forge()
-                fake.add_issue(REPO, numbers[0], "Roadmap drift", "Copied by another workflow.\n\n" + own)
-                fake.add_issue(REPO, numbers[1], "Roadmap drift", own)
-                result = run(drifting(), fake)
-                self.assertEqual([a.detail.split(",")[0] for a in result.actions], [f"{REPO}#{numbers[1]}"])
-                self.assertEqual(fake.issues[(REPO, numbers[0])]["body"], "Copied by another workflow.\n\n" + own)
+                fake.add_issue(REPO, 50, "Roadmap drift", own)
+                fake.add_issue(REPO, 51, "Roadmap drift", own)
+                result = run_listed(drifting(), fake, listed)
+                self.assertEqual([a.detail.split(",")[0] for a in result.actions], [f"{REPO}#50"])
+                self.assertEqual(fake.issues[(REPO, 51)]["body"], own)
+
+    def test_a_later_word_for_word_copy_never_displaces_an_issue_a_person_added_to(self):
+        """A person's note on the tool's issue does not hand it over to a newer copy by the same user."""
+        own = driftissue.skeleton("- **old** item: gone")
+        noted = "Discussed on Monday.\n\n" + own
+        fake = fresh_forge()
+        fake.add_issue(REPO, 13, "Roadmap drift", noted)
+        fake.add_issue(REPO, 97, "Roadmap drift", own)
+        result = run(drifting(), fake)
+        self.assertEqual([a.detail.split(",")[0] for a in result.actions], [f"{REPO}#13"])
+        self.assertEqual(fake.issues[(REPO, 97)]["body"], own)
+        self.assertTrue(fake.issues[(REPO, 13)]["body"].startswith("Discussed on Monday."))
+        run(quiet(), fake)
+        self.assertEqual(fake.issues[(REPO, 13)]["state"], "closed")
+        self.assertEqual(fake.issues[(REPO, 97)]["state"], "open")
 
     def test_the_tools_own_text_is_adopted(self):
         fake = fresh_forge()
@@ -250,6 +274,60 @@ class FoundByItsMarkers(unittest.TestCase):
         with self.assertRaises(forge.ForgeError):
             fg.close_drift_issue(fg.get_issue(f"{REPO}#41"), author="roadmap-bot")
         self.assertEqual(fake.issues[(REPO, 41)]["state"], "open")
+
+
+class LeftoversAreNamed(unittest.TestCase):
+    """Every open "Roadmap drift" issue that is not the one kept current is named in one note."""
+
+    @staticmethod
+    def leftover_notes(result):
+        return [n for n in result.notes if "not kept current" in n]
+
+    def test_one_note_names_every_other_open_drift_issue_whoever_opened_it(self):
+        own = driftissue.skeleton("- **old** item: gone")
+        fake = fresh_forge()
+        fake.add_issue(REPO, 13, "Roadmap drift", own)
+        fake.add_issue(REPO, 20, "Roadmap drift", own, author="old-token-user")
+        fake.add_issue(REPO, 21, "Roadmap drift", own.replace(blocks.DRIFT_END, ""))
+        fake.add_issue(REPO, 22, "Roadmap drift", "Hand written, no markers.", author="stranger")
+        fake.add_issue(REPO, 23, "Roadmap drift", own)
+        fake.add_issue(REPO, 24, "Roadmap drift", own, state="closed")
+        result = run(drifting(), fake)
+        self.assertEqual([a.detail.split(",")[0] for a in result.actions], [f"{REPO}#13"])
+        notes = self.leftover_notes(result)
+        self.assertEqual(len(notes), 1, result.notes)
+        for n in (20, 21, 22, 23):
+            self.assertIn(f"{REPO}#{n}", notes[0])
+        self.assertNotIn(f"{REPO}#13", notes[0])
+        self.assertNotIn(f"{REPO}#24", notes[0])
+        self.assertEqual(len([n for n in result.notes if f"{REPO}#23" in n]), 1, result.notes)
+
+    def test_a_token_change_names_the_issue_left_behind(self):
+        """The old token's issue cannot be kept current, so a new one is opened and the old one named."""
+        fake = fresh_forge()
+        run(drifting(), fake)
+        old = drift_issues(fake)[0]["number"]
+        fake.me = "new-token-user"
+        result = run(drifting(), fake)
+        self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
+        notes = self.leftover_notes(result)
+        self.assertEqual(len(notes), 1, result.notes)
+        self.assertIn(f"{REPO}#{old}", notes[0])
+
+    def test_a_broken_marker_names_the_issue_left_behind(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        mine = drift_issues(fake)[0]
+        mine["body"] = mine["body"].replace(blocks.DRIFT_END, "")
+        result = run(drifting(), fake)
+        self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
+        self.assertIn(f"{REPO}#{mine['number']}", " ".join(self.leftover_notes(result)))
+
+    def test_no_note_when_there_is_nothing_left_over(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        self.assertEqual(self.leftover_notes(run(drifting(), fake)), [])
+        self.assertEqual(self.leftover_notes(run(quiet(), fake)), [])
 
 
 class HandTextOnGitLab(unittest.TestCase):

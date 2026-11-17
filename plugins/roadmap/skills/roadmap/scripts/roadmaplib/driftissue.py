@@ -6,8 +6,9 @@ its marker block and its author, the token's own user: anyone can copy the
 title and the markers, but not the author. Text outside the block is kept as it
 is and does not matter, so a person's note there, or an intro worded by an
 older release, never leads to a second issue. When the token's user has several
-such issues, the one holding only the tool's text is kept current, else the
-oldest. It is the only issue the tool ever closes, and the close re-reads the
+such issues, the oldest is kept current, whatever text is outside its markers,
+and one note names every other open issue with that title, whoever opened it.
+It is the only issue the tool ever closes, and the close re-reads the
 issue and checks its title, marker block and author first. When the sync report
 is incomplete (a forge call failed), nothing is written: an incomplete report
 must not close the issue or rewrite it.
@@ -58,16 +59,25 @@ def section(report, today: str) -> str:
     return "\n".join(lines)
 
 
-def _mine(issues: list[dict], me: str | None) -> list[dict]:
-    """Open drift issues the token's user opened: the tool's own text first, then the oldest.
+def _number(issue: dict) -> float:
+    n = issue.get("number")
+    return n if isinstance(n, int) else float("inf")
 
-    A copy opened later under the same user, with text of its own, never
-    displaces the issue the tool keeps.
+
+def _mine(issues: list[dict], me: str | None) -> list[dict]:
+    """Open drift issues the token's user opened, oldest first.
+
+    A copy opened later under the same user never displaces the issue the tool
+    keeps, even a word-for-word copy when a person has added a note to the
+    original.
     """
-    def order(i):
-        n = i.get("number")
-        return (not forge.only_tool_text(i.get("body") or ""), n if isinstance(n, int) else float("inf"))
-    return sorted((i for i in issues if forge.is_drift_issue(i, me)), key=order)
+    return sorted((i for i in issues if forge.is_drift_issue(i, me)), key=_number)
+
+
+def _leftovers(issues: list[dict], current: dict | None) -> list[dict]:
+    """Every open issue titled like the drift issue, whoever opened it, that is not the one kept current."""
+    return sorted((i for i in issues if i is not current and i.get("state") == "open"
+                   and blocks.one_line(i.get("title")) == TITLE), key=_number)
 
 
 def _me(fg) -> str | None:
@@ -94,10 +104,12 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
                             "trusted; with --apply this stops")
     issues = fg.all_issues(project)
     open_ones = _mine(issues, me)
-    if len(open_ones) > 1:
-        result.notes.append(f'{len(open_ones)} open "{TITLE}" issues carry the marker; only '
-                            f'{open_ones[0]["ref"]} is kept current; close the others by hand')
     current = open_ones[0] if open_ones else None
+    others = _leftovers(issues, current)
+    if others:
+        result.notes.append(f'open "{TITLE}" issues not kept current by this tool: '
+                            f'{", ".join(str(i.get("ref")) for i in others)}; close them by hand if they are '
+                            "left over")
     if current and not forge.only_tool_text(current.get("body") or ""):
         result.notes.append(f"{current['ref']} has text outside its marker block that this tool did not write; "
                             "it is kept as it is, and only the text between the markers changes")

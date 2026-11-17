@@ -132,7 +132,9 @@ closes: the close re-reads the issue and requires that title, the marker
 block and the token's own user as author, and the write guard accepts only a
 bare close. An issue a person titled "Roadmap drift" without the marker is
 never touched. Text outside the marker block is kept as it is and does not
-change which issue is the drift issue. When a forge call fails,
+change which issue is the drift issue. When the token's user has several, the
+oldest is kept current, and one note names every other open issue titled
+"Roadmap drift", whoever opened it. When a forge call fails,
 the report is incomplete and the drift issue is left as it is (exit 1). Takes
 the Orca and forge options of `sync`. The scheduled pipelines run it; see
 [enforcement.md](enforcement.md).
