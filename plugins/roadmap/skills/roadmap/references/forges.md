@@ -116,7 +116,24 @@ GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
   read `FORGEJO_TOKEN`, `CODEBERG_TOKEN` or `GITEA_TOKEN` from the environment at
   call time. The token is never stored, printed or logged.
 
-Every write passes a guard that refuses any delete and any close.
+Every write passes a guard that refuses any delete, any close, and any title
+that is not one line.
+
+### Forge commands in written text
+
+GitLab runs a line that starts with `/` in an issue or epic description as a
+quick action (`/close`, `/move`, `/label`), also when the description is written
+through the API. Everything the tool writes is neutralized first: such a line is
+written as `\/close`, which shows as `/close` and runs nothing. Titles and names
+are written on one line, and the text they carry into a generated section is
+escaped, so it cannot add a link, a hidden comment, a marker or a task list line.
+`validate` rejects control characters in titles and names and marker text
+anywhere. On GitLab the guard also refuses to write a description that still has
+a line starting with `/` (for example in hand-written text outside the markers);
+escape that line by hand. GitHub and Forgejo have no command syntax in issue
+descriptions (GitHub's slash commands work only in its web editor; closing
+keywords act only from commits and pull requests), so their guard checks titles
+only, while the written text is neutralized the same way on every forge.
 
 ## What each command calls
 

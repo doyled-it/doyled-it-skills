@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from . import model
+from . import blocks, model
 
 READABLE_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 # Codes such as A1, T1.1, E1.4 or TE2 used instead of a readable name.
@@ -161,6 +161,18 @@ def check(raw: dict) -> list[Finding]:
             if m:
                 warn("glossary-term", where, f'uses "{m.group(0)}"; the glossary word is "{word}"')
 
+    # Text the tool writes to the forge: one-line fields stay on one line, and
+    # no field may carry text that looks like a generated-section marker.
+    for where, text, multiline in _text_fields(data):
+        bad = blocks.CONTROL.findall(text.replace("\n", "").replace("\t", "") if multiline else text)
+        if bad:
+            err("control-character", where, "must be one line with no control characters" if not multiline
+                else "has a control character other than a line break or tab")
+    for where, text in _all_strings(raw, "roadmap"):
+        if blocks.LOOSE_MARKER.search(text):
+            err("marker-text", where, "holds text that looks like a generated-section marker (<!-- roadmap: ...); "
+                "remove it")
+
     # Warnings about the state of the work.
     for iid, it in items.items():
         if it.get("status") == "done" and model.open_gates(it):
@@ -227,3 +239,47 @@ def _strings(data: dict):
     for n, ev in enumerate(data.get("timeline", [])):
         if isinstance(ev, dict) and isinstance(ev.get("text"), str):
             yield f"timeline[{n}]", ev["text"]
+
+
+SINGLE_TOP = ("title", "version", "date", "agreed_by", "page_url")
+MULTI_TOP = ("goal", "rule")
+
+
+def _text_fields(data: dict):
+    """Every string the tool may write, as (where, text, may span lines)."""
+    for key in SINGLE_TOP + MULTI_TOP:
+        if isinstance(data.get(key), str):
+            yield key, data[key], key in MULTI_TOP
+    for letter, text in (data.get("gates") or {}).items():
+        if isinstance(text, str):
+            yield f"gates.{letter}", text, False
+    for ep in data.get("epics", []):
+        if not isinstance(ep, dict):
+            continue
+        for key, value in ep.items():
+            if isinstance(value, str):
+                yield f"epics[{ep.get('id')}].{key}", value, key == "note"
+    for it in data.get("issues", []):
+        if not isinstance(it, dict):
+            continue
+        for key, value in it.items():
+            if isinstance(value, str):
+                yield f"issues[{it.get('id')}].{key}", value, key == "detail"
+        for n, lk in enumerate(it.get("links") or []):
+            for key, value in (lk.items() if isinstance(lk, dict) else [("url", lk)]):
+                if isinstance(value, str):
+                    yield f"issues[{it.get('id')}].links[{n}].{key}", value, False
+    for n, ev in enumerate(data.get("timeline", [])):
+        if isinstance(ev, dict) and isinstance(ev.get("text"), str):
+            yield f"timeline[{n}]", ev["text"], True
+
+
+def _all_strings(value, where: str):
+    if isinstance(value, str):
+        yield where, value
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            yield from _all_strings(v, f"{where}.{k}")
+    elif isinstance(value, list):
+        for n, v in enumerate(value):
+            yield from _all_strings(v, f"{where}[{n}]")

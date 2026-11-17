@@ -34,7 +34,16 @@ class NotFound(ForgeError):
 
 
 class WriteGuard:
-    """publish may create and update, never close or delete."""
+    """publish may create and update, never close or delete, and never run forge commands.
+
+    commands=True (GitLab) also refuses any text with a line that starts with
+    "/": GitLab runs such a line in a description as a quick action (/close,
+    /move ...), even through the API. GitHub and Forgejo have no such syntax in
+    issue descriptions. Every forge refuses a title that is not one line.
+    """
+
+    def __init__(self, commands: bool = True):
+        self.commands = commands
 
     def check(self, method: str, path: str, body) -> None:
         if method.upper() == "DELETE":
@@ -42,6 +51,16 @@ class WriteGuard:
         text = json.dumps(body or {})
         if '"state_event"' in text or re.search(r'"state":\s*"closed"', text):
             raise ForgeError(f"refusing to close anything on the forge: {path}")
+        if not isinstance(body, dict):
+            return
+        title = body.get("title")
+        if isinstance(title, str) and blocks.CONTROL.search(title):
+            raise ForgeError(f"refusing a title that is not one line: {path}")
+        if self.commands:
+            for key, value in body.items():
+                if isinstance(value, str) and blocks.COMMAND_LINE.search(value):
+                    raise ForgeError(f"refusing to write {key} with a line starting with / that GitLab would run "
+                                     f"as a command (quick action): {path}. Escape it as \\/ by hand")
 
 
 # --- transports -------------------------------------------------------------
@@ -78,7 +97,7 @@ class CliTransport:
         self.tool = "glab" if kind == "gitlab" else "gh"
         if not shutil.which(self.tool):
             raise ForgeError(f"{self.tool} is not installed; it is needed to reach {kind}")
-        self.guard = WriteGuard()
+        self.guard = WriteGuard(commands=kind == "gitlab")
 
     def _run(self, args: list[str], body=None):
         cmd = [self.tool, "api"]
@@ -134,7 +153,7 @@ class HttpTransport:
 
     def __init__(self, host: str | None):
         self.base = f"https://{host or 'codeberg.org'}/api/v1/"
-        self.guard = WriteGuard()
+        self.guard = WriteGuard(commands=False)
 
     def __repr__(self) -> str:
         return f"HttpTransport({self.base!r})"

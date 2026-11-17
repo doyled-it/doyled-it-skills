@@ -30,6 +30,50 @@ MERMAID_STYLE = {
 }
 
 
+# A line GitLab would run as a quick action (/close, /move ...), and control
+# characters that would let one field spill onto another line.
+COMMAND_LINE = re.compile(r"^([ \t]*)/", re.MULTILINE)
+CONTROL = re.compile(r"[\x00-\x1f\x7f\u2028\u2029]")
+FENCE_OR_LIST = re.compile(r"^([ \t]*)(```|~~~|#{1,6} |[-*+] \[)", re.MULTILINE)
+
+
+def defang(text: str) -> str:
+    """Escape the slash of every line that starts with one, so no forge runs it as a command.
+
+    Markdown shows "\\/close" as "/close"; GitLab no longer sees a quick action.
+    """
+    return COMMAND_LINE.sub(lambda m: m.group(1) + "\\/", str(text or ""))
+
+
+def one_line(text) -> str:
+    """Text with every control character and line break turned into a single space."""
+    return re.sub(r"\s+", " ", CONTROL.sub(" ", str(text if text is not None else ""))).strip()
+
+
+def md_inline(text) -> str:
+    """One line of plain text, safe inside a table cell, a list item or a heading.
+
+    Markdown link, code and table syntax is escaped and angle brackets become
+    entities, so a title cannot add a link, a hidden comment or a marker.
+    """
+    out = one_line(text).replace("\\", "\\\\")
+    for ch in "`[]|":
+        out = out.replace(ch, "\\" + ch)
+    return out.replace("<", "&lt;").replace(">", "&gt;")
+
+
+def md_block(text) -> str:
+    """Several lines of plain text, safe as paragraphs inside a generated section.
+
+    Lines cannot run forge commands, open a code fence, start a heading or a
+    task list line, or hold HTML (and so no hidden comment or marker).
+    """
+    lines = [CONTROL.sub(" ", ln) for ln in str(text or "").replace("\r\n", "\n").split("\n")]
+    out = "\n".join(ln.rstrip() for ln in lines).replace("<", "&lt;").replace(">", "&gt;")
+    out = FENCE_OR_LIST.sub(lambda m: m.group(1) + "\\" + m.group(2), out)
+    return defang(out)
+
+
 class MarkerError(Exception):
     """A description's markers are not one well-formed pair; nothing is written."""
 
@@ -135,10 +179,10 @@ def merged_gates(it: dict, forge_body: str) -> list[dict]:
 
 def issue_block(data: dict, it: dict, gates: list[dict], epic_name: str) -> str:
     deps = ", ".join(f"`{d}`" for d in it["depends_on"]) or "nothing"
-    lines = [f"Roadmap issue `{it['id']}` in epic **{epic_name}** ({data['title']}, {data.get('version', '')}). "
-             f"Depends on: {deps}.", "", "### Gates", ""]
+    lines = [f"Roadmap issue `{it['id']}` in epic **{md_inline(epic_name)}** ({md_inline(data['title'])}, "
+             f"{md_inline(data.get('version', ''))}). Depends on: {deps}.", "", "### Gates", ""]
     for g in gates:
-        meaning = data["gates"].get(g["gate"], "")
+        meaning = md_inline(data["gates"].get(g["gate"], ""))
         tail = f" ({g['evidence']})" if g.get("passed") and g.get("evidence") else ""
         lines.append(f"- [{'x' if g['passed'] else ' '}] {g['gate']}: {meaning}{tail}")
     lines += ["", "_This section is generated from the roadmap; edit the roadmap, not this section._"]
@@ -156,7 +200,8 @@ def _node_id(iid: str) -> str:
 
 def _mm(text: str) -> str:
     """Text safe inside a quoted Mermaid label."""
-    return str(text).replace('"', "'").replace("<", "(").replace(">", ")").replace("#", "#35;")
+    return one_line(text).replace('"', "'").replace("<", "(").replace(">", ")").replace("#", "#35;").replace(
+        "`", "'")
 
 
 def _gate_words(it: dict) -> str:
@@ -172,7 +217,7 @@ def _gate_words(it: dict) -> str:
 
 def _issue_link(it: dict) -> str:
     if it.get("url"):
-        return f"[{it.get('ref') or it['id']}]({it['url']})"
+        return f"[{md_inline(it.get('ref') or it['id'])}]({it['url']})"
     return f"`{it['id']}` (not on the forge yet)"
 
 
@@ -197,10 +242,10 @@ def epic_block(raw: dict, epic_id: str, task_list: bool = False) -> str:
             outside.append(it)
 
     page = data.get("page_url")
-    version = f"{data['title']}, {data.get('version', '')}, {data.get('date', '')}"
+    version = md_inline(f"{data['title']}, {data.get('version', '')}, {data.get('date', '')}")
     head = (f"**Roadmap:** [{version}]({page})" if page
             else f"**Roadmap:** {version}. The full roadmap page is kept by the program lead.")
-    lines = [head, "", f"{epic.get('note', '')}".strip(), "", "```mermaid", "flowchart LR"]
+    lines = [head, "", md_block(epic.get("note", "")).strip(), "", "```mermaid", "flowchart LR"]
 
     def node(it, prefix=""):
         status = model.STATUSES[it["status"]]
@@ -237,14 +282,14 @@ def epic_block(raw: dict, epic_id: str, task_list: bool = False) -> str:
         passed = " ".join(g["gate"] for g in it["gates"] if g["passed"]) or "none"
         total = " ".join(g["gate"] for g in it["gates"]) or "none"
         deps = ", ".join(_issue_link(items[d]) if items[d].get("url") else f"`{d}`" for d in it["depends_on"]) or "nothing"
-        lines.append(f"| {_issue_link(it)} | {it['title'].replace('|', '/')} | {model.STATUSES[it['status']]} | "
+        lines.append(f"| {_issue_link(it)} | {md_inline(it['title'])} | {model.STATUSES[it['status']]} | "
                      f"{passed} of {total} | {deps} |")
     if task_list:
         lines += ["", "### Issues in this epic", ""]
         for it in mine:
             tick = "x" if it["status"] == "done" else " "
             name = it.get("ref") or f"{it['id']} (not on the forge yet)"
-            lines.append(f"- [{tick}] {name} {it['title']}")
+            lines.append(f"- [{tick}] {name} {md_inline(it['title'])}")
     lines += ["", "_This section is generated from the roadmap; edit the roadmap, not this section._"]
     return "\n".join(lines)
 
@@ -254,11 +299,11 @@ def epic_body(raw: dict, epic_id: str, forge_body: str, task_list: bool = False)
 
 
 def epic_members(body: str) -> set[str]:
-    """Issue references listed in an epic block's task list."""
-    m = re.search(re.escape(EPIC_START) + r"(.*?)" + re.escape(EPIC_END), body or "", re.DOTALL)
-    if not m:
+    """Issue references listed in the task list of an epic's one well-formed block."""
+    content = block_content(body or "", EPIC_START, EPIC_END)
+    if content is None:
         return set()
-    section = m.group(1).split("### Issues in this epic", 1)
+    section = ("\n" + content).rsplit("\n### Issues in this epic\n", 1)
     if len(section) < 2:
         return set()
     return set(re.findall(r"^- \[[ xX]\] ([\w.-]+/[\w.-]+#\d+)", section[1], re.MULTILINE))

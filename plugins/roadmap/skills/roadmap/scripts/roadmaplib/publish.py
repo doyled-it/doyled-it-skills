@@ -109,9 +109,10 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
             _write_back(raw_epics[ep["id"]], match)
             report.changed = True
             continue
-        report.add("create-epic", ep["id"], f'new {fg.epic_word} "{ep["name"]}"')
+        first_body = blocks.md_block(ep.get("note", "")).strip()
+        report.add("create-epic", ep["id"], f'new {fg.epic_word} "{blocks.one_line(ep["name"])}"', body=first_body)
         if apply:
-            created = fg.create_epic(ep["name"], ep.get("note", ""))
+            created = fg.create_epic(blocks.one_line(ep["name"]), first_body)
             _write_back(raw_epics[ep["id"]], created)
             epics[ep["id"]] = created
             report.changed = True
@@ -140,10 +141,11 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
                 _write_back(raw_issues[iid], match)
                 report.changed = True
             else:
-                body = blocks.issue_body(data, it, it["detail"], epic_name)
-                report.add("create-issue", iid, f'"{it["title"]}" in {project}, epic "{epic_name}"', body=body)
+                body = blocks.issue_body(data, it, blocks.defang(it["detail"]), epic_name)
+                title = blocks.one_line(it["title"])
+                report.add("create-issue", iid, f'"{title}" in {project}, epic "{epic_name}"', body=body)
                 if apply:
-                    fi = fg.create_issue(project, it["title"], body, epic if not epic.get("new") else None)
+                    fi = fg.create_issue(project, title, body, epic if not epic.get("new") else None)
                     _write_back(raw_issues[iid], fi)
                     fresh.add(iid)
                     report.changed = True
@@ -205,7 +207,8 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
     for ep in data["epics"]:
         e = epics[ep["id"]]
         try:
-            body = blocks.epic_body(out, ep["id"], e.get("body") or ep.get("note", ""), task_list=not native_epics)
+            start = e.get("body") or blocks.md_block(ep.get("note", "")).strip()
+            body = blocks.epic_body(out, ep["id"], start, task_list=not native_epics)
         except blocks.MarkerError as exc:
             report.add("hand-fix", ep["id"], f'{e.get("ref")}: {exc}')
             continue
