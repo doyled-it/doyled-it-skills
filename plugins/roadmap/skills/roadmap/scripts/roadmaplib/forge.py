@@ -618,12 +618,32 @@ class Forgejo(GitHub):
         return {k: issue[k] for k in ("ref", "url", "id", "number", "title", "body")}
 
     def epic_issues(self, epic: dict) -> list[dict]:
+        """The parent's generated task list, plus every issue that mentions the parent issue.
+
+        The task list is rewritten from the roadmap on every write, so a person
+        adds an issue to a Forgejo epic by mentioning the parent from it ("Part
+        of #10"); sync then reports it until the roadmap lists it.
+        """
         out = []
         for ref in sorted(blocks.epic_members(epic.get("body") or "")):
             try:
                 out.append(self.get_issue(ref))
             except NotFound:
                 continue
+        project = epic["ref"].rsplit("#", 1)[0]
+        try:
+            events = self.t.get_all(f"repos/{project}/issues/{epic['number']}/timeline")
+        except NotFound:
+            events = []
+        seen = {i["ref"] for i in out}
+        for ev in events:
+            src = ev.get("ref_issue") or {}
+            if not src.get("number") or src.get("pull_request"):
+                continue
+            issue = self._issue(src, project)
+            if issue["ref"] not in seen:
+                seen.add(issue["ref"])
+                out.append(issue)
         return out
 
     def _pr(self, d: dict, project: str) -> dict:

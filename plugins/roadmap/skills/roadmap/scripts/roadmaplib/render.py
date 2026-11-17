@@ -106,7 +106,7 @@ def _svg(data: dict, items: dict) -> str:
         return LABEL_W + 26 + c * COL_W, lane_top[items[iid]["epic"]] + LANE_PAD + r * (NODE_H + ROW_GAP)
 
     out = [f'<svg class="flow" viewBox="0 0 {total_w} {total_h}" width="100%" '
-           f'preserveAspectRatio="xMinYMin meet" style="min-width:{total_w}px" role="img" '
+           f'preserveAspectRatio="xMinYMin meet" style="min-width:{total_w}px" role="group" '
            f'aria-label="Roadmap flow: {len(data["epics"])} epics as lanes, {len(items)} issues as boxes, '
            f'arrows show what each issue depends on. The tables below list the same information.">',
            '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" '
@@ -140,12 +140,15 @@ def _svg(data: dict, items: dict) -> str:
         gates_text = ", ".join(f'{g["gate"]} {"passed" if g["passed"] else "open"}' for g in it["gates"]) or "none"
         deps_text = ", ".join(it["depends_on"]) or "nothing"
         url = model.safe_url(it.get("url"))
+        name = (f'{model.label(it)}: {it["title"]}. {it["detail"]}. Status {status}. '
+                f'Depends on {deps_text}. Gates: {gates_text}.')
+        # A keyboard stop always has a role and a name: a link for a published
+        # issue, otherwise a named image of the box.
         if url:
-            out.append(f'<a href="{esc(url)}">')
-        focus = "" if url else ' tabindex="0"'
+            out.append(f'<a href="{esc(url)}" aria-label="{esc(name)}">')
+        focus = "" if url else f' tabindex="0" role="img" aria-label="{esc(name)}"'
         out.append(f'<g class="node {model.STATUS_CLASS[it["status"]]}"{focus}>'
-                   f'<title>{esc(model.label(it))}: {esc(it["title"])}. {esc(it["detail"])}. Status {esc(status)}. '
-                   f'Depends on {esc(deps_text)}. Gates: {esc(gates_text)}.</title>')
+                   f'<title>{esc(name)}</title>')
         out.append(f'<rect class="box" x="{x}" y="{y}" width="{NODE_W}" height="{NODE_H}" rx="10"/>')
         out.append(f'<rect class="stripe" x="{x}" y="{y}" width="6" height="{NODE_H}" rx="3"/>')
         out.append(f'<text class="nid" x="{x + 18}" y="{y + 24}">{esc(clip(model.label(it), 26))}</text>')

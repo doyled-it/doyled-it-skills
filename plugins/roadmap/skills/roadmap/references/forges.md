@@ -45,8 +45,12 @@ Codeberg's live API description (`https://codeberg.org/swagger.v1.json`, Forgejo
 So for Forgejo, Gitea and Codeberg an epic is a **parent issue**: an ordinary
 issue named after the epic whose generated section holds the flowchart, the
 status table and a task list of the epic's issues. That task list is the
-membership: `publish` writes it, and `sync` reads it to find open issues in the
-epic that the roadmap does not list. Status is derived from issue state and
+membership: `publish` writes it from the roadmap, and every write replaces it,
+so a line someone adds to it by hand does not last. To put a new issue in a
+Forgejo epic, mention the parent issue from it (for example "Part of #10"):
+`sync` reads the parent's timeline as well as its task list and reports open
+issues found either way that the roadmap does not list, until the roadmap
+lists them. Status is derived from issue state and
 pull requests, as on the other forges. With `"pin_epics": true` in `forge`,
 `publish` also pins each parent issue on the repository's issue list
 (`POST repos/:o/:r/issues/:n/pin`, after `GET repos/:o/:r/new_pin_allowed`

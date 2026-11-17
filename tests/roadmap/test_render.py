@@ -62,7 +62,7 @@ class RenderStructure(unittest.TestCase):
         nodes = self.doc.having("g", "node")
         self.assertEqual(len(nodes), 8)
         # Published issues are links (focusable); the rest take a tab stop of their own.
-        linked = len(re.findall(r'<a href="[^"]+"><g class="node', self.html))
+        linked = len(re.findall(r'<a href="[^"]+"[^>]*><g class="node', self.html))
         self.assertEqual(linked, 2)
         self.assertEqual(sum(1 for n in nodes if n.get("tabindex") == "0"), 8 - linked)
         classes = {c for n in nodes for c in n["class"].split()}
@@ -118,7 +118,7 @@ class RenderStructure(unittest.TestCase):
     def test_light_and_dark_and_accessible(self):
         self.assertIn("prefers-color-scheme: dark", self.html)
         svg = self.doc.having("svg", "flow")[0]
-        self.assertEqual(svg.get("role"), "img")
+        self.assertEqual(svg.get("role"), "group")
         self.assertTrue(svg.get("aria-label"))
         self.assertEqual(self.html.count("<title>"), 1 + 8)  # page title + one per node
 
