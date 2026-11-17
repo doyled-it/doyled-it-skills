@@ -752,8 +752,11 @@ def from_args(data: dict, args) -> GitLab | GitHub:
         kind, host = detect_from_remote(getattr(args, "repo", "."))
         cfg.setdefault("host", host)
     if getattr(args, "recorded", None):
-        with open(args.recorded) as fh:
-            transport = RecordedTransport(json.load(fh))
+        try:
+            with open(args.recorded) as fh:
+                transport = RecordedTransport(json.load(fh))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ForgeError(f"recorded responses {args.recorded} could not be read: {exc}") from None
     elif forge_class(kind) is Forgejo:
         transport = HttpTransport(cfg.get("host"))
     else:

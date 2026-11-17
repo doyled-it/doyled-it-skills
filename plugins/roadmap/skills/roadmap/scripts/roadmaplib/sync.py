@@ -200,11 +200,22 @@ RANK = {"to_do": 0, "blocked": 1, "in_progress": 2, "in_review": 3, "done": 4}
 
 
 def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None = None,
-         update_epics: bool = False) -> SyncReport:
+         update_epics: bool = False, only: set[str] | None = None) -> SyncReport:
+    """Read the forge and Orca and report status, gate evidence and drift.
+
+    only limits the run to those roadmap issues and skips the epic, open merge
+    request and Orca checks: a fast check of the work at hand (the agent hooks
+    use it). It cannot be combined with update_epics.
+    """
+    if only is not None and update_epics:
+        raise SyncRefused("--only checks a few issues; it cannot rewrite epics")
     findings = validate.errors(validate.check(raw))
     structural = [f for f in findings if f.code in render.BLOCKING]
     if structural:
         raise SyncRefused("fix these first:\n" + "\n".join(str(f) for f in structural))
+    unknown = sorted((only or set()) - {i.get("id") for i in raw.get("issues", []) if isinstance(i, dict)})
+    if unknown:
+        raise SyncRefused(f"not issues on the roadmap: {', '.join(unknown)}")
     if update_epics and not raw.get("agreed"):
         raise SyncRefused("--update-epics writes to the forge, and this roadmap is a draft; "
                           'set "agreed": true once the program lead agrees it')
@@ -239,6 +250,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     roadmap_refs = {it["ref"]: iid for iid, it in items.items() if it.get("ref")}
 
     for iid, it in items.items():
+        if only is not None and iid not in only:
+            continue
         if not it.get("ref"):
             report.drift.append(Drift("not-published", iid, "has nothing behind it on the forge yet; "
                                       "publish the agreed roadmap or link the existing issue"))
@@ -328,6 +341,9 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         if it["status"] in model.ACTIVE and not mrs and tasks is not None and iid not in task_issue.values():
             report.drift.append(Drift("nothing-behind", iid,
                                       f"{model.STATUSES[it['status']]} but no merge request and no Orca task"))
+
+    if only is not None:
+        return report
 
     # Epics: open issues the roadmap does not list, and the generated section.
     native = getattr(fg, "native_epics", True)

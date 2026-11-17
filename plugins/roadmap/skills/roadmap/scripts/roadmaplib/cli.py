@@ -101,8 +101,9 @@ def cmd_sync(args) -> int:
         return 2
     tasks = orca.tasks_from_args(data, args)
     try:
+        only = {x.strip() for x in args.only.split(",") if x.strip()} if args.only else None
         report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now,
-                           update_epics=args.update_epics)
+                           update_epics=args.update_epics, only=only)
     except (sync.SyncRefused, forge.ForgeError) as exc:
         print(f"error: {exc}")
         return 2
@@ -235,6 +236,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--orca-run", help="Orca run id to read tasks from (default: roadmap orca.run)")
     s.add_argument("--orca-json", help="read Orca tasks from this JSON file instead of the orca CLI")
     s.add_argument("--no-orca", action="store_true", help="skip the Orca check")
+    s.add_argument("--only", metavar="IDS",
+                   help="check only these roadmap issues (comma-separated short names); skips epics, "
+                        "open merge requests and Orca")
     _forge_args(s)
     s.set_defaults(func=cmd_sync)
     return p

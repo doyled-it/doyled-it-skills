@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""Roadmap hooks for Claude Code, and a notify program for Codex.
+
+  roadmap_hook.py post-tool-use   after a Bash command that merges a merge request or
+                                  closes an issue: run a read-only sync of the issues it
+                                  touched and tell the agent what changed
+  roadmap_hook.py stop            at the end of a turn: when sync reports drift on a
+                                  roadmap issue this session touched, block the turn with
+                                  a short message saying what to do
+  roadmap_hook.py codex-notify J  Codex "notify" program (J is its JSON payload): the same
+                                  check, sent to a desktop notification (Codex cannot block)
+
+It does nothing without a roadmap (ROADMAP_FILE, else roadmap.json in the working
+directory or at the git root), never writes anything, and fails open: a slow or
+unreachable forge, a missing tool or any error gives a one-line warning, never a
+blocked turn. Standard library only; Python 3.11 or newer.
+
+Settings (environment): ROADMAP_FILE, ROADMAP_HOOK_TIMEOUT (seconds, default 20),
+ROADMAP_HOOK_NOTIFIER (Codex: command that receives the message as its argument).
+Tests also use ROADMAP_HOOK_RECORDED and ROADMAP_HOOK_NOW.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SCRIPTS = HERE.parent / "skills" / "roadmap" / "scripts"
+CLI = SCRIPTS / "roadmap.py"
+
+# Bash commands after which the roadmap may be behind the forge.
+MERGE_OR_CLOSE = re.compile(
+    r"\b(?:glab\s+mr\s+merge|gh\s+pr\s+merge|glab\s+issue\s+close|gh\s+issue\s+close"
+    r"|tea\s+(?:pr|pulls)\s+merge|tea\s+issues?\s+close|fj\s+pr\s+merge|fj\s+issue\s+close)\b")
+# Drift kinds that belong to one issue (other kinds are about the program as a whole).
+ISSUE_DRIFT = {"done-but-open", "nothing-behind", "missing-on-forge", "marker-problem", "lead-gate-ticked-on-forge",
+               "started-early", "no-recent-activity"}
+TRANSCRIPT_TAIL = 2_000_000
+
+
+def find_roadmap(cwd: str) -> Path | None:
+    env = os.environ.get("ROADMAP_FILE")
+    if env:
+        return Path(env) if Path(env).is_file() else None
+    here = Path(cwd or ".") / "roadmap.json"
+    if here.is_file():
+        return here
+    try:
+        top = subprocess.run(["git", "-C", cwd or ".", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, timeout=3).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    candidate = Path(top) / "roadmap.json" if top else None
+    return candidate if candidate and candidate.is_file() else None
+
+
+def touched(data: dict, text: str) -> list[str]:
+    """Roadmap issues the text names by short name, forge reference or URL."""
+    sys.path.insert(0, str(SCRIPTS))
+    from roadmaplib import checkmr, model
+
+    project = (data.get("forge") or {}).get("project")
+    items = model.normalize(data)["issues"]
+    return [it["id"] for it in items if isinstance(it, dict) and it.get("id") and checkmr._named(it, text, project)]
+
+
+def run_sync(path: Path, ids: list[str]) -> tuple[dict | None, str | None]:
+    """The sync report as a dict, or None and why it could not be had."""
+    cmd = [sys.executable, str(CLI), "sync", str(path), "--json", "--no-orca", "--only", ",".join(ids)]
+    if os.environ.get("ROADMAP_HOOK_RECORDED"):
+        cmd += ["--recorded", os.environ["ROADMAP_HOOK_RECORDED"]]
+    if os.environ.get("ROADMAP_HOOK_NOW"):
+        cmd += ["--now", os.environ["ROADMAP_HOOK_NOW"]]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=path.parent,
+                              timeout=float(os.environ.get("ROADMAP_HOOK_TIMEOUT", "20")))
+    except subprocess.TimeoutExpired:
+        return None, "the forge did not answer in time"
+    except OSError as exc:
+        return None, f"could not run the roadmap command ({exc.strerror})"
+    try:
+        report = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        last = (proc.stdout or proc.stderr).strip().splitlines()[-1:] or ["no output"]
+        return None, last[0][:200]
+    if report.get("errors"):
+        return None, f"{len(report['errors'])} forge call(s) failed"
+    return report, None
+
+
+def findings(report: dict, ids: list[str], data: dict) -> list[str]:
+    refs = {it.get("ref"): it["id"] for it in data.get("issues", []) if isinstance(it, dict) and it.get("ref")}
+    out = []
+    behind = sorted({c["issue"] for c in report.get("status_changes", [])} |
+                    {t["issue"] for t in report.get("gate_ticks", [])})
+    if behind:
+        out.append(f"roadmap.json is behind the forge for {', '.join(behind)}: run `roadmap.py sync roadmap.json "
+                   "--write`, re-render, and send the short update")
+    for d in report.get("drift", []):
+        target = refs.get(d["target"], d["target"])
+        if d["kind"] in ISSUE_DRIFT and target in ids:
+            out.append(f"[{d['kind']}] {target}: {d['message']}")
+    return out
+
+
+def check(cwd: str, text: str, ids_if_none: str = "") -> tuple[list[str], str | None, list[str]]:
+    """(findings, warning, issues checked) for the work the text names."""
+    if sys.version_info < (3, 11):
+        return [], "roadmap check skipped: it needs Python 3.11 or newer", []
+    path = find_roadmap(cwd)
+    if path is None:
+        return [], None, []
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        return [], f"roadmap check skipped: {path} could not be read ({exc})", []
+    ids = touched(data, text)
+    if not ids and ids_if_none == "active":
+        ids = [it["id"] for it in data.get("issues", []) if isinstance(it, dict)
+               and it.get("status") in ("in_progress", "in_review") and it.get("ref")]
+    if not ids:
+        return [], None, []
+    report, why = run_sync(path, ids)
+    if report is None:
+        return [], f"roadmap check skipped: {why}", ids
+    return findings(report, ids, data), None, ids
+
+
+def _transcript_text(path: str | None) -> str:
+    if not path:
+        return ""
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            fh.seek(max(0, fh.tell() - TRANSCRIPT_TAIL))
+            return fh.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def stop(payload: dict) -> dict | None:
+    if payload.get("stop_hook_active"):
+        return None   # this turn was already continued by this hook once
+    found, warning, _ = check(payload.get("cwd") or os.getcwd(), _transcript_text(payload.get("transcript_path")))
+    if warning:
+        return {"systemMessage": warning}
+    if not found:
+        return None
+    reason = "Roadmap drift on work this session touched. Fix it before finishing:\n- " + "\n- ".join(found[:6])
+    return {"decision": "block", "reason": reason[:880]}
+
+
+def post_tool_use(payload: dict) -> dict | None:
+    command = ((payload.get("tool_input") or {}).get("command")) or ""
+    if payload.get("tool_name") not in (None, "Bash") or not MERGE_OR_CLOSE.search(command):
+        return None
+    found, warning, ids = check(payload.get("cwd") or os.getcwd(), command, ids_if_none="active")
+    if warning:
+        return {"systemMessage": warning}
+    if not ids:
+        return None
+    summary = (f"Roadmap sync after `{command[:80]}` (read-only, issues {', '.join(ids)}): "
+               + ("; ".join(found) if found else "no drift on these issues."))
+    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": summary[:1500]}}
+
+
+def codex_notify(raw: str) -> None:
+    try:
+        payload = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return
+    if payload.get("type") != "agent-turn-complete":
+        return
+    text = "\n".join(map(str, payload.get("input-messages") or [])) + "\n" + str(payload.get("last-assistant-message"))
+    found, warning, _ = check(payload.get("cwd") or os.getcwd(), text)
+    message = warning or ("Roadmap drift: " + "; ".join(found) if found else "")
+    if message:
+        notify(message[:300])
+
+
+def notify(message: str) -> None:
+    custom = os.environ.get("ROADMAP_HOOK_NOTIFIER")
+    if custom:
+        cmd = [custom, message]
+    elif sys.platform == "darwin" and shutil.which("osascript"):
+        cmd = ["osascript", "-e", f"display notification {json.dumps(message)} with title \"Roadmap\""]
+    elif shutil.which("notify-send"):
+        cmd = ["notify-send", "Roadmap", message]
+    else:
+        print(message, file=sys.stderr)
+        return
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        print(message, file=sys.stderr)
+
+
+def main(argv: list[str]) -> int:
+    mode = argv[1] if len(argv) > 1 else ""
+    try:
+        if mode == "codex-notify":
+            codex_notify(argv[2] if len(argv) > 2 else "")
+            return 0
+        payload = json.loads(sys.stdin.read() or "{}")
+        out = stop(payload) if mode == "stop" else post_tool_use(payload) if mode == "post-tool-use" else None
+    except Exception as exc:  # fail open: a hook must never break the session
+        out = {"systemMessage": f"roadmap check skipped: {type(exc).__name__}: {exc}"[:300]}
+    if out:
+        print(json.dumps(out))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
