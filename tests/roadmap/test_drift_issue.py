@@ -132,6 +132,21 @@ class OnlyItsOwnIssue(unittest.TestCase):
         own = [d for d in drift_issues(fake) if d["user"]["login"] == "roadmap-bot"]
         self.assertEqual([d["state"] for d in own], ["closed"])
 
+    def test_a_strangers_exact_copy_is_never_taken_over_or_closed(self):
+        """The tool's own text, word for word, by another user: only the author tells them apart."""
+        fake = fresh_forge()
+        copy = driftissue.skeleton("- **old** item: gone")
+        fake.add_issue(REPO, 42, "Roadmap drift", copy, author="stranger")
+        result = run(drifting(), fake)
+        self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
+        self.assertEqual(fake.issues[(REPO, 42)]["body"], copy)
+        run(quiet(), fake)
+        self.assertEqual(fake.issues[(REPO, 42)]["state"], "open")
+        fg = github(fake)
+        with self.assertRaises(forge.ForgeError):
+            fg.close_drift_issue(fg.get_issue(f"{REPO}#42"), "roadmap-bot")
+        self.assertEqual(fake.issues[(REPO, 42)]["state"], "open")
+
     def test_apply_refuses_when_the_token_user_is_unknown(self):
         fake = fresh_forge()
         run(drifting(), fake)

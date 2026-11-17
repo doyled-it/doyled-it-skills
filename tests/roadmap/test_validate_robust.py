@@ -174,6 +174,32 @@ class OddTypesNeverCrashACommand(unittest.TestCase):
                             self.assertIn(cli.main(argv), (0, 1, 2))
 
 
+class ABrokenRoadmapReachesNothing(unittest.TestCase):
+    """publish, sync and drift-issue refuse a broken roadmap before they build a forge client or run Orca."""
+
+    def test_no_forge_client_and_no_orca_command(self):
+        from unittest import mock
+
+        from roadmaplib import forge, orca
+
+        data = example()
+        data["issues"][0]["epic"] = "no-such-epic"
+        data["orca"] = {"run": "run-123"}
+        calls = []
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            path.write_text(json.dumps(data))
+            for argv in (["publish", str(path)], ["sync", str(path)], ["drift-issue", str(path)]):
+                calls.clear()
+                out = io.StringIO()
+                with self.subTest(command=argv[0]), redirect_stdout(out), \
+                        mock.patch.object(forge, "from_args", lambda *a: calls.append("forge")), \
+                        mock.patch.object(orca, "read_run", lambda *a: calls.append("orca") or []):
+                    self.assertEqual(cli.main(argv), 2)
+                    self.assertIn("unknown-epic", out.getvalue())
+                    self.assertEqual(calls, [])
+
+
 class DeepChains(unittest.TestCase):
     def chain(self, n):
         data = example()
