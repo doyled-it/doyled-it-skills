@@ -49,6 +49,7 @@ def clip(text: str, n: int) -> str:
 
 
 def _link(url, text) -> str:
+    url = model.safe_url(url)
     return f'<a href="{esc(url)}">{esc(text)}</a>' if url else esc(text)
 
 
@@ -110,7 +111,7 @@ def _svg(data: dict, items: dict) -> str:
         out.append(f'<text class="lanelabel" x="18" y="{top + 30}">Epic</text>')
         name = "".join(f'<text class="lanename" x="18" y="{top + 54 + k * 19}">{esc(line)}</text>'
                        for k, line in enumerate(wrap(ep["name"], 14, 2)))
-        out.append(f'<a href="{esc(ep["url"])}">{name}</a>' if ep.get("url") else name)
+        out.append(f'<a href="{esc(ep["url"])}">{name}</a>' if model.safe_url(ep.get("url")) else name)
 
     # Arrows first so boxes sit on top. Each arrow turns in the gap just before
     # its target column, offset per incoming arrow so the vertical legs never overlap.
@@ -131,9 +132,10 @@ def _svg(data: dict, items: dict) -> str:
         status = model.STATUSES[it["status"]]
         gates_text = ", ".join(f'{g["gate"]} {"passed" if g["passed"] else "open"}' for g in it["gates"]) or "none"
         deps_text = ", ".join(it["depends_on"]) or "nothing"
-        if it.get("url"):
-            out.append(f'<a href="{esc(it["url"])}">')
-        focus = "" if it.get("url") else ' tabindex="0"'
+        url = model.safe_url(it.get("url"))
+        if url:
+            out.append(f'<a href="{esc(url)}">')
+        focus = "" if url else ' tabindex="0"'
         out.append(f'<g class="node {model.STATUS_CLASS[it["status"]]}"{focus}>'
                    f'<title>{esc(model.label(it))}: {esc(it["title"])}. {esc(it["detail"])}. Status {esc(status)}. '
                    f'Depends on {esc(deps_text)}. Gates: {esc(gates_text)}.</title>')
@@ -149,7 +151,7 @@ def _svg(data: dict, items: dict) -> str:
             out.append(f'<g class="{cls}"><rect x="{gx}" y="{y + NODE_H - 30}" width="22" height="20" rx="4"/>'
                        f'<text x="{gx + 11}" y="{y + NODE_H - 15}" text-anchor="middle">{esc(g["gate"])}</text></g>')
             gx += 27
-        out.append("</g></a>" if it.get("url") else "</g>")
+        out.append("</g></a>" if url else "</g>")
     out.append("</svg>")
     return "".join(out)
 
@@ -161,7 +163,8 @@ def _gate_chips(data: dict, it: dict) -> str:
         state = "passed" if g["passed"] else "not passed yet"
         chip = (f'<span class="g{" done" if g["passed"] else ""}" title="{esc(meaning)}, {state}">'
                 f'{esc(g["gate"])}<span class="sr"> {state}</span></span>')
-        chips.append(f'<a href="{esc(g["evidence"])}">{chip}</a>' if g.get("evidence") else chip)
+        url = model.safe_url(g.get("evidence"))
+        chips.append(f'<a href="{esc(url)}">{chip}</a>' if url else chip)
     return " ".join(chips) or "none"
 
 
@@ -174,8 +177,8 @@ def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool) -> str:
         cls = model.STATUS_CLASS[it["status"]]
         after = ", ".join(it["depends_on"]) or "nothing"
         ref = f'<span class="ref">{_link(it.get("url"), it["ref"])}</span>' if it.get("ref") else ""
-        extra = "".join(f'<a class="xlink" href="{esc(lk["url"])}">{esc(lk.get("label") or lk["url"])}</a>'
-                        if isinstance(lk, dict) else f'<a class="xlink" href="{esc(lk)}">{esc(lk)}</a>'
+        extra = "".join(f'<span class="xlink">{_link(lk.get("url"), lk.get("label") or lk.get("url"))}</span>'
+                        if isinstance(lk, dict) else f'<span class="xlink">{_link(lk, lk)}</span>'
                         for lk in it.get("links", []))
         mrs = "".join(
             f'<span class="mr">{_link(m.get("url"), m.get("ref"))} {esc(m.get("state", ""))}'

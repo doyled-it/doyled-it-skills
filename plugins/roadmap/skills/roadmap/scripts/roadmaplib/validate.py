@@ -173,6 +173,11 @@ def check(raw: dict) -> list[Finding]:
             err("marker-text", where, "holds text that looks like a generated-section marker (<!-- roadmap: ...); "
                 "remove it")
 
+    # Links: only plain http and https links are allowed anywhere they become live.
+    for where, url in _url_fields(data):
+        if not model.safe_url(url):
+            err("bad-url", where, f'"{str(url)[:80]}" is not an http or https link')
+
     # Warnings about the state of the work.
     for iid, it in items.items():
         if it.get("status") == "done" and model.open_gates(it):
@@ -283,3 +288,32 @@ def _all_strings(value, where: str):
     elif isinstance(value, list):
         for n, v in enumerate(value):
             yield from _all_strings(v, f"{where}[{n}]")
+
+
+def _url_fields(data: dict):
+    """Every field that becomes a live link, as (where, value)."""
+    if data.get("page_url") is not None:
+        yield "page_url", data["page_url"]
+    for ep in data.get("epics", []):
+        if isinstance(ep, dict) and ep.get("url") is not None:
+            yield f"epics[{ep.get('id')}].url", ep["url"]
+    for it in data.get("issues", []):
+        if not isinstance(it, dict):
+            continue
+        where = f"issues[{it.get('id')}]"
+        if it.get("url") is not None:
+            yield f"{where}.url", it["url"]
+        for n, lk in enumerate(it.get("links") or []):
+            if isinstance(lk, dict):
+                yield f"{where}.links[{n}].url", lk.get("url")
+            else:
+                yield f"{where}.links[{n}]", lk
+        for g in it.get("gates") or []:
+            if isinstance(g, dict) and g.get("evidence") is not None:
+                yield f"{where}.gates[{g.get('gate')}].evidence", g["evidence"]
+        for n, mr in enumerate(it.get("merge_requests") or []):
+            if not isinstance(mr, dict):
+                continue
+            for key in ("url", "pipeline_url"):
+                if mr.get(key) is not None:
+                    yield f"{where}.merge_requests[{n}].{key}", mr[key]

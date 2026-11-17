@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 
 # Status values as stored, and how a reader sees them.
@@ -44,6 +45,16 @@ REQUIRED_ISSUE = ("id", "title", "epic", "status")
 
 # Working days in two weeks: an issue bigger than this becomes a child epic.
 MAX_ISSUE_DAYS = 10
+
+
+# A link the page, the preview and the forge sections may make live: http or
+# https, with nothing that could end an attribute or a Markdown link early.
+SAFE_URL = re.compile(r"^https?://[^\s\"'<>`\\()\[\]]+$", re.IGNORECASE)
+
+
+def safe_url(url) -> str | None:
+    """The URL when it is a plain http or https link, otherwise None."""
+    return url if isinstance(url, str) and SAFE_URL.match(url) else None
 
 
 class RoadmapError(Exception):

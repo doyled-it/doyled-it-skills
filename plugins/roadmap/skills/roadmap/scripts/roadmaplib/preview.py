@@ -15,12 +15,19 @@ from . import blocks, model
 MERMAID_JS = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
 
 
+def _anchor(m: re.Match) -> str:
+    """A Markdown link as an anchor, only for http and https targets (already HTML-escaped)."""
+    if model.safe_url(html.unescape(m.group(2))):
+        return f'<a href="{m.group(2)}">{m.group(1)}</a>'
+    return m.group(1)
+
+
 def _inline(text: str) -> str:
     out = html.escape(text, quote=True)
     out = re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
     out = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", out)
     out = re.sub(r"(?<![\w])_([^_]+)_(?![\w])", r"<em>\1</em>", out)
-    out = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', out)
+    out = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", _anchor, out)
     return out
 
 

@@ -183,7 +183,8 @@ def issue_block(data: dict, it: dict, gates: list[dict], epic_name: str) -> str:
              f"{md_inline(data.get('version', ''))}). Depends on: {deps}.", "", "### Gates", ""]
     for g in gates:
         meaning = md_inline(data["gates"].get(g["gate"], ""))
-        tail = f" ({g['evidence']})" if g.get("passed") and g.get("evidence") else ""
+        evidence = model.safe_url(g.get("evidence"))
+        tail = f" ({evidence})" if g.get("passed") and evidence else ""
         lines.append(f"- [{'x' if g['passed'] else ' '}] {g['gate']}: {meaning}{tail}")
     lines += ["", "_This section is generated from the roadmap; edit the roadmap, not this section._"]
     return "\n".join(lines)
@@ -216,7 +217,7 @@ def _gate_words(it: dict) -> str:
 
 
 def _issue_link(it: dict) -> str:
-    if it.get("url"):
+    if model.safe_url(it.get("url")):
         return f"[{md_inline(it.get('ref') or it['id'])}]({it['url']})"
     return f"`{it['id']}` (not on the forge yet)"
 
@@ -241,7 +242,7 @@ def epic_block(raw: dict, epic_id: str, task_list: bool = False) -> str:
         if any(d in mine_ids for d in it["depends_on"]) or any(it["id"] in m["depends_on"] for m in mine):
             outside.append(it)
 
-    page = data.get("page_url")
+    page = model.safe_url(data.get("page_url"))
     version = md_inline(f"{data['title']}, {data.get('version', '')}, {data.get('date', '')}")
     head = (f"**Roadmap:** [{version}]({page})" if page
             else f"**Roadmap:** {version}. The full roadmap page is kept by the program lead.")
@@ -274,14 +275,15 @@ def epic_block(raw: dict, epic_id: str, task_list: bool = False) -> str:
     for it in involved:
         lines.append(f"  class {_node_id(it['id'])} {it['status']}")
     for it in involved:
-        if it.get("url"):
+        if model.safe_url(it.get("url")):
             lines.append(f'  click {_node_id(it["id"])} href "{it["url"]}" _blank')
     lines += ["```", "", "Solid arrows: depends on. Dashed arrows: depends on an issue in another epic.", "",
               "| Issue | Title | Status | Gates passed | Depends on |", "| --- | --- | --- | --- | --- |"]
     for it in mine:
         passed = " ".join(g["gate"] for g in it["gates"] if g["passed"]) or "none"
         total = " ".join(g["gate"] for g in it["gates"]) or "none"
-        deps = ", ".join(_issue_link(items[d]) if items[d].get("url") else f"`{d}`" for d in it["depends_on"]) or "nothing"
+        deps = ", ".join(_issue_link(items[d]) if model.safe_url(items[d].get("url")) else f"`{d}`"
+                         for d in it["depends_on"]) or "nothing"
         lines.append(f"| {_issue_link(it)} | {md_inline(it['title'])} | {model.STATUSES[it['status']]} | "
                      f"{passed} of {total} | {deps} |")
     if task_list:

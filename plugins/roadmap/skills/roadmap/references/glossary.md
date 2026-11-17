@@ -44,5 +44,13 @@ as each gate is one capital letter with a plain description.
 - **Real dependencies only.** A dependency on an issue that does not exist, or a
   loop of dependencies, is an error.
 
+- **Plain links only.** Every link (issue and epic `url`, `links`, gate
+  `evidence`, merge request and pipeline links, `page_url`) must be an `http`
+  or `https` link. The page, the epic preview and the generated sections make
+  no other link live.
+- **Text the forge can show safely.** Titles, names, ids and gate descriptions
+  are one line with no control characters; no text may look like a
+  generated-section marker (`<!-- roadmap:`).
+
 `validate` also warns when an issue is Done with a gate not ticked, and when work
 started before the issues it depends on were Done.

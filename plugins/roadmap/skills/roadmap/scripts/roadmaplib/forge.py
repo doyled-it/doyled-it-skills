@@ -23,6 +23,7 @@ import subprocess
 from urllib.parse import quote
 
 from . import blocks
+from .model import safe_url
 
 
 class ForgeError(Exception):
@@ -571,7 +572,7 @@ class Forgejo(GitHub):
             try:
                 st = self.t.get(f"repos/{pr['project']}/commits/{pr['head_sha']}/status")
                 pr["pipeline"] = st.get("state")
-                targets = [x.get("target_url") for x in st.get("statuses") or [] if x.get("target_url")]
+                targets = [x.get("target_url") for x in st.get("statuses") or [] if safe_url(x.get("target_url"))]
                 pr["pipeline_url"] = targets[0] if targets else pr.get("url")
             except NotFound:
                 pass
