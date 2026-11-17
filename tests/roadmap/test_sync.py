@@ -163,5 +163,38 @@ class SyncCommand(unittest.TestCase):
             self.assertFalse(any(d["kind"] == "unlinked-orca-task" for d in got["drift"]))
 
 
+class MergeRequestsNamedInTheRoadmap(unittest.TestCase):
+    """A roadmap issue that names a merge request in its text accounts for it."""
+
+    def run_with(self, detail):
+        data = sync_roadmap()
+        data["forge"]["projects"] = ["acme/web"]
+        issue(data, "page-build")["detail"] = detail
+        responses = dict(fixture("gitlab_sync.json"))
+        mr = fixture("gitlab_sync.json")["GET projects/acme%2Fsearch/merge_requests?state=opened"][1]
+        responses["GET projects/acme%2Fweb/merge_requests?state=opened"] = [
+            dict(mr, iid=7, title="Web change", references={"full": "acme/web!7"}),
+            dict(mr, iid=8, title="Other web change", references={"full": "acme/web!8"})]
+        fg = forge.GitLab(NoWrites(responses), host="h", project="acme/search", group="acme")
+        report = sync.sync(data, fg, orca_tasks=[], now="2026-11-17")
+        return {d.target for d in report.drift if d.kind == "unlinked-merge-request"}
+
+    def test_bang_number_means_the_default_project(self):
+        found = self.run_with("Follow-up to !40")
+        self.assertNotIn("acme/search!40", found)
+        self.assertIn("acme/web!7", found)
+
+    def test_project_name_before_the_number_means_that_project(self):
+        found = self.run_with("web !7 ships with search !40")
+        self.assertNotIn("acme/web!7", found)
+        self.assertNotIn("acme/search!40", found)
+        self.assertIn("acme/web!8", found)
+
+    def test_full_reference_and_url(self):
+        found = self.run_with("See acme/web!8 and https://gitlab.example.com/acme/web/-/merge_requests/7")
+        self.assertNotIn("acme/web!8", found)
+        self.assertNotIn("acme/web!7", found)
+
+
 if __name__ == "__main__":
     unittest.main()

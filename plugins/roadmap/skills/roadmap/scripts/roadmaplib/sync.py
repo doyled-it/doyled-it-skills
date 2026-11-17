@@ -120,6 +120,30 @@ def _forge_status(fi: dict, mrs: list[dict], cfg: dict) -> tuple[str | None, str
     return None, ""
 
 
+def named_merge_requests(data: dict, projects: list[str], default: str | None) -> set[str]:
+    """Merge requests the roadmap names in its issue text or links.
+
+    Accepts a full reference (group/project!12), a forge URL, "!12" for the
+    default project, and "web !12" when "web" is the last part of a known
+    project path.
+    """
+    short = {p.rsplit("/", 1)[-1].lower(): p for p in projects}
+    texts = []
+    for it in data["issues"]:
+        texts += [it.get("title", ""), it.get("detail", "")]
+        texts += [lk.get("url", "") if isinstance(lk, dict) else str(lk) for lk in it.get("links", [])]
+    found: set[str] = set()
+    for text in texts:
+        found |= {f"{m[1]}!{m[2]}" for m in re.finditer(r"([\w.-]+(?:/[\w.-]+)+)!(\d+)", text)}
+        found |= {f"{m[1]}!{m[2]}" for m in re.finditer(r"https?://[^/\s]+/(\S+?)/-/merge_requests/(\d+)", text)}
+        found |= {f"{m[1]}#{m[2]}" for m in re.finditer(r"https?://[^/\s]+/([\w.-]+/[\w.-]+)/pulls?/(\d+)", text)}
+        for m in re.finditer(r"(?<![\w/!])(?:([\w.-]+)\s)?!(\d+)", text):
+            project = short.get((m[1] or "").lower()) or default
+            if project:
+                found.add(f"{project}!{m[2]}")
+    return found
+
+
 RANK = {"to_do": 0, "blocked": 1, "in_progress": 2, "in_review": 3, "done": 4}
 
 
@@ -255,6 +279,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         if p and p not in projects:
             projects.append(p)
     ids = sorted(items, key=len, reverse=True)
+    named = named_merge_requests(data, projects, cfg.get("project"))
     for project in projects:
         try:
             mrs = fg.open_mrs(project)
@@ -262,7 +287,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             report.notes.append(f"merge requests in {project} could not be read: {exc}")
             continue
         for mr in mrs:
-            if mr["ref"] in known_mrs:
+            if mr["ref"] in known_mrs or mr["ref"] in named:
                 continue
             if fg.mr_mentions(mr) & set(roadmap_refs):
                 continue
