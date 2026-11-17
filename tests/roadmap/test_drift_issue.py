@@ -115,6 +115,30 @@ class CloseIsNarrow(unittest.TestCase):
             fg.close_drift_issue(fg.get_issue(f"{REPO}#12"))
         self.assertEqual(fake.issues[(REPO, 12)]["state"], "open")
 
+    def test_gitlab_rereads_the_issue_before_closing(self):
+        """The caller's copy may be stale or forged: only the forge's own answer counts."""
+        def gitlab_issue(title, body, state="opened"):
+            return {"id": 1, "iid": 40, "project_id": 7, "title": title, "description": body, "state": state,
+                    "references": {"full": "acme/search#40"}, "web_url": "https://gitlab.example.com/acme/search/-/issues/40"}
+
+        drift_body = f"{blocks.DRIFT_START}\n- x\n{blocks.DRIFT_END}"
+        stale = forge.GitLab(None, "gitlab.example.com", "acme/search", "acme")._issue(
+            gitlab_issue("Roadmap drift", drift_body))
+        for now in (gitlab_issue("Ship the ranking model", "Real work."),
+                    gitlab_issue("Roadmap drift", "Markers removed by a person."),
+                    gitlab_issue("Roadmap drift", drift_body, state="closed")):
+            writes = []
+
+            class Recording(forge.RecordedTransport):
+                def send(self, method, path, body=None, allow_close=False):
+                    writes.append((method, path, body))
+
+            fg = forge.GitLab(Recording({"GET projects/acme%2Fsearch/issues/40": now}), "gitlab.example.com",
+                              "acme/search", "acme")
+            with self.subTest(title=now["title"], state=now["state"]), self.assertRaises(forge.ForgeError):
+                fg.close_drift_issue(stale)
+            self.assertEqual(writes, [])
+
     def test_the_guard_allows_only_a_bare_close(self):
         guard = forge.WriteGuard()
         guard.check("PATCH", "repos/o/r/issues/5", {"state": "closed"}, allow_close=True)
