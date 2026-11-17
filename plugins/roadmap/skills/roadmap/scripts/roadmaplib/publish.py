@@ -101,6 +101,13 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
             epics[ep["id"]] = fg.get_epic(ep["ref"])
             report.add("link-epic", ep["id"], f'{ep["ref"]} (named in the roadmap)')
             continue
+        match = next((e for e in fg.open_epics() if e["title"].strip() == ep["name"].strip()), None)
+        if match:
+            epics[ep["id"]] = match
+            report.add("link-epic", ep["id"], f'{match["ref"]} (open {fg.epic_word} with the same title)')
+            _write_back(raw_epics[ep["id"]], match)
+            report.changed = True
+            continue
         report.add("create-epic", ep["id"], f'new {fg.epic_word} "{ep["name"]}"')
         if apply:
             created = fg.create_epic(ep["name"], ep.get("note", ""))

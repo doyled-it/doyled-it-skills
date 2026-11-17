@@ -42,9 +42,15 @@ class GitLabDryRun(unittest.TestCase):
         cls.report = publish.publish(gitlab_roadmap(), fg, apply=False)
 
     def test_existing_epic_is_linked_and_new_epics_are_created(self):
-        self.assertEqual([a.target for a in kinds(self.report, "link-epic")], ["ranking"])
-        self.assertEqual(sorted(a.target for a in kinds(self.report, "create-epic")),
-                         ["release-safety", "search-page"])
+        self.assertEqual([a.target for a in kinds(self.report, "link-epic")], ["ranking", "search-page"])
+        self.assertEqual([a.target for a in kinds(self.report, "create-epic")], ["release-safety"])
+
+    def test_open_epic_with_the_same_name_is_linked_instead_of_duplicated(self):
+        page = next(a for a in kinds(self.report, "link-epic") if a.target == "search-page")
+        self.assertIn("acme&11", page.detail)
+        self.assertIn("same title", page.detail)
+        update = next(a for a in kinds(self.report, "update-epic") if a.target == "search-page")
+        self.assertTrue(update.body.startswith("Hand-written plan."))
 
     def test_named_issues_are_linked_not_duplicated(self):
         linked = {a.target for a in kinds(self.report, "link-issue")}
@@ -75,7 +81,7 @@ class GitLabDryRun(unittest.TestCase):
     def test_epic_membership(self):
         added = {a.target for a in kinds(self.report, "add-to-epic")}
         self.assertIn("ranking-model", added)      # open on the forge with no epic
-        self.assertIn("page-design", added)        # linked by title, epic is new
+        self.assertIn("page-design", added)        # linked by title, not yet in its epic
         self.assertNotIn("click-signals", added)   # already in the epic
 
     def test_gate_checklists_are_written_and_keep_forge_ticks(self):

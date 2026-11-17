@@ -271,6 +271,11 @@ class GitLab:
             raise ForgeError(f'"{ref}" is not a GitLab epic reference like group&12')
         return self._epic(self.t.get(f"groups/{enc(m['group'])}/epics/{m['n']}"), m["group"])
 
+    def open_epics(self) -> list[dict]:
+        if not self.group:
+            return []
+        return [self._epic(d, self.group) for d in self.t.get_all(f"groups/{enc(self.group)}/epics?state=opened")]
+
     def create_epic(self, title: str, body: str) -> dict:
         if not self.group:
             raise ForgeError('set forge "group" in roadmap.json to create GitLab epics')
@@ -385,6 +390,13 @@ class GitHub:
     def get_epic(self, ref: str) -> dict:
         issue = self.get_issue(ref)
         return {k: issue[k] for k in ("ref", "url", "id", "number", "title", "body")}
+
+    def open_epics(self) -> list[dict]:
+        """Parent issues are ordinary issues, so any open issue can be one."""
+        if not self.project:
+            return []
+        return [{k: i[k] for k in ("ref", "url", "id", "number", "title", "body")}
+                for i in self.open_issues(self.project)]
 
     def create_epic(self, title: str, body: str) -> dict:
         if not self.project:

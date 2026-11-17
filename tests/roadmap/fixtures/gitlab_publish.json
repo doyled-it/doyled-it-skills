@@ -141,5 +141,16 @@
    "issue_link_id": 930
   }
  ],
- "GET projects/acme%2Fsearch/issues/20/links": []
+ "GET projects/acme%2Fsearch/issues/20/links": [],
+ "GET groups/acme/epics?state=opened": [
+  {
+   "id": 511,
+   "iid": 11,
+   "group_id": 3,
+   "title": "New search page",
+   "description": "Hand-written plan.",
+   "web_url": "https://gitlab.example.com/groups/acme/-/epics/11",
+   "state": "opened"
+  }
+ ]
 }
