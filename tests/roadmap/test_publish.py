@@ -25,7 +25,7 @@ def gitlab_roadmap() -> dict:
 
 
 class NoWrites(forge.RecordedTransport):
-    def send(self, method, path, body=None):
+    def send(self, method, path, body=None, allow_close=False):
         raise AssertionError(f"dry run tried to write: {method} {path}")
 
 
@@ -155,8 +155,8 @@ class Recorder(forge.RecordedTransport):
         super().__init__(responses)
         self.calls = []
 
-    def send(self, method, path, body=None):
-        forge.WriteGuard().check(method, path, body)
+    def send(self, method, path, body=None, allow_close=False):
+        forge.WriteGuard().check(method, path, body, allow_close=allow_close)
         self.calls.append((method, path, body))
         return self.responses.get(f"{method} {path}", {})
 

@@ -140,6 +140,24 @@ def cmd_check_mr(args) -> int:
     return 0 if result.ok else 1
 
 
+def cmd_drift_issue(args) -> int:
+    from datetime import date
+
+    from . import driftissue, forge, orca, sync
+
+    data = _load(args.roadmap)
+    try:
+        fg = forge.from_args(data, args)
+        tasks = orca.tasks_from_args(data, args)
+        report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now)
+        result = driftissue.run(data, fg, report, apply=args.apply, today=args.now or date.today().isoformat())
+    except (sync.SyncRefused, forge.ForgeError, ValueError) as exc:
+        print(f"error: {exc}")
+        return 2
+    print(result.text())
+    return 1 if report.errors else 0
+
+
 def _iso_date(value: str) -> str:
     from . import sync
 
@@ -193,6 +211,17 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--body-file", help="read the description from this file")
     c.add_argument("--project", help='project for "#12" references (default: forge.project)')
     c.set_defaults(func=cmd_check_mr)
+
+    d = sub.add_parser("drift-issue", help='keep one "Roadmap drift" issue current (dry run unless --apply)')
+    d.add_argument("roadmap")
+    d.add_argument("--apply", action="store_true", help="create, update or close the drift issue")
+    d.add_argument("--stale-days", type=int, default=14, help="no activity for this many days is drift")
+    d.add_argument("--now", type=_iso_date, help="ISO date to measure staleness from (default: today)")
+    d.add_argument("--orca-run", help="Orca run id to read tasks from (default: roadmap orca.run)")
+    d.add_argument("--orca-json", help="read Orca tasks from this JSON file instead of the orca CLI")
+    d.add_argument("--no-orca", action="store_true", help="skip the Orca check")
+    _forge_args(d)
+    d.set_defaults(func=cmd_drift_issue)
 
     s = sub.add_parser("sync", help="read status, merge requests, pipelines and Orca tasks; report drift")
     s.add_argument("roadmap")

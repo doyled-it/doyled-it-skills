@@ -47,6 +47,8 @@ class FakeGitHub:
             state = dict(p.split("=") for p in query.split("&") if p).get("state", "open")
             return [copy.deepcopy(d) for (r, _), d in sorted(self.issues.items())
                     if r == m[1] and (state == "all" or d["state"] == state)]
+        if re.fullmatch(r"repos/[^/]+/[^/]+/pulls", path):
+            return []
         m = re.fullmatch(r"repos/([^/]+/[^/]+)/issues/(\d+)(/.*)?", path)
         if not m:
             raise forge.NotFound(path)
@@ -66,8 +68,8 @@ class FakeGitHub:
     def get_all(self, path: str) -> list:
         return list(self.get(path))
 
-    def send(self, method: str, path: str, body=None):
-        self.guard.check(method, path, body)
+    def send(self, method: str, path: str, body=None, allow_close: bool = False):
+        self.guard.check(method, path, body, allow_close=allow_close)
         if self.fail_on_write is not None and len(self.writes) + 1 == self.fail_on_write:
             raise forge.ForgeError(f"{method} {path} failed: HTTP 403")
         self.writes.append((method, path, body))
@@ -78,7 +80,7 @@ class FakeGitHub:
         m = re.fullmatch(r"repos/([^/]+/[^/]+)/issues/(\d+)(/.*)?", path)
         key = (m[1], int(m[2]))
         if method == "PATCH" and m[3] is None:
-            self.issues[key].update({k: v for k, v in body.items() if k in ("body", "title")})
+            self.issues[key].update({k: v for k, v in body.items() if k in ("body", "title", "state")})
             return copy.deepcopy(self.issues[key])
         if method == "POST" and m[3] == "/sub_issues":
             self.sub_issues.setdefault(key, []).append(body["sub_issue_id"])

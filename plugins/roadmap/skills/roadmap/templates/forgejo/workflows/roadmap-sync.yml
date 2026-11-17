@@ -1,0 +1,24 @@
+# Scheduled roadmap sync for Forgejo, Gitea and Codeberg: rewrites the epics'
+# generated sections and keeps one "Roadmap drift" issue current (closed when
+# drift is zero). Copy to .forgejo/workflows/ and copy the roadmap command to
+# tools/roadmap/. Store an access token with issue write scope as the
+# ROADMAP_TOKEN secret; FORGEJO_HOST binds it to this forge's host, so it is
+# never sent anywhere else. See the roadmap skill's references/enforcement.md.
+name: Roadmap sync
+on:
+  schedule:
+    - cron: "0 6 * * 1-5"
+  workflow_dispatch:
+jobs:
+  roadmap-sync:
+    runs-on: docker
+    container:
+      image: node:20-bookworm
+    env:
+      FORGEJO_TOKEN: ${{ secrets.ROADMAP_TOKEN }}
+      FORGEJO_HOST: ${{ vars.ROADMAP_FORGE_HOST }}
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - run: python3 tools/roadmap/roadmap.py sync roadmap.json --no-orca --write --update-epics
+      - run: python3 tools/roadmap/roadmap.py drift-issue roadmap.json --no-orca --apply
+      - run: python3 tools/roadmap/roadmap.py render roadmap.json

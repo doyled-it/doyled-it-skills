@@ -144,7 +144,10 @@ GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
   rejects a scheme, path or user in it.
 
 Every write passes a guard that refuses any delete, any close, and any title
-that is not one line.
+that is not one line. The single exception is `drift-issue`, which may close
+the tool's own "Roadmap drift" issue when drift is zero: that call re-reads the
+issue, checks its title and marker block, and the guard accepts only a bare
+close with no other change.
 
 ### Forge commands in written text
 

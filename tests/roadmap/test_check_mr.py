@@ -115,6 +115,11 @@ class Templates(unittest.TestCase):
         for path in ("gitlab/roadmap.gitlab-ci.yml", "github/workflows/roadmap-check.yml",
                      "forgejo/workflows/roadmap-check.yml"):
             self.assertIn("check-mr roadmap.json --from-ci", (t / path).read_text(), path)
+        for path in ("gitlab/roadmap.gitlab-ci.yml", "github/workflows/roadmap-sync.yml",
+                     "forgejo/workflows/roadmap-sync.yml"):
+            text = (t / path).read_text()
+            self.assertIn("sync roadmap.json --no-orca --write --update-epics", text, path)
+            self.assertIn("drift-issue roadmap.json --no-orca --apply", text, path)
 
 
 if __name__ == "__main__":

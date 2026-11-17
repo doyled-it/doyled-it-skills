@@ -94,6 +94,24 @@ Done. `--from-ci` reads GitLab CI (`CI_MERGE_REQUEST_TITLE`,
 Forgejo Actions. No forge call is made. Setup:
 [enforcement.md](enforcement.md).
 
+## drift-issue
+
+```bash
+roadmap.py drift-issue roadmap.json            # dry run
+roadmap.py drift-issue roadmap.json --apply    # create, update or close it
+```
+
+Runs a read-only sync and keeps one issue titled "Roadmap drift" in
+`forge.project` in step with its drift list: created once when there is drift,
+updated in place (only the text between its own markers, and not for a new
+date alone), and closed when drift is zero. It is the only issue the tool ever
+closes: the close re-reads the issue and requires that title and the marker
+block, and the write guard accepts only a bare close. An issue a person titled
+"Roadmap drift" without the marker is never touched. When a forge call fails,
+the report is incomplete and the drift issue is left as it is (exit 1). Takes
+the Orca and forge options of `sync`. The scheduled pipelines run it; see
+[enforcement.md](enforcement.md).
+
 ## sync
 
 ```bash

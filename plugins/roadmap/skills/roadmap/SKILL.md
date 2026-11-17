@@ -158,7 +158,7 @@ by what it does and give its short name and link once. Example:
 | "This small extra fix doesn't need to be on the roadmap." | Inside an agreed issue: fine. Otherwise propose it and wait. |
 | "I'll call it T3.2 for now." | Short readable names only; validate rejects codes. |
 | "Sync can just update the forge too." | sync is read-only; only `publish --apply` and `sync --update-epics` write, and only with approval. |
-| "I'll close the stale issues while publishing." | Nothing is ever closed or deleted by these commands. |
+| "I'll close the stale issues while publishing." | Nothing is ever deleted, and the only thing ever closed is the tool's own "Roadmap drift" issue once drift is zero. |
 
 ## Evaluation
 

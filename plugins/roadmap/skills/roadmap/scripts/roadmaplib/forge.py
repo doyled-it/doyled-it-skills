@@ -34,8 +34,15 @@ class NotFound(ForgeError):
     pass
 
 
+DRIFT_TITLE = "Roadmap drift"
+
+
 class WriteGuard:
     """publish may create and update, never close or delete, and never run forge commands.
+
+    The one exception is close_drift_issue: the tool may close its own "Roadmap
+    drift" issue when drift is zero. That call passes allow_close=True, and the
+    guard then accepts only a bare close (no other field) and still no delete.
 
     commands=True (GitLab) also refuses any text with a line that starts with
     "/": GitLab runs such a line in a description as a quick action (/close,
@@ -46,9 +53,13 @@ class WriteGuard:
     def __init__(self, commands: bool = True):
         self.commands = commands
 
-    def check(self, method: str, path: str, body) -> None:
+    def check(self, method: str, path: str, body, allow_close: bool = False) -> None:
         if method.upper() == "DELETE":
             raise ForgeError(f"refusing to delete on the forge: {path}")
+        if allow_close:
+            if body not in ({"state_event": "close"}, {"state": "closed"}):
+                raise ForgeError(f"refusing a close that changes anything else: {path}")
+            return
         text = json.dumps(body or {})
         if '"state_event"' in text or re.search(r'"state":\s*"closed"', text):
             raise ForgeError(f"refusing to close anything on the forge: {path}")
@@ -131,8 +142,8 @@ class CliTransport:
                 return out
             page += 1
 
-    def send(self, method: str, path: str, body=None):
-        self.guard.check(method, path, body)
+    def send(self, method: str, path: str, body=None, allow_close: bool = False):
+        self.guard.check(method, path, body, allow_close=allow_close)
         args = ["-X", method.upper(), path]
         if body is not None:
             args = ["-X", method.upper(), "-H", "Content-Type: application/json", "--input", "-", path]
@@ -254,9 +265,18 @@ class HttpTransport:
                 return out
         raise ForgeError(f"{path} has more than {self.MAX_PAGES} pages")
 
-    def send(self, method: str, path: str, body=None):
-        self.guard.check(method, path, body)
+    def send(self, method: str, path: str, body=None, allow_close: bool = False):
+        self.guard.check(method, path, body, allow_close=allow_close)
         return self._request(method, path, body)
+
+
+def _check_drift_issue(issue: dict) -> dict:
+    """The issue, re-read from the forge, only if it is the tool's own open drift issue."""
+    if (issue.get("state") != "open" or blocks.one_line(issue.get("title")) != DRIFT_TITLE
+            or blocks.block_content(issue.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is None):
+        raise ForgeError(f'refusing to close {issue.get("ref")}: it is not the open "{DRIFT_TITLE}" issue '
+                         "this tool keeps")
+    return issue
 
 
 # --- references -------------------------------------------------------------
@@ -328,6 +348,11 @@ class GitLab:
 
     def in_epic(self, issue: dict, epic: dict) -> bool:
         return bool(epic.get("number")) and issue.get("epic_number") == epic["number"]
+
+    def close_drift_issue(self, issue: dict) -> None:
+        fresh = _check_drift_issue(self.get_issue(issue["ref"]))
+        self.t.send("PUT", f"projects/{enc(fresh['project'])}/issues/{fresh['number']}", {"state_event": "close"},
+                    allow_close=True)
 
     def add_to_epic(self, issue: dict, epic: dict) -> None:
         self.t.send("PUT", f"projects/{enc(issue['project'])}/issues/{issue['number']}", {"epic_id": epic["id"]})
@@ -459,6 +484,11 @@ class GitHub:
         if not epic.get("number"):
             return False
         return issue.get("id") in {i["id"] for i in self.epic_issues(epic)}
+
+    def close_drift_issue(self, issue: dict) -> None:
+        fresh = _check_drift_issue(self.get_issue(issue["ref"]))
+        self.t.send("PATCH", f"repos/{fresh['project']}/issues/{fresh['number']}", {"state": "closed"},
+                    allow_close=True)
 
     def add_to_epic(self, issue: dict, epic: dict) -> None:
         project = epic["ref"].rsplit("#", 1)[0]

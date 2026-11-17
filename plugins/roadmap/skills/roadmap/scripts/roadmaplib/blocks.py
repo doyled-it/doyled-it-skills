@@ -17,6 +17,7 @@ from . import model
 
 ISSUE_START, ISSUE_END = "<!-- roadmap:start -->", "<!-- roadmap:end -->"
 EPIC_START, EPIC_END = "<!-- roadmap:epic:start -->", "<!-- roadmap:epic:end -->"
+DRIFT_START, DRIFT_END = "<!-- roadmap:drift:start -->", "<!-- roadmap:drift:end -->"
 # A checklist line as issue_block writes it: "- [x] R: what the gate checks (link)".
 TICK = re.compile(r"^[ \t]*[-*] \[(?P<x>[ xX])\] (?P<gate>[A-Z]):(?P<rest>.*)$", re.MULTILINE)
 URL = re.compile(r"https?://[^\s)>\]]+")
@@ -79,7 +80,7 @@ class MarkerError(Exception):
     """A description's markers are not one well-formed pair; nothing is written."""
 
 
-MARKERS = (ISSUE_START, ISSUE_END, EPIC_START, EPIC_END)
+MARKERS = (ISSUE_START, ISSUE_END, EPIC_START, EPIC_END, DRIFT_START, DRIFT_END)
 # Anything that looks like a roadmap marker, however it was edited.
 LOOSE_MARKER = re.compile(r"<!--\s*roadmap\s*:", re.IGNORECASE)
 
