@@ -107,6 +107,7 @@ class GuardRefusesCommandsAndMultiLineTitles(unittest.TestCase):
     def test_gitlab_transport_refuses_before_running_glab(self):
         with mock.patch("shutil.which", return_value="/usr/bin/glab"), mock.patch("subprocess.run") as run:
             t = forge.CliTransport("gitlab", "gitlab.example.com")
+            run.reset_mock()   # the https check at start reads glab's own config
             with self.assertRaises(forge.ForgeError):
                 t.send("PUT", "projects/1/issues/2", {"description": "x\n/close"})
             run.assert_not_called()

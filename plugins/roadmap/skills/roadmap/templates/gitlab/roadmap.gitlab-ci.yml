@@ -25,6 +25,8 @@ roadmap-sync:
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $ROADMAP_SYNC == "1"
   variables:
+    # The token is sent only to this host: roadmap.json's forge.host must be
+    # empty or name the same host, or the job stops before any call.
     GITLAB_HOST: $CI_SERVER_HOST
     GITLAB_TOKEN: $ROADMAP_BOT_TOKEN
   script:

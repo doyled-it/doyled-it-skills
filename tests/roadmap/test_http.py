@@ -166,5 +166,77 @@ class WriteGuardRunsBeforeTheNetwork(unittest.TestCase):
         self.assertEqual(t._opener.requests, [])
 
 
+class CliTokenHost(unittest.TestCase):
+    """glab sends GITLAB_TOKEN to any --hostname, so the token is bound to its own host here.
+
+    A roadmap.json is shared and could name any host; the host a token belongs to
+    is set beside the token (GITLAB_HOST, or CI_SERVER_HOST in GitLab CI), never
+    taken from the roadmap.
+    """
+
+    def make(self, kind, host, env):
+        config = mock.Mock(returncode=0, stdout="https\n", stderr="")
+        with mock.patch("shutil.which", return_value="/usr/bin/tool"), \
+                mock.patch.dict("os.environ", env, clear=True), \
+                mock.patch("subprocess.run", return_value=config) as run:
+            t = forge.CliTransport(kind, host)
+        return t, run
+
+    def refused(self, kind, host, env):
+        with self.assertRaises(forge.ForgeError) as ctx:
+            self.make(kind, host, env)
+        self.assertNotIn(TOKEN, str(ctx.exception))
+        return str(ctx.exception)
+
+    def test_a_gitlab_token_never_goes_to_a_host_the_roadmap_names(self):
+        for var in ("GITLAB_TOKEN", "GITLAB_ACCESS_TOKEN", "OAUTH_TOKEN"):
+            with self.subTest(var=var):
+                msg = self.refused("gitlab", "evil.example", {var: TOKEN, "GITLAB_HOST": "gitlab.example.com"})
+                self.assertIn("GITLAB_HOST", msg)
+
+    def test_a_gitlab_token_without_a_named_host_belongs_to_gitlab_com(self):
+        self.refused("gitlab", "gitlab.example.com", {"GITLAB_TOKEN": TOKEN})
+        t, _ = self.make("gitlab", "gitlab.com", {"GITLAB_TOKEN": TOKEN})
+        self.assertEqual(t.host, "gitlab.com")
+
+    def test_in_gitlab_ci_the_token_belongs_to_the_ci_server(self):
+        env = {"GITLAB_TOKEN": TOKEN, "GITLAB_CI": "true", "CI_SERVER_HOST": "gitlab.example.com"}
+        t, _ = self.make("gitlab", "gitlab.example.com", env)
+        self.assertEqual(t.host, "gitlab.example.com")
+        t, _ = self.make("gitlab", None, env)
+        self.assertEqual(t.host, "gitlab.example.com")
+        self.refused("gitlab", "evil.example", env)
+
+    def test_the_bound_host_is_used_for_every_call(self):
+        t, _ = self.make("gitlab", "GitLab.Example.com", {"GITLAB_TOKEN": TOKEN,
+                                                         "GITLAB_HOST": "https://gitlab.example.com/"})
+        with mock.patch("subprocess.run", return_value=mock.Mock(returncode=0, stdout="{}", stderr="")) as run:
+            t.get("projects/1")
+        cmd = run.call_args.args[0]
+        self.assertEqual(cmd[cmd.index("--hostname") + 1], "gitlab.example.com")
+
+    def test_only_https(self):
+        self.refused("gitlab", "gitlab.example.com", {"GITLAB_TOKEN": TOKEN, "GITLAB_HOST": "http://gitlab.example.com"})
+        config = mock.Mock(returncode=0, stdout="http\n", stderr="")
+        with mock.patch("shutil.which", return_value="/usr/bin/glab"), mock.patch.dict("os.environ", {}, clear=True), \
+                mock.patch("subprocess.run", return_value=config), self.assertRaises(forge.ForgeError) as ctx:
+            forge.CliTransport("gitlab", "gitlab.example.com")
+        self.assertIn("https", str(ctx.exception))
+
+    def test_without_a_token_variable_glab_uses_its_own_login_for_that_host(self):
+        t, _ = self.make("gitlab", "gitlab.example.com", {})
+        self.assertEqual(t.host, "gitlab.example.com")
+
+    def test_a_github_enterprise_token_is_bound_to_gh_host(self):
+        for var in ("GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"):
+            with self.subTest(var=var):
+                self.refused("github", "evil.example", {var: TOKEN, "GH_HOST": "ghe.example.com"})
+                self.refused("github", "ghe.example.com", {var: TOKEN})
+                t, _ = self.make("github", "ghe.example.com", {var: TOKEN, "GH_HOST": "ghe.example.com"})
+                self.assertEqual(t.host, "ghe.example.com")
+        t, _ = self.make("github", "github.com", {"GH_TOKEN": TOKEN, "GH_ENTERPRISE_TOKEN": TOKEN})
+        self.assertEqual(t.host, "github.com")
+
+
 if __name__ == "__main__":
     unittest.main()

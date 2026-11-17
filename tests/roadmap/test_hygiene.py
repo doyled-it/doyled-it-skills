@@ -23,6 +23,7 @@ class GuardsRunBeforeTheForge(unittest.TestCase):
             with mock.patch("shutil.which", return_value=f"/usr/bin/{kind}"), \
                     mock.patch("subprocess.run") as run:
                 t = forge.CliTransport(kind, None)
+                run.reset_mock()   # the https check at start reads glab's own config
                 for method, body in (("DELETE", None), ("PUT", {"state_event": "close"}),
                                      ("PATCH", {"state": "closed"})):
                     with self.subTest(kind=kind, method=method), self.assertRaises(forge.ForgeError):

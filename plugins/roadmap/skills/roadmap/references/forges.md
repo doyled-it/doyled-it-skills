@@ -131,10 +131,18 @@ GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
 
 ## Access and credentials
 
-- **GitLab:** `glab api` with the login `glab auth` already holds. Epics need a
-  GitLab tier with group epics.
+- **GitLab:** `glab api` with the login `glab auth` already holds for that
+  host. Epics need a GitLab tier with group epics. glab sends a token from the
+  environment (`GITLAB_TOKEN`, `GITLAB_ACCESS_TOKEN` or `OAUTH_TOKEN`) to any
+  host it is asked for, so when one is set the tool calls only the host named
+  beside it: `GITLAB_HOST` (with or without `https://`), else `CI_SERVER_HOST`
+  in GitLab CI, else `gitlab.com`. A different `forge.host` in `roadmap.json` is
+  refused, not called. `GITLAB_HOST` with `http://`, or a glab login set to
+  `api_protocol http`, is refused: https only.
 - **GitHub:** `gh api` with the login `gh auth` already holds. Sub-issues and
-  issue dependencies must be enabled for the repository.
+  issue dependencies must be enabled for the repository. `GH_TOKEN` goes only to
+  github.com; an enterprise token (`GH_ENTERPRISE_TOKEN` or
+  `GITHUB_ENTERPRISE_TOKEN`) is used only for the host in `GH_HOST`.
 - **Forgejo:** HTTPS REST API (`/api/v1`). Public reads need no token. A token
   is bound to its host, which is never taken from `roadmap.json` (a shared
   roadmap could name any host): `CODEBERG_TOKEN` is sent only to

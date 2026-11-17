@@ -101,16 +101,79 @@ class RecordedTransport:
         raise ForgeError(f"recorded responses cannot write ({method} {path}); this is a dry run")
 
 
+# Token variables glab and gh send to whatever --hostname they are given, and the
+# variable that names the host each one belongs to. GH_TOKEN is not listed: gh
+# sends it only to github.com.
+CLI_TOKENS = {"gitlab": (("GITLAB_TOKEN", "GITLAB_ACCESS_TOKEN", "OAUTH_TOKEN"), "GITLAB_HOST"),
+              "github": (("GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"), "GH_HOST")}
+
+
+def _bare(host: str | None, what: str) -> str | None:
+    host = (host or "").strip().lower()
+    if not host:
+        return None
+    if host.startswith("http://"):
+        raise ForgeError(f"{what} uses http; the roadmap tool talks to forges over https only")
+    host = host.removeprefix("https://").rstrip("/")
+    if not BARE_HOST.match(host):
+        raise ForgeError(f'{what} "{host[:60]}" must be a bare host name such as gitlab.example.com')
+    return host
+
+
+def cli_host(kind: str, host: str | None, env) -> str | None:
+    """The host glab or gh may call, or ForgeError when a token would go to the wrong one.
+
+    With a token variable set, the host is the one named beside the token
+    (GITLAB_HOST, CI_SERVER_HOST in GitLab CI, or GH_HOST), never a different
+    host from roadmap.json, which anyone could edit. Without one, glab and gh
+    use their own stored login for the host, which is never sent elsewhere.
+    """
+    host = _bare(host, "forge host")
+    if kind == "github" and host in (None, "github.com"):
+        return host
+    tokens, host_var = CLI_TOKENS[kind]
+    in_use = [v for v in tokens if env.get(v)]
+    if not in_use:
+        return host
+    named = env.get(host_var)
+    source = host_var
+    if not named and kind == "gitlab" and env.get("GITLAB_CI"):
+        named, source = env.get("CI_SERVER_HOST"), "CI_SERVER_HOST"
+    bound = _bare(named, source) or ("gitlab.com" if kind == "gitlab" else None)
+    if bound is None:
+        raise ForgeError(f"{in_use[0]} is set but {host_var} does not name the host it belongs to; set {host_var}")
+    if host and host != bound:
+        raise ForgeError(f'roadmap.json names forge host "{host}", but {in_use[0]} belongs to "{bound}" '
+                         f"({source if named else 'the default'}); refusing to send it anywhere else. Set "
+                         f"{host_var} if the token is for {host}")
+    return bound
+
+
 class CliTransport:
     """Calls the forge API through `glab api` or `gh api`, which hold the login."""
 
     def __init__(self, kind: str, host: str | None):
+        import os
+
         self.kind = kind
-        self.host = host
         self.tool = "glab" if kind == "gitlab" else "gh"
         if not shutil.which(self.tool):
             raise ForgeError(f"{self.tool} is not installed; it is needed to reach {kind}")
+        self.host = cli_host(kind, host, os.environ)
+        if kind == "gitlab":
+            self._https_only()
         self.guard = WriteGuard(commands=kind == "gitlab")
+
+    def _https_only(self) -> None:
+        """Refuse a glab login set to plain http for this host."""
+        try:
+            proc = subprocess.run(["glab", "config", "get", "api_protocol", "--host", self.host or "gitlab.com"],
+                                  capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            return
+        if proc.returncode == 0 and str(proc.stdout).strip().lower() == "http":
+            raise ForgeError(f"glab is set to plain http for {self.host or 'gitlab.com'}; the roadmap tool talks "
+                             "to forges over https only (glab config set api_protocol https)")
 
     def _run(self, args: list[str], body=None):
         cmd = [self.tool, "api"]
