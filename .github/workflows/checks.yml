@@ -2,9 +2,9 @@ name: checks
 
 # Runs the repo gate (scripts/check.sh) on every pull request and on pushes to
 # main: the policy tests, the installer test, the printable-parts geometry and
-# hook tests, syntax, ShellCheck, and the whitespace check. The gate needs Bash,
-# Node 18+, and ShellCheck; the geometry test falls back to python3 when uv is
-# absent, so no extra Python setup is required on the runner.
+# hook tests, the roadmap command tests, syntax, ShellCheck, and the whitespace
+# check. The gate needs Bash, Node 18+, Python 3.11+, and ShellCheck; the
+# runner's python3 is new enough, so no extra Python setup is required.
 
 on:
   pull_request:

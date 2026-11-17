@@ -39,8 +39,8 @@ writing-nonfiction skill).
 
 ## Development
 
-Three composable skills for writing code. **development-loop** is the orchestrator; it uses the
-other two and the upstream superpowers skills.
+Four composable skills for writing code. **development-loop** is the orchestrator; it uses the
+next two and the upstream superpowers skills, and **roadmap** for program work.
 
 ### development-loop
 
@@ -75,6 +75,22 @@ docs per repo). Two modes: **setup** (scaffold a project's seam map + per-repo p
 checklist, partly scripted) and **audit** (read each repo for a named change, walk the
 end-to-end seam, report present/missing/undocumented slices). Pairs with the **codegraph** skill
 as its per-repo engine.
+
+### roadmap
+
+For program work (several issues, workers or sessions toward one goal): keep one roadmap agreed
+with the program lead and work only from it. `roadmap.json` is the source of truth; the forge
+tracks the work for the team and Orca runs it. One standard-library Python 3.11+ command
+(`scripts/roadmap.py`) validates the roadmap (schema, dependency loops, dangling dependencies,
+and the glossary: never "milestone", no codes like T1.1), renders it as one page (epic lanes,
+issue boxes with status and gates, dependency arrows, a "right now" panel, issue tables and the
+timeline, in light and dark mode), publishes an agreed version to GitLab, GitHub or Forgejo
+(Codeberg) as a dry run by default, and syncs read-only to report drift: open issues the roadmap
+does not list, merge requests and Orca tasks with no roadmap issue, and issues with nothing
+behind them. Each epic description gets a generated section with a Mermaid flowchart and a
+status table; `epic-preview` shows it locally first. **development-loop** calls it at step 0
+(program check) and step 6 (issue done). The forge mapping, including why Forgejo epics are
+parent issues rather than Projects, is in the skill's `references/forges.md`.
 
 ## Fabrication
 
@@ -179,6 +195,7 @@ For manual Claude Code installation, add both marketplaces and install the plugi
 /plugin install development-loop@doyled-it-skills
 /plugin install codegraph@doyled-it-skills
 /plugin install cross-repo-completeness@doyled-it-skills
+/plugin install roadmap@doyled-it-skills
 /plugin install nonfiction-superpowers@doyled-it-skills
 /plugin install printable-parts@doyled-it-skills
 ```
@@ -188,8 +205,8 @@ so its ten D&D skills load only in your game workspace, not in every session.
 
 Installing plugins exposes skills. Explicitly load the matching skill; mentioning a
 name in a plan is not an invocation. Native names are
-`development-loop:development-loop`, `codegraph:using-codegraph`, and
-`cross-repo-completeness:cross-repo-completeness`. Shared fallback installs expose
+`development-loop:development-loop`, `codegraph:using-codegraph`,
+`cross-repo-completeness:cross-repo-completeness`, and `roadmap:roadmap`. Shared fallback installs expose
 the bare skill names. Use the runtime's skill loader, or read the SKILL.md when no
 loader exists. Report unavailable skills and carry out the phase directly.
 
@@ -250,9 +267,10 @@ marketplace command until it is published; test a local plugin path for local ed
 
 ## Validation
 
-Run `bash scripts/check.sh` with Bash, Node.js 18+, and ShellCheck installed. It
-checks policy conflicts, plugin metadata, installer behavior in disposable homes,
-syntax, and shell lint. No actual plugin installation or account configuration
+Run `bash scripts/check.sh` with Bash, Node.js 18+, Python 3.11+, and ShellCheck
+installed. It checks policy conflicts, plugin metadata, installer behavior in
+disposable homes, the roadmap command against recorded forge responses, syntax,
+and shell lint. No actual plugin installation or account configuration
 is performed by those tests.
 
 Run `bash tests/codegraph_smoke.sh` with CodeGraph and uv installed for real CLI

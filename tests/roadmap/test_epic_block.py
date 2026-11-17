@@ -72,7 +72,7 @@ class EpicBlock(unittest.TestCase):
         self.assertEqual(blocks.epic_body(self.data, "search-page", new), new)   # stable
 
     def test_no_em_dashes_or_milestones(self):
-        self.assertNotIn("—", self.page)
+        self.assertNotIn("\u2014", self.page)
         self.assertNotIn("milestone", self.page.lower())
 
 

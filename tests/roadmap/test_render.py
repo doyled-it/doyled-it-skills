@@ -126,7 +126,7 @@ class RenderStructure(unittest.TestCase):
         self.assertIn("Agreed with the program lead", self.html)
 
     def test_no_project_specifics_or_banned_text(self):
-        for word in ("mdoyle", "ep2p", "CDP", "gemma", "—"):
+        for word in ("mdoyle", "ep2p", "CDP", "gemma", "\u2014"):
             self.assertNotIn(word, self.html)
 
 

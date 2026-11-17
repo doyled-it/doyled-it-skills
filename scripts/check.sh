@@ -5,8 +5,9 @@ cd "$ROOT"
 node --test tests/policy.test.cjs tests/dungeon_master_test.cjs
 bash tests/install_test.sh
 bash tests/printable_parts_test.sh
+bash tests/roadmap_test.sh
 for script in scripts/check.sh scripts/install-skills.sh tests/install_test.sh \
-  tests/codegraph_smoke.sh tests/printable_parts_test.sh \
+  tests/codegraph_smoke.sh tests/printable_parts_test.sh tests/roadmap_test.sh \
   tests/printable-parts/hook_test.sh \
   plugins/development-loop/skills/development-loop/scripts/install.sh; do
   bash -n "$script"
@@ -16,4 +17,4 @@ node --check tests/policy.test.cjs
 node --check tests/dungeon_master_test.cjs
 node --check plugins/printable-parts/hooks/guard-printable-mesh.js
 git diff --check
-printf 'PASS: policy, installer, syntax, ShellCheck and whitespace checks\n'
+printf 'PASS: policy, installer, roadmap, syntax, ShellCheck and whitespace checks\n'

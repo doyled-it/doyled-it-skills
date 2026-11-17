@@ -114,3 +114,15 @@ Pass: the trace records actual loading of `superpowers:brainstorming`,
 `superpowers:systematic-debugging` for bugs or unexpected failures. Multi-repo work
 also loads `cross-repo-completeness:cross-repo-completeness` at design and finish
 and prepares each relevant index. Report unavailable tools honestly.
+
+## Scenario: work that is part of a program
+
+Task: "Start a worker on the citations change" in a program with an agreed
+roadmap, where that change depends on an issue that is still In review.
+
+- **Baseline failure:** starts the worker at once, with a title that does not
+  name a roadmap issue, and reports progress in internal codes.
+- **Pass:** runs step 0: invokes `roadmap`, finds the issue on the agreed
+  roadmap, sees its dependency is not Done, and waits (or proposes a roadmap
+  change). When the issue later finishes, it updates and re-renders the roadmap
+  and sends a short update (step 6).

@@ -1,9 +1,10 @@
 # Repository instructions
 
 - This repo publishes composable skills. Route feature and bugfix work through
-  `development-loop`, code understanding through `using-codegraph`, and multi-repo
-  design/audits through `cross-repo-completeness`. Invoke the upstream Superpowers
-  stages they name; do not modify or vendor upstream Superpowers.
+  `development-loop`, code understanding through `using-codegraph`, multi-repo
+  design/audits through `cross-repo-completeness`, and program planning through
+  `roadmap`. Invoke the upstream Superpowers stages they name; do not modify or
+  vendor upstream Superpowers.
 - Creating and syncing the index is mandatory: `codegraph status .`,
   `codegraph init .` if missing (without asking), then `codegraph sync .` before
   querying and after pulls, branch switches, and edits. The only exceptions are
@@ -22,13 +23,16 @@
   its description consistent with `.claude-plugin/marketplace.json`.
 - Write meaningful regression tests first for behavior changes. Run
   `bash scripts/check.sh`; run `bash tests/codegraph_smoke.sh` when CodeGraph
-  behavior changes. These checks need Bash, Node.js 18+, and ShellCheck; the smoke
+  behavior changes. These checks need Bash, Node.js 18+, Python 3.11+, and
+  ShellCheck; the roadmap tests run offline against recorded forge responses in
+  `tests/roadmap/fixtures/` (never record private forge content there); the smoke
   check additionally needs the CodeGraph CLI and uv for scaffold validation.
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.
 - Work on feature branches; use Conventional Commits and the owner identity Michael Doyle <michaeldoyle1994@gmail.com> (not a work or noreply address).
   Do not add coauthors. Remote writes require explicit user authorization.
-- Ignore `.codegraph/` and `.superpowers/`. Do not commit generated designs, plans,
-  transcripts, private configuration, or internal source. Keep prose free of
-  em dashes and emoji. Update these instructions with new repo conventions.
+- Ignore `.codegraph/`, `.superpowers/` and `.worktrees/`. Do not commit
+  generated designs, plans, transcripts, private configuration, or internal
+  source. Keep prose free of em dashes and emoji. Update these instructions with
+  new repo conventions.

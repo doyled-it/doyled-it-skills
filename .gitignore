@@ -4,3 +4,5 @@ node_modules/
 .superpowers/
 __pycache__/
 *.pyc
+.worktrees/
+__pycache__/
