@@ -1,6 +1,8 @@
 """sync: read the forge and Orca, update the roadmap's view, and report drift.
 
-Read-only on the forge and Orca. It pulls each issue's status, its merge
+Read-only on the forge and Orca, with one opt-in exception: --update-epics
+rewrites the generated roadmap section in each epic description (only the text
+between its markers). It pulls each issue's status, its merge
 requests and their pipelines, ticks gates that have evidence, and reports
 drift: open issues in an epic that the roadmap does not list, merge requests
 and Orca tasks with no roadmap issue, Orca tasks started before their issue's
@@ -68,7 +70,8 @@ class SyncReport:
                 "notes": self.notes}
 
     def text(self) -> str:
-        lines = ["Sync is read-only on the forge and Orca. Use --write to save status and gates into roadmap.json.", ""]
+        lines = ["Sync is read-only on the forge and Orca unless --update-epics is given. "
+                 "Use --write to save status and gates into roadmap.json.", ""]
         lines.append("Status changes")
         lines += [f"  {c.issue}: {model.STATUSES[c.old]} -> {model.STATUSES[c.new]} ({c.why})"
                   for c in self.status_changes] or ["  none"]
@@ -120,7 +123,8 @@ def _forge_status(fi: dict, mrs: list[dict], cfg: dict) -> tuple[str | None, str
 RANK = {"to_do": 0, "blocked": 1, "in_progress": 2, "in_review": 3, "done": 4}
 
 
-def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None = None) -> SyncReport:
+def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None = None,
+         update_epics: bool = False) -> SyncReport:
     out = copy.deepcopy(raw)
     data = model.normalize(raw)
     items = model.issues_by_id(data)
@@ -209,21 +213,36 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             report.drift.append(Drift("nothing-behind", iid,
                                       f"{model.STATUSES[it['status']]} but no merge request and no Orca task"))
 
-    # Open issues inside the roadmap's epics that the roadmap does not list.
+    # Epics: open issues the roadmap does not list, and the generated section.
+    native = getattr(fg, "native_epics", True)
     for ep in data["epics"]:
         if not ep.get("ref"):
             continue
+        epic = None
         try:
-            epic = fg.get_epic(ep["ref"]) if getattr(fg, "native_epics", True) is False else \
-                {"ref": ep["ref"], "number": int(re.split(r"[#&]", ep["ref"])[-1])}
-            members = fg.epic_issues(epic)
+            epic = fg.get_epic(ep["ref"])
         except Exception as exc:
             report.notes.append(f'epic {ep["ref"]} could not be read: {exc}')
-            continue
+        try:
+            members = fg.epic_issues(epic or {"ref": ep["ref"], "number": int(re.split(r"[#&]", ep["ref"])[-1])})
+        except Exception as exc:
+            report.notes.append(f'issues in epic {ep["ref"]} could not be read: {exc}')
+            members = []
         for fi in members:
             if fi["state"] == "open" and fi["ref"] not in roadmap_refs:
                 report.drift.append(Drift("unlisted-epic-issue", fi["ref"],
                                           f'open in epic "{ep["name"]}" but not on the roadmap: {fi["title"]}'))
+        if epic is None:
+            continue
+        body = blocks.epic_body(out, ep["id"], epic.get("body") or "", task_list=not native)
+        if body == (epic.get("body") or ""):
+            continue
+        if update_epics:
+            fg.update_epic_body(epic, body)
+            report.notes.append(f'updated the roadmap section in epic {ep["ref"]} ({ep["id"]})')
+        else:
+            report.notes.append(f'the roadmap section in epic {ep["ref"]} ({ep["id"]}) is out of date; '
+                                "run sync --update-epics to rewrite only that section")
 
     # Open merge requests with no roadmap issue.
     projects = []

@@ -46,10 +46,11 @@ class Report:
         head = ("Applied: these changes were made on the forge." if self.applied else
                 "Dry run: nothing was written. Run again with --apply to make these changes.")
         lines = [head, f"Forge: {self.forge}", ""]
-        for section, prefix in (("Epics", "epic"), ("Issues", "issue"), ("Links", "add")):
-            rows = [a for a in self.actions
-                    if a.kind.startswith("add-") if prefix == "add"] if prefix == "add" else [
-                a for a in self.actions if a.kind.endswith("-" + prefix) and not a.kind.startswith("add-")]
+        sections = (("Epics", ("create-epic", "link-epic", "update-epic")),
+                    ("Issues", ("create-issue", "link-issue", "update-issue")),
+                    ("Links", ("add-to-epic", "add-blocked-by")))
+        for section, kinds in sections:
+            rows = [a for a in self.actions if a.kind in kinds]
             if not rows:
                 continue
             lines.append(section)

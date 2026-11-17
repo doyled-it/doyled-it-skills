@@ -25,7 +25,7 @@ SYNONYMS = {
 }
 URL = re.compile(r"https?://\S+")
 REF = re.compile(r"^[\w.-]+(?:/[\w.-]+)*[#&]\d+$")
-FORGES = ("gitlab", "github")
+FORGES = ("gitlab", "github", "forgejo", "gitea")
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ def check(raw: dict) -> list[Finding]:
     forge = data.get("forge")
     if forge is not None:
         if not isinstance(forge, dict) or forge.get("kind") not in FORGES:
-            err("bad-forge", "forge", 'forge "kind" must be "gitlab" or "github"')
+            err("bad-forge", "forge", 'forge "kind" must be "gitlab", "github" or "forgejo"')
 
     gates = data["gates"]
     iterations = {i.get("name") for i in data.get("iterations", []) if isinstance(i, dict)}

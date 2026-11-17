@@ -1,4 +1,5 @@
-"""Forge access: GitLab (through `glab api`) and GitHub (through `gh api`).
+"""Forge access: GitLab (through `glab api`), GitHub (through `gh api`), and
+Forgejo, Gitea or Codeberg (through their REST API).
 
 Both adapters return the same plain dictionaries so publish and sync do not
 care which forge they talk to:
@@ -20,6 +21,8 @@ import re
 import shutil
 import subprocess
 from urllib.parse import quote
+
+from . import blocks
 
 
 class ForgeError(Exception):
@@ -116,6 +119,70 @@ class CliTransport:
         return self._run(args, body)
 
 
+TOKEN_VARS = ("FORGEJO_TOKEN", "CODEBERG_TOKEN", "GITEA_TOKEN")
+
+
+class HttpTransport:
+    """Forgejo and Gitea REST API over HTTPS (Codeberg runs Forgejo).
+
+    Reads work without a token on public repositories. Writes need a token in
+    FORGEJO_TOKEN, CODEBERG_TOKEN or GITEA_TOKEN; it is read from the
+    environment at call time and never stored, printed or logged.
+    """
+
+    PAGE = 50
+
+    def __init__(self, host: str | None):
+        self.base = f"https://{host or 'codeberg.org'}/api/v1/"
+        self.guard = WriteGuard()
+
+    def __repr__(self) -> str:
+        return f"HttpTransport({self.base!r})"
+
+    def _request(self, method: str, path: str, body=None):
+        import os
+        import urllib.error
+        import urllib.request
+
+        data = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(self.base + path, data=data, method=method.upper())
+        req.add_header("Accept", "application/json")
+        if data is not None:
+            req.add_header("Content-Type", "application/json")
+        token = next((os.environ[v] for v in TOKEN_VARS if os.environ.get(v)), None)
+        if token:
+            req.add_header("Authorization", "token " + token)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode()
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                raise NotFound(f"{path}: not found") from None
+            raise ForgeError(f"{method} {path} failed: HTTP {exc.code}") from None
+        except urllib.error.URLError as exc:
+            raise ForgeError(f"{method} {path} failed: {exc.reason}") from None
+        return json.loads(raw) if raw.strip() else {}
+
+    def get(self, path: str):
+        return self._request("GET", path)
+
+    def get_all(self, path: str) -> list:
+        out, page = [], 1
+        sep = "&" if "?" in path else "?"
+        while True:
+            chunk = self.get(f"{path}{sep}limit={self.PAGE}&page={page}")
+            if not isinstance(chunk, list):
+                raise ForgeError(f"expected a list from {path}")
+            out.extend(chunk)
+            if len(chunk) < self.PAGE:
+                return out
+            page += 1
+
+    def send(self, method: str, path: str, body=None):
+        self.guard.check(method, path, body)
+        return self._request(method, path, body)
+
+
 # --- references -------------------------------------------------------------
 
 ISSUE_REF = re.compile(r"^(?P<project>[\w.-]+(?:/[\w.-]+)*)#(?P<n>\d+)$")
@@ -138,6 +205,7 @@ def enc(path: str) -> str:
 
 class GitLab:
     kind = "gitlab"
+    native_epics = True
     epic_word = "group epic"
 
     def __init__(self, transport, host: str | None, project: str | None, group: str | None):
@@ -255,6 +323,7 @@ class GitLab:
 
 class GitHub:
     kind = "github"
+    native_epics = True
     epic_word = "parent issue"
 
     def __init__(self, transport, host: str | None, project: str | None, group: str | None = None):
@@ -320,7 +389,7 @@ class GitHub:
     def create_epic(self, title: str, body: str) -> dict:
         if not self.project:
             raise ForgeError('set forge "project" in roadmap.json to create GitHub parent issues')
-        d = self.t.send("POST", f"repos/{self.project}/issues", {"title": title, "body": body, "labels": ["epic"]})
+        d = self.t.send("POST", f"repos/{self.project}/issues", {"title": title, "body": body})
         issue = self._issue(d, self.project)
         return {k: issue[k] for k in ("ref", "url", "id", "number", "title", "body")}
 
@@ -378,6 +447,105 @@ class GitHub:
         return refs
 
 
+class Forgejo(GitHub):
+    """Forgejo, Gitea and Codeberg.
+
+    Forgejo has issue dependencies but no epics, sub-issues or a usable
+    parent link, so an epic is a parent issue: its generated section holds the
+    flowchart, the status table and a task list of the epic's issues, and that
+    task list is the membership. No labels and no milestones are used.
+    """
+
+    kind = "forgejo"
+    epic_word = "parent issue (Forgejo has no epics)"
+    native_epics = False
+
+    def __init__(self, transport, host: str | None, project: str | None, group: str | None = None):
+        super().__init__(transport, host or "codeberg.org", project)
+
+    def _issue(self, d: dict, project: str) -> dict:
+        out = super()._issue(d, project)
+        out["is_pull_request"] = bool(d.get("pull_request"))
+        return out
+
+    def open_issues(self, project: str) -> list[dict]:
+        if project not in self._open_cache:
+            raw = self.t.get_all(f"repos/{project}/issues?state=open&type=issues")
+            self._open_cache[project] = [i for i in (self._issue(d, project) for d in raw)
+                                         if not i["is_pull_request"]]
+        return self._open_cache[project]
+
+    def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
+        return self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
+
+    def in_epic(self, issue: dict, epic: dict) -> bool:
+        return issue["ref"] in blocks.epic_members(epic.get("body") or "")
+
+    def add_to_epic(self, issue: dict, epic: dict) -> None:
+        """Membership is the task list in the epic's generated section, written with it."""
+
+    def blocked_by(self, issue: dict) -> set[str]:
+        raw = self.t.get_all(f"repos/{issue['project']}/issues/{issue['number']}/dependencies")
+        return {f"{(d.get('repository') or {}).get('full_name') or issue['project']}#{d.get('number')}" for d in raw}
+
+    def add_blocked_by(self, issue: dict, dep: dict) -> None:
+        owner, repo = dep["project"].split("/", 1)
+        self.t.send("POST", f"repos/{issue['project']}/issues/{issue['number']}/dependencies",
+                    {"owner": owner, "repo": repo, "index": dep["number"]})
+
+    def create_epic(self, title: str, body: str) -> dict:
+        if not self.project:
+            raise ForgeError('set forge "project" in roadmap.json to create parent issues')
+        issue = self._issue(self.t.send("POST", f"repos/{self.project}/issues", {"title": title, "body": body}),
+                            self.project)
+        return {k: issue[k] for k in ("ref", "url", "id", "number", "title", "body")}
+
+    def epic_issues(self, epic: dict) -> list[dict]:
+        out = []
+        for ref in sorted(blocks.epic_members(epic.get("body") or "")):
+            try:
+                out.append(self.get_issue(ref))
+            except NotFound:
+                continue
+        return out
+
+    def _pr(self, d: dict, project: str) -> dict:
+        pr = super()._pr(d, project)
+        if not d.get("draft") and re.match(r"^\s*(wip:|\[wip\]|draft:)", d.get("title", ""), re.IGNORECASE):
+            pr["draft"] = True
+        return pr
+
+    def _with_checks(self, pr: dict) -> dict:
+        if pr["state"] == "open" and pr.get("head_sha"):
+            try:
+                st = self.t.get(f"repos/{pr['project']}/commits/{pr['head_sha']}/status")
+                pr["pipeline"] = st.get("state")
+                targets = [x.get("target_url") for x in st.get("statuses") or [] if x.get("target_url")]
+                pr["pipeline_url"] = targets[0] if targets else pr.get("url")
+            except NotFound:
+                pass
+        return pr
+
+    def related_mrs(self, issue: dict) -> list[dict]:
+        events = self.t.get_all(f"repos/{issue['project']}/issues/{issue['number']}/timeline")
+        seen, out = set(), []
+        for ev in events:
+            src = ev.get("ref_issue") or {}
+            if not src.get("pull_request"):
+                continue
+            repo = (src.get("repository") or {}).get("full_name") or issue["project"]
+            key = (repo, src.get("number"))
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                pr = self._pr(self.t.get(f"repos/{repo}/pulls/{src.get('number')}"), repo)
+            except NotFound:
+                continue
+            out.append(self._with_checks(pr))
+        return out
+
+
 # --- choosing a forge -------------------------------------------------------
 
 
@@ -390,12 +558,22 @@ def detect_from_remote(repo: str) -> tuple[str, str | None]:
         raise ForgeError(f'no forge set in roadmap.json and no git remote in {repo}; set forge.kind') from exc
     m = re.match(r"^(?:\w+://)?(?:[^@/]+@)?([^/:]+)[:/]", url)
     host = m.group(1) if m else None
-    return ("github" if host and "github" in host else "gitlab"), host
+    if host and "github" in host:
+        return "github", host
+    if host and ("codeberg" in host or "forgejo" in host or "gitea" in host):
+        return "forgejo", host
+    return "gitlab", host
+
+
+def forge_class(kind: str):
+    kinds = {"gitlab": GitLab, "github": GitHub, "forgejo": Forgejo, "gitea": Forgejo, "codeberg": Forgejo}
+    if kind not in kinds:
+        raise ForgeError(f'unknown forge "{kind}"; use gitlab, github or forgejo')
+    return kinds[kind]
 
 
 def make(kind: str, transport, cfg: dict):
-    cls = GitLab if kind == "gitlab" else GitHub
-    return cls(transport, host=cfg.get("host"), project=cfg.get("project"), group=cfg.get("group"))
+    return forge_class(kind)(transport, host=cfg.get("host"), project=cfg.get("project"), group=cfg.get("group"))
 
 
 def from_args(data: dict, args) -> GitLab | GitHub:
@@ -407,6 +585,8 @@ def from_args(data: dict, args) -> GitLab | GitHub:
     if getattr(args, "recorded", None):
         with open(args.recorded) as fh:
             transport = RecordedTransport(json.load(fh))
+    elif forge_class(kind) is Forgejo:
+        transport = HttpTransport(cfg.get("host"))
     else:
         transport = CliTransport(kind, cfg.get("host"))
     return make(kind, transport, cfg)

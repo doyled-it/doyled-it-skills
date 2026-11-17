@@ -1,0 +1,127 @@
+{
+ "GET repos/example-org/search-service/issues/10": {
+  "id": 7010,
+  "number": 10,
+  "title": "Better ranking",
+  "body": "Ranking work, written by hand.\n\n<!-- roadmap:epic:start -->\nold generated text\n\n### Issues in this epic\n\n- [x] example-org/search-service#11 Record which results people open\n<!-- roadmap:epic:end -->\n\nMore hand-written notes.",
+  "state": "open",
+  "labels": [],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "html_url": "https://codeberg.org/example-org/search-service/issues/10",
+  "pull_request": null,
+  "repository": {
+   "id": 5,
+   "name": "search-service",
+   "owner": "example-org",
+   "full_name": "example-org/search-service"
+  }
+ },
+ "GET repos/example-org/search-service/issues/11": {
+  "id": 7011,
+  "number": 11,
+  "title": "Record which results people open",
+  "body": "Anonymous counts.",
+  "state": "closed",
+  "labels": [],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "html_url": "https://codeberg.org/example-org/search-service/issues/11",
+  "pull_request": null,
+  "repository": {
+   "id": 5,
+   "name": "search-service",
+   "owner": "example-org",
+   "full_name": "example-org/search-service"
+  }
+ },
+ "GET repos/example-org/search-service/issues/12": {
+  "id": 7012,
+  "number": 12,
+  "title": "Rank results by open rate",
+  "body": "Blend.",
+  "state": "open",
+  "labels": [],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "html_url": "https://codeberg.org/example-org/search-service/issues/12",
+  "pull_request": null,
+  "repository": {
+   "id": 5,
+   "name": "search-service",
+   "owner": "example-org",
+   "full_name": "example-org/search-service"
+  }
+ },
+ "GET repos/example-org/search-service/issues?state=open&type=issues": [
+  {
+   "id": 7010,
+   "number": 10,
+   "title": "Better ranking",
+   "body": "Ranking work, written by hand.\n\n<!-- roadmap:epic:start -->\nold generated text\n\n### Issues in this epic\n\n- [x] example-org/search-service#11 Record which results people open\n<!-- roadmap:epic:end -->\n\nMore hand-written notes.",
+   "state": "open",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://codeberg.org/example-org/search-service/issues/10",
+   "pull_request": null,
+   "repository": {
+    "id": 5,
+    "name": "search-service",
+    "owner": "example-org",
+    "full_name": "example-org/search-service"
+   }
+  },
+  {
+   "id": 7012,
+   "number": 12,
+   "title": "Rank results by open rate",
+   "body": "",
+   "state": "open",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://codeberg.org/example-org/search-service/issues/12",
+   "pull_request": null,
+   "repository": {
+    "id": 5,
+    "name": "search-service",
+    "owner": "example-org",
+    "full_name": "example-org/search-service"
+   }
+  },
+  {
+   "id": 7020,
+   "number": 20,
+   "title": "Design the results page",
+   "body": "Layout notes.",
+   "state": "open",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://codeberg.org/example-org/search-service/issues/20",
+   "pull_request": null,
+   "repository": {
+    "id": 5,
+    "name": "search-service",
+    "owner": "example-org",
+    "full_name": "example-org/search-service"
+   }
+  }
+ ],
+ "GET repos/example-org/search-service/issues/11/dependencies": [],
+ "GET repos/example-org/search-service/issues/12/dependencies": [
+  {
+   "id": 7011,
+   "number": 11,
+   "title": "Record which results people open",
+   "body": "",
+   "state": "closed",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://codeberg.org/example-org/search-service/issues/11",
+   "pull_request": null,
+   "repository": {
+    "id": 5,
+    "name": "search-service",
+    "owner": "example-org",
+    "full_name": "example-org/search-service"
+   }
+  }
+ ],
+ "GET repos/example-org/search-service/issues/20/dependencies": []
+}

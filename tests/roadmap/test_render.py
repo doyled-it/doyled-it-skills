@@ -61,8 +61,10 @@ class RenderStructure(unittest.TestCase):
     def test_one_focusable_node_per_issue_with_status_class(self):
         nodes = self.doc.having("g", "node")
         self.assertEqual(len(nodes), 8)
-        for n in nodes:
-            self.assertEqual(n.get("tabindex"), "0")
+        # Published issues are links (focusable); the rest take a tab stop of their own.
+        linked = len(re.findall(r'<a href="[^"]+"><g class="node', self.html))
+        self.assertEqual(linked, 2)
+        self.assertEqual(sum(1 for n in nodes if n.get("tabindex") == "0"), 8 - linked)
         classes = {c for n in nodes for c in n["class"].split()}
         self.assertTrue({"done", "prog", "review", "block", "todo"} <= classes)
 

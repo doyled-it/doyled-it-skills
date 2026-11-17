@@ -42,6 +42,28 @@ def cmd_render(args) -> int:
     return 0
 
 
+def cmd_epic_preview(args) -> int:
+    from . import preview
+
+    data = _load(args.roadmap)
+    if args.epic not in {e.get("id") for e in data.get("epics", [])}:
+        print(f'error: no epic "{args.epic}" in {args.roadmap}')
+        return 1
+    try:
+        page = render.render_page(data)
+    except render.RenderError as exc:
+        print(exc)
+        return 1
+    src = Path(args.roadmap)
+    out = Path(args.out) if args.out else src.with_name(f"{src.stem}-epic-{args.epic}.html")
+    full = out.parent / f"{src.stem}.html"
+    full.write_text(page)
+    kind = (data.get("forge") or {}).get("kind")
+    out.write_text(preview.preview_page(data, args.epic, full.name, task_list=kind in ("forgejo", "gitea")))
+    print(f"wrote {out} (preview of epic {args.epic}, nothing written to the forge) and {full}")
+    return 0
+
+
 def cmd_publish(args) -> int:
     from . import forge, publish
 
@@ -69,7 +91,8 @@ def cmd_sync(args) -> int:
         print(f"error: {exc}")
         return 2
     tasks = orca.tasks_from_args(data, args)
-    report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now)
+    report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now,
+                       update_epics=args.update_epics)
     if args.json:
         print(json.dumps(report.as_dict(), indent=2))
     else:
@@ -81,7 +104,7 @@ def cmd_sync(args) -> int:
 
 
 def _forge_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--forge", choices=("gitlab", "github"),
+    p.add_argument("--forge", choices=("gitlab", "github", "forgejo"),
                    help="override the forge kind (default: roadmap forge.kind, then the git remote)")
     p.add_argument("--repo", default=".", help="checkout whose origin remote picks the forge (default: .)")
     p.add_argument("--recorded", metavar="FILE",
@@ -101,6 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("-o", "--out", help="output HTML path (default: roadmap path with .html)")
     r.set_defaults(func=cmd_render)
 
+    ep = sub.add_parser("epic-preview",
+                        help="write a local page showing an epic's generated section beside the full roadmap")
+    ep.add_argument("roadmap")
+    ep.add_argument("--epic", required=True, help="epic id")
+    ep.add_argument("-o", "--out", help="output HTML path (default: <roadmap>-epic-<id>.html)")
+    ep.set_defaults(func=cmd_epic_preview)
+
     pb = sub.add_parser("publish", help="create or update forge epics and issues (dry run by default)")
     pb.add_argument("roadmap")
     pb.add_argument("--apply", action="store_true", help="make the changes; without it nothing is written")
@@ -111,6 +141,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("roadmap")
     s.add_argument("--write", action="store_true",
                    help="update status and gate ticks in roadmap.json (never writes to the forge or Orca)")
+    s.add_argument("--update-epics", action="store_true",
+                   help="rewrite the generated roadmap section in each epic (the only forge write sync makes)")
     s.add_argument("--json", action="store_true", help="print the report as JSON")
     s.add_argument("--stale-days", type=int, default=14, help="no activity for this many days is drift")
     s.add_argument("--now", help="ISO date to measure staleness from (default: today)")

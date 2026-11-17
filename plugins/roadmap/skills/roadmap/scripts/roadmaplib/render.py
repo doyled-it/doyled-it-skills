@@ -131,7 +131,10 @@ def _svg(data: dict, items: dict) -> str:
         status = model.STATUSES[it["status"]]
         gates_text = ", ".join(f'{g["gate"]} {"passed" if g["passed"] else "open"}' for g in it["gates"]) or "none"
         deps_text = ", ".join(it["depends_on"]) or "nothing"
-        out.append(f'<g class="node {model.STATUS_CLASS[it["status"]]}" tabindex="0">'
+        if it.get("url"):
+            out.append(f'<a href="{esc(it["url"])}">')
+        focus = "" if it.get("url") else ' tabindex="0"'
+        out.append(f'<g class="node {model.STATUS_CLASS[it["status"]]}"{focus}>'
                    f'<title>{esc(model.label(it))}: {esc(it["title"])}. {esc(it["detail"])}. Status {esc(status)}. '
                    f'Depends on {esc(deps_text)}. Gates: {esc(gates_text)}.</title>')
         out.append(f'<rect class="box" x="{x}" y="{y}" width="{NODE_W}" height="{NODE_H}" rx="10"/>')
@@ -146,7 +149,7 @@ def _svg(data: dict, items: dict) -> str:
             out.append(f'<g class="{cls}"><rect x="{gx}" y="{y + NODE_H - 30}" width="22" height="20" rx="4"/>'
                        f'<text x="{gx + 11}" y="{y + NODE_H - 15}" text-anchor="middle">{esc(g["gate"])}</text></g>')
             gx += 27
-        out.append("</g>")
+        out.append("</g></a>" if it.get("url") else "</g>")
     out.append("</svg>")
     return "".join(out)
 
@@ -174,6 +177,12 @@ def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool) -> str:
         extra = "".join(f'<a class="xlink" href="{esc(lk["url"])}">{esc(lk.get("label") or lk["url"])}</a>'
                         if isinstance(lk, dict) else f'<a class="xlink" href="{esc(lk)}">{esc(lk)}</a>'
                         for lk in it.get("links", []))
+        mrs = "".join(
+            f'<span class="mr">{_link(m.get("url"), m.get("ref"))} {esc(m.get("state", ""))}'
+            f'{" (draft)" if m.get("draft") else ""}'
+            + (f', {_link(m.get("pipeline_url"), "pipeline " + m["pipeline"])}' if m.get("pipeline") else "")
+            + "</span>" for m in it.get("merge_requests", []))
+        extra += mrs
         iteration = f'<td>{esc(it.get("iteration", ""))}</td>' if with_iteration else ""
         rows.append(f'<tr><th scope="row">{esc(iid)}{ref}</th><td><strong>{esc(it["title"])}</strong>'
                     f'<span class="det">{esc(it["detail"])}</span>{extra}</td><td>{esc(after)}</td>'
@@ -286,7 +295,7 @@ a .lanename { fill:var(--action); text-decoration:underline; }
 .edge.cross, .keyedge.keycross { stroke:var(--amber); stroke-dasharray:5 4; }
 .arrowhead { fill:var(--ink3); }
 .node .box { fill:var(--surface); stroke:var(--rule); stroke-width:1.2; }
-.node:focus .box, .node:hover .box { stroke:var(--action); stroke-width:2.5; } .node:focus { outline:none; }
+a:focus .node .box, .node:focus .box, .node:hover .box { stroke:var(--action); stroke-width:2.5; } .node:focus { outline:none; }
 .node .stripe { fill:var(--muted); }
 .node.prog .stripe { fill:var(--action); } .node.prog .box { stroke:var(--action); }
 .node.review .stripe { fill:var(--amber); } .node.block .stripe { fill:var(--danger); }
@@ -331,7 +340,7 @@ tbody th { font-weight:600; color:var(--ink3); white-space:nowrap; font-size:13p
 .ref { display:block; font-weight:500; }
 .track h3 .ref { display:inline; font-size:13px; }
 .det { display:block; color:var(--ink2); font-size:13.5px; }
-.xlink { display:block; font-size:13px; }
+.xlink, .mr { display:block; font-size:13px; }
 td.gates { white-space:nowrap; } td.gates .g { margin-right:4px; }
 ol.timeline { list-style:none; margin:0; padding:0; border-left:2px solid var(--rule); }
 ol.timeline li { position:relative; padding:0 0 16px 22px; }
