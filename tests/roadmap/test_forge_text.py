@@ -13,10 +13,11 @@ import unittest
 from unittest import mock
 
 from helpers import example, fixture, issue
-from roadmaplib import blocks, forge, publish, validate
+from roadmaplib import blocks, forge, publish, sync, validate
 from test_forgejo import forgejo_roadmap
 from test_forgejo import make as forgejo
-from test_publish import NoWrites, gitlab_roadmap
+from test_publish import NoWrites, Recorder, gitlab_roadmap
+from test_sync import sync_roadmap
 
 COMMAND = re.compile(r"^[ \t]*/", re.MULTILINE)
 
@@ -54,20 +55,49 @@ class CommandsAreNeutralized(unittest.TestCase):
     def test_forgejo(self):
         self.check(publish.publish(with_commands(forgejo_roadmap()), forgejo("forgejo_publish.json"), apply=False))
 
-    def test_defang_keeps_ordinary_slashes(self):
-        self.assertEqual(blocks.defang("/close\n  /move x\nsee a/b and /usr"),
-                         "\\/close\n  \\/move x\nsee a/b and /usr")
+    def test_defang_escapes_only_command_lines(self):
+        self.assertEqual(blocks.defang("/close\n  /move x\nsee a/b and /usr\n/usr/local/bin x\n/api/v2 is slow\n/"),
+                         "\\/close\n  \\/move x\nsee a/b and /usr\n/usr/local/bin x\n/api/v2 is slow\n/")
+
+
+CODE_STEPS = "Steps:\n\n```\n/usr/local/bin/search-reindex --all\n/close\n```\n"
+
+
+class GitLabCommandLines(unittest.TestCase):
+    """Lines GitLab would run as quick actions, and only those."""
+
+    def test_lines_gitlab_runs(self):
+        for text, expected in (
+                ("/close", ["/close"]),
+                ("Hand text.\n/close\nmore", ["/close"]),
+                ("/label ~done", ["/label ~done"]),
+                ("/CLOSE", ["/CLOSE"]),
+                ("/close\t", ["/close"]),
+                ("```\nunclosed fence\n/close", ["/close"]),
+                ("<div>\n```\n</div>\n/close\n```", ["/close"]),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(blocks.gitlab_commands(text), expected)
+
+    def test_lines_gitlab_does_not_run(self):
+        for text in ("  /close", "see /close", "/api/v2 endpoints return 500", "/usr/local/bin/x --all", "/",
+                     CODE_STEPS, "```python\n/close\n```", "<details>\n/close\n</details>", ">>>\n/close\n>>>",
+                     "`/close`", "\\/close"):
+            with self.subTest(text=text):
+                self.assertEqual(blocks.gitlab_commands(text), [])
 
 
 class GuardRefusesCommandsAndMultiLineTitles(unittest.TestCase):
-    def test_gitlab_guard_refuses_a_command_line_in_any_text(self):
+    def test_gitlab_guard_refuses_a_command_line_in_a_description(self):
         guard = forge.WriteGuard(commands=True)
-        for payload in ({"description": "Hand text.\n/close"}, {"description": "  /reopen"},
-                        {"title": "Fine", "description": "ok\n\n/move a/b"}):
+        for payload in ({"description": "Hand text.\n/close"}, {"title": "Fine", "description": "ok\n\n/move a/b"}):
             with self.subTest(payload=payload), self.assertRaises(forge.ForgeError) as ctx:
                 guard.check("PUT", "projects/1/issues/2", payload)
             self.assertIn("command", str(ctx.exception))
-        guard.check("PUT", "projects/1/issues/2", {"description": "see a/b\n\\/close"})
+        for payload in ({"description": "see a/b\n\\/close"}, {"description": CODE_STEPS},
+                        {"description": "  /reopen"}, {"title": "/api/v2 endpoints return 500", "description": "x"}):
+            with self.subTest(payload=payload):
+                guard.check("PUT", "projects/1/issues/2", payload)
 
     def test_every_guard_refuses_a_multi_line_title(self):
         for commands in (True, False):
@@ -80,6 +110,64 @@ class GuardRefusesCommandsAndMultiLineTitles(unittest.TestCase):
             with self.assertRaises(forge.ForgeError):
                 t.send("PUT", "projects/1/issues/2", {"description": "x\n/close"})
             run.assert_not_called()
+
+
+def small_gitlab(issue11: str, epic10: str = "Hand text.") -> tuple[dict, dict]:
+    data = gitlab_roadmap()
+    data["epics"] = data["epics"][:1]
+    data["issues"] = [issue(data, "click-signals"), issue(data, "ranking-model")]
+    responses = dict(fixture("gitlab_publish.json"))
+    responses["GET projects/acme%2Fsearch/issues/11"] = dict(responses["GET projects/acme%2Fsearch/issues/11"],
+                                                             description=issue11)
+    responses["GET groups/acme/epics/10"] = dict(responses["GET groups/acme/epics/10"], description=epic10)
+    return data, responses
+
+
+class HandTextNeverStopsAWrite(unittest.TestCase):
+    """Hand text the forge already holds is kept; only a live command line holds back that one write."""
+
+    def publish(self, issue11, epic10="Hand text.", apply=True):
+        data, responses = small_gitlab(issue11, epic10)
+        rec = Recorder(responses)
+        fg = forge.GitLab(rec if apply else NoWrites(responses), host="gitlab.example.com", project="acme/search",
+                          group="acme")
+        return publish.publish(data, fg, apply=apply), rec
+
+    def test_a_code_block_or_a_path_in_hand_text_is_written(self):
+        report, rec = self.publish(CODE_STEPS, epic10="Run `/close` never.\n/api/v2 notes")
+        self.assertIsNone(report.failed)
+        written = [b["description"] for _, p, b in rec.calls if b and "description" in b]
+        self.assertTrue(any(CODE_STEPS in w for w in written))
+        self.assertTrue(any(w.startswith("Run `/close` never.") for w in written))
+
+    def test_a_live_command_in_hand_text_holds_back_only_that_write(self):
+        for apply in (False, True):
+            with self.subTest(apply=apply):
+                report, rec = self.publish("Anonymous counts.\n/close", apply=apply)
+                self.assertIsNone(report.failed)
+                fix = [a for a in report.actions if a.kind == "hand-fix"]
+                self.assertEqual([a.target for a in fix], ["click-signals"])
+                self.assertIn("/close", fix[0].detail)
+                self.assertNotIn("click-signals", [a.target for a in report.actions if a.kind == "update-issue"])
+                self.assertIn("update-epic", [a.kind for a in report.actions])
+                if apply:
+                    self.assertFalse([p for _, p, _ in rec.calls if p.endswith("/issues/11")])
+                    self.assertTrue([p for _, p, _ in rec.calls if p == "groups/acme/epics/10"])
+
+    def test_sync_skips_an_epic_with_a_live_command_and_does_not_fail(self):
+        for hand, written in (("Plan.\n/close", False), (CODE_STEPS, True)):
+            with self.subTest(hand=hand):
+                data = sync_roadmap()
+                responses = dict(fixture("gitlab_sync.json"))
+                responses["GET groups/acme/epics/10"] = {"id": 510, "iid": 10, "title": "Better ranking",
+                                                         "description": hand, "web_url": "https://x.example/e"}
+                rec = Recorder(responses)
+                fg = forge.GitLab(rec, host="gitlab.example.com", project="acme/search", group="acme")
+                report = sync.sync(data, fg, orca_tasks=[], now="2026-11-17", update_epics=True)
+                self.assertEqual((report.errors, report.write_errors), ([], []))
+                self.assertEqual(bool(rec.calls), written)
+                self.assertEqual(any(d.kind == "quick-action" and d.target == "acme&10" for d in report.drift),
+                                 not written)
 
 
 class GeneratedSectionsEscapeText(unittest.TestCase):

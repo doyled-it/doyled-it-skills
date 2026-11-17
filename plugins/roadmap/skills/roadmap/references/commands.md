@@ -150,6 +150,7 @@ Drift kinds:
 | `done-but-open` | Done on the roadmap, open on the forge. |
 | `lead-gate-ticked-on-forge` | A lead gate (D or U) is ticked on the forge but not recorded in `roadmap.json`; it was not ticked. |
 | `marker-problem` | A description's generated-section markers are broken; nothing was read from or written to that section. Fix it by hand. |
+| `quick-action` | GitLab only: an epic's hand-written text has a line GitLab would run as a command (`/close`); the roadmap section was not written. Remove the line or put it in a code block. |
 | `unlisted-epic-issue` | An open issue in a roadmap epic that the roadmap does not list. |
 | `unlinked-merge-request` | An open merge request that no roadmap issue accounts for. |
 | `unlinked-orca-task` | An active Orca task whose title does not start with a roadmap issue's short name or link. |

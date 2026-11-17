@@ -387,6 +387,10 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             continue
         if body == (epic.get("body") or ""):
             continue
+        hold = forge.command_hold(fg, body)
+        if hold:
+            report.drift.append(Drift("quick-action", ep["ref"], f"{hold}. Its roadmap section was not written"))
+            continue
         if update_epics:
             epic_writes.append((ep, epic, body))
         else:

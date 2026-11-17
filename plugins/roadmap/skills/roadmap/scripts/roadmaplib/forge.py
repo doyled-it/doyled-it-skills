@@ -44,10 +44,11 @@ class WriteGuard:
     drift" issue when drift is zero. That call passes allow_close=True, and the
     guard then accepts only a bare close (no other field) and still no delete.
 
-    commands=True (GitLab) also refuses any text with a line that starts with
-    "/": GitLab runs such a line in a description as a quick action (/close,
-    /move ...), even through the API. GitHub and Forgejo have no such syntax in
-    issue descriptions. Every forge refuses a title that is not one line.
+    commands=True (GitLab) also refuses a description with a line GitLab would
+    run as a quick action (/close, /move ...), which it does even through the
+    API (blocks.gitlab_commands: the start of a line, outside code blocks).
+    Titles never run commands. GitHub and Forgejo have no such syntax in issue
+    descriptions. Every forge refuses a title that is not one line.
     """
 
     def __init__(self, commands: bool = True):
@@ -70,9 +71,9 @@ class WriteGuard:
             raise ForgeError(f"refusing a title that is not one line: {path}")
         if self.commands:
             for key, value in body.items():
-                if isinstance(value, str) and blocks.COMMAND_LINE.search(value):
-                    raise ForgeError(f"refusing to write {key} with a line starting with / that GitLab would run "
-                                     f"as a command (quick action): {path}. Escape it as \\/ by hand")
+                if key != "title" and isinstance(value, str) and blocks.gitlab_commands(value):
+                    raise ForgeError(f"refusing to write {key} with a line GitLab would run as a command "
+                                     f"(quick action): {path}")
 
 
 # --- transports -------------------------------------------------------------
@@ -297,6 +298,23 @@ def enc(path: str) -> str:
 
 
 # --- adapters ---------------------------------------------------------------
+
+
+def command_hold(fg, body: str) -> str | None:
+    """Why body must not be written to this forge, or None.
+
+    GitLab runs quick actions in a description it is sent, hand text included.
+    Text already on the forge is kept as it is, so a live command line in it
+    holds back that one write for a hand fix instead of failing the run.
+    """
+    if getattr(fg, "kind", "") != "gitlab":
+        return None
+    found = blocks.gitlab_commands(body)
+    if not found:
+        return None
+    return (f'the line "{blocks.one_line(found[0])[:60]}" is a GitLab quick action, which GitLab would run if '
+            "this description were rewritten; remove it or put it in a code block by hand. Nothing was written "
+            "to it")
 
 
 class GitLab:

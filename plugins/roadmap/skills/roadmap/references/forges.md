@@ -155,19 +155,28 @@ close with no other change.
 
 ### Forge commands in written text
 
-GitLab runs a line that starts with `/` in an issue or epic description as a
-quick action (`/close`, `/move`, `/label`), also when the description is written
-through the API. Everything the tool writes is neutralized first: such a line is
-written as `\/close`, which shows as `/close` and runs nothing. Titles and names
-are written on one line, and the text they carry into a generated section is
-escaped, so it cannot add a link, a hidden comment, a marker or a task list line.
-`validate` rejects control characters in titles and names and marker text
-anywhere. On GitLab the guard also refuses to write a description that still has
-a line starting with `/` (for example in hand-written text outside the markers);
-escape that line by hand. GitHub and Forgejo have no command syntax in issue
-descriptions (GitHub's slash commands work only in its web editor; closing
-keywords act only from commits and pull requests), so their guard checks titles
-only, while the written text is neutralized the same way on every forge.
+GitLab runs a line such as `/close`, `/move` or `/label ~done` in an issue or
+epic description as a quick action, also when the description is written
+through the API. It runs only lines that start with the `/` (no indent) and sit
+outside a fenced code block (three backticks), an HTML block and a `>>>` quote;
+a path such as `/usr/local/bin` or a title such as "/api/v2 endpoints" is never
+a command. Everything the tool writes is neutralized first: a line shaped like a
+command is written as `\/close`, which shows as `/close` and runs nothing.
+Titles and names are written on one line, and the text they carry into a
+generated section is escaped, so it cannot add a link, a hidden comment, a
+marker or a task list line. `validate` rejects control characters in titles and
+names and marker text anywhere.
+
+Hand-written text outside the markers is kept byte for byte, so it is never
+escaped. When it holds a line GitLab would run, publish lists that issue or epic
+under "Needs a hand fix" and sync reports `quick-action` drift: nothing is
+written to that one description (the dry run shows the same), every other write
+goes ahead, and the run does not fail. Remove the line or put it in a code
+block. As a last check the GitLab guard refuses any description with such a
+line. GitHub and Forgejo have no command syntax in issue descriptions (GitHub's
+slash commands work only in its web editor; closing keywords act only from
+commits and pull requests), so their guard checks titles only, while the
+written text is neutralized the same way on every forge.
 
 ## What each command calls
 

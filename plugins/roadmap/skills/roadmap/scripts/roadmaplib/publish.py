@@ -195,7 +195,10 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
             except blocks.MarkerError as exc:
                 report.add("hand-fix", iid, f'{fi["ref"]}: {exc}')
                 body = fi["body"]
-            if body != fi["body"]:
+            hold = forge.command_hold(fg, body) if body != fi["body"] else None
+            if hold:
+                report.add("hand-fix", iid, f'{fi["ref"]}: {hold}')
+            elif body != fi["body"]:
                 report.add("update-issue", iid, f'gate checklist in {fi["ref"]}', body=body)
                 if apply:
                     fg.update_issue_body(fi, body)
@@ -249,7 +252,10 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
         except blocks.MarkerError as exc:
             report.add("hand-fix", ep["id"], f'{e.get("ref")}: {exc}')
             continue
-        if body != (e.get("body") or ""):
+        hold = forge.command_hold(fg, body) if body != (e.get("body") or "") else None
+        if hold:
+            report.add("hand-fix", ep["id"], f'{e.get("ref")}: {hold}')
+        elif body != (e.get("body") or ""):
             report.add("update-epic", ep["id"],
                        f"roadmap section (flowchart and status table) in {e.get('ref') or e.get('placeholder')}",
                        body=body)

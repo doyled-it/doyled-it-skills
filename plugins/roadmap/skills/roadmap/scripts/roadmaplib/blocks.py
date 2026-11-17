@@ -32,9 +32,20 @@ MERMAID_STYLE = {
 }
 
 
-# A line GitLab would run as a quick action (/close, /move ...), and control
-# characters that would let one field spill onto another line.
-COMMAND_LINE = re.compile(r"^([ \t]*)/", re.MULTILINE)
+# A line shaped like a GitLab quick action: "/word" alone or before a space
+# (/close, /move x). Generated text escapes every such line wherever it sits.
+COMMAND_LINE = re.compile(r"^([ \t]*)/(?=[^\s/]+(?:[ \t]|$))", re.MULTILINE)
+# How GitLab finds the quick actions it runs, scanning left to right as its own
+# extractor does: a command counts only at the very start of a line and outside
+# a ``` code block, an HTML block and a >>> quote. Command names are matched
+# loosely (any word), so this finds at least every line GitLab runs.
+GITLAB_SCAN = re.compile(r"""
+    (?P<code>^```.+?\n```$)
+  | (?P<html>^<[^>]+?>\n.+?\n</[^>]+?>$)
+  | (?P<quote>^>>>.+?\n>>>$)
+  | (?P<cmd>^/[^\s/]+(?:[ ][^\n]*)?)(?:\s*\n|\s*$)
+""", re.MULTILINE | re.DOTALL | re.IGNORECASE | re.VERBOSE)
+# Control characters that would let one field spill onto another line.
 CONTROL = re.compile(r"[\x00-\x1f\x7f\u2028\u2029]")
 FENCE_OR_LIST = re.compile(r"^([ \t]*)(```|~~~|#{1,6} |[-*+] \[)", re.MULTILINE)
 
@@ -45,6 +56,15 @@ def defang(text: str) -> str:
     Markdown shows "\\/close" as "/close"; GitLab no longer sees a quick action.
     """
     return COMMAND_LINE.sub(lambda m: m.group(1) + "\\/", str(text or ""))
+
+
+def gitlab_commands(text) -> list[str]:
+    """The lines of text GitLab would run as quick actions if it were written to a description."""
+    found = []
+    for m in GITLAB_SCAN.finditer(str(text or "").replace("\r", "")):
+        if m.group("cmd"):
+            found.append(m.group("cmd").rstrip())
+    return found
 
 
 def one_line(text) -> str:

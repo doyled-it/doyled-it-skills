@@ -78,7 +78,10 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
         return result
     old = current.get("body") or ""
     body = blocks.replace_block(old, blocks.DRIFT_START, blocks.DRIFT_END, content)
-    if _without_date(body) != _without_date(old):
+    hold = forge.command_hold(fg, body)
+    if hold and _without_date(body) != _without_date(old):
+        result.notes.append(f"{current['ref']} was not updated: {hold}")
+    elif _without_date(body) != _without_date(old):
         result.actions.append(Action("update-drift-issue", f"{current['ref']}, {len(report.drift)} items"))
         if apply:
             fg.update_issue_body(current, body)
