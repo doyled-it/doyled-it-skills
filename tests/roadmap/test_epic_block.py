@@ -84,12 +84,12 @@ class EpicPreview(unittest.TestCase):
                                   "-o", str(out)], capture_output=True, text=True)
             self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
             html = out.read_text()
-            full = Path(tmp) / "example-roadmap.html"
+            full = Path(tmp) / "epic-preview-full.html"
             self.assertTrue(full.exists(), res.stdout)
-        self.assertRegex(html, r'<script src="https://cdn\.jsdelivr\.net/npm/mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js">')
+        self.assertRegex(html, r'<script src="https://cdn\.jsdelivr\.net/npm/mermaid@\d+\.\d+\.\d+/dist/mermaid\.min\.js"')
         self.assertIn('<pre class="mermaid">', html)
         self.assertIn('<iframe', html)
-        self.assertIn('src="example-roadmap.html"', html)
+        self.assertIn('src="epic-preview-full.html"', html)
         self.assertIn("<table>", html)
         self.assertIn("Not written to the forge", html)
 

@@ -56,11 +56,17 @@ def cmd_epic_preview(args) -> int:
         return 1
     src = Path(args.roadmap)
     out = Path(args.out) if args.out else src.with_name(f"{src.stem}-epic-{args.epic}.html")
-    full = out.parent / f"{src.stem}.html"
+    # The full page goes beside the preview under the preview's own name, so it
+    # never replaces a page of the same name the user keeps there.
+    full = out.with_name(f"{out.stem}-full.html")
+    for path in (out, full):
+        if path.exists() and 'name="generator" content="roadmap' not in path.read_text(errors="replace")[:2000]:
+            print(f"error: {path} exists and was not written by roadmap; choose another -o")
+            return 1
     full.write_text(page)
     kind = (data.get("forge") or {}).get("kind")
     out.write_text(preview.preview_page(data, args.epic, full.name, task_list=kind in ("forgejo", "gitea")))
-    print(f"wrote {out} (preview of epic {args.epic}, nothing written to the forge) and {full}")
+    print(f"wrote {out} (preview of epic {args.epic}, nothing written to the forge) and the full page {full}")
     return 0
 
 

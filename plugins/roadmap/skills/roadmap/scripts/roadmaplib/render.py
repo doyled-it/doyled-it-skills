@@ -248,9 +248,8 @@ def render_page(raw: dict) -> str:
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="roadmap render">
 <title>{esc(data["title"])}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>{CSS}</style></head><body><main class="wrap">
 <header class="top"><h1>{esc(data["title"])}</h1>
 <div class="state{" ok" if data.get("agreed") else ""}"><b>{esc(state)}</b>{esc(data.get("version", ""))}, {esc(data.get("date", ""))}</div>
@@ -281,7 +280,7 @@ CSS = """
   --surface:#18202b; --surface2:#1d2633; --rule:#2c3747; --action:#7fa8f0; --actiontint:#1e2c45; --amber:#e0a944;
   --ambertext:#f0c879; --ambertint:#3a2f17; --done:#5fbf92; --donetint:#173226; --muted:#5f6d80; --danger:#f08a83; } }
 * { box-sizing:border-box; }
-body { margin:0; background:var(--canvas); color:var(--ink); font:400 15px/1.55 "Public Sans",system-ui,sans-serif;
+body { margin:0; background:var(--canvas); color:var(--ink); font:400 15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-variant-numeric:tabular-nums; }
 a { color:var(--action); }
 a:focus-visible, .scroller:focus-visible { outline:2.5px solid var(--action); outline-offset:2px; }
@@ -301,8 +300,8 @@ h2 { font-size:19px; margin:36px 0 12px; font-weight:600; }
 .flow { display:block; }
 .lane { fill:var(--surface); } .lane.alt { fill:var(--surface2); }
 .lanehead { fill:var(--canvas); }
-.lanelabel { font:600 12px "Public Sans",system-ui,sans-serif; fill:var(--ink3); }
-.lanename { font:600 15px "Public Sans",system-ui,sans-serif; fill:var(--ink); }
+.lanelabel { font:600 12px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; fill:var(--ink3); }
+.lanename { font:600 15px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; fill:var(--ink); }
 a .lanename { fill:var(--action); text-decoration:underline; }
 .edge, .keyedge { fill:none; stroke:var(--ink3); stroke-width:1.6; }
 .edge.cross, .keyedge.keycross { stroke:var(--amber); stroke-dasharray:5 4; }
@@ -314,13 +313,13 @@ a:focus .node .box, .node:focus .box, .node:hover .box { stroke:var(--action); s
 .node.review .stripe { fill:var(--amber); } .node.block .stripe { fill:var(--danger); }
 .node.done .stripe { fill:var(--done); } .node.done .box { fill:var(--donetint); }
 .node.todo .ntitle { fill:var(--ink2); }
-.nid { font:600 12.5px "Public Sans",system-ui,sans-serif; fill:var(--ink3); }
-.nstatus { font:600 12px "Public Sans",system-ui,sans-serif; fill:var(--ink3); }
+.nid { font:600 12.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; fill:var(--ink3); }
+.nstatus { font:600 12px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; fill:var(--ink3); }
 .node.prog .nstatus { fill:var(--action); } .node.review .nstatus { fill:var(--ambertext); }
 .node.block .nstatus { fill:var(--danger); } .node.done .nstatus { fill:var(--done); }
-.ntitle { font:600 14.5px "Public Sans",system-ui,sans-serif; fill:var(--ink); }
+.ntitle { font:600 14.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; fill:var(--ink); }
 .gate rect { fill:var(--actiontint); stroke:var(--action); stroke-width:1; }
-.gate text { font:700 11.5px "Public Sans",system-ui,sans-serif; fill:var(--action); }
+.gate text { font:700 11.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; fill:var(--action); }
 .gate.passed rect { fill:var(--action); } .gate.passed text { fill:var(--surface); }
 .legend { display:grid; grid-template-columns:2fr 1fr; gap:22px; margin-top:16px; }
 .legend h3 { margin:18px 0 8px; font-size:15px; }

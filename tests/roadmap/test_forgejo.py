@@ -57,7 +57,7 @@ class ForgejoPublish(unittest.TestCase):
     def test_never_uses_milestones_or_labels(self):
         for a in self.report.actions:
             self.assertNotIn("milestone", (a.detail + (a.body or "")).lower())
-            self.assertNotIn("labels", str(a.payload or {}))
+            self.assertNotIn("~", a.body or "")
 
 
 class ForgejoSync(unittest.TestCase):

@@ -41,7 +41,11 @@ roadmap.py epic-preview roadmap.json --epic <epic-id> [-o preview.html]
 
 Writes a local page with the epic's generated section (rendered with mermaid.js)
 beside the full roadmap page, plus the exact Markdown that would go between the
-markers. Nothing is written to the forge. Use it to show the program lead the
+markers. The full page is written next to the preview as `<preview>-full.html`;
+a file at either path that the command did not write is never replaced.
+Nothing is written to the forge. The preview loads mermaid.js from jsdelivr,
+pinned to version 11.4.1 and to the file's hash; it is the only third-party
+request (the roadmap page itself makes none). Use it to show the program lead the
 section before the first write to a real epic.
 
 ## publish

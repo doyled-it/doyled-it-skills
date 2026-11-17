@@ -27,8 +27,7 @@ class Action:
     #               add-to-epic, add-blocked-by
     target: str   # roadmap id of the epic or issue
     detail: str
-    body: str | None = None
-    payload: dict | None = None
+    body: str | None = None   # the description that would be written, when the change writes one
 
 
 @dataclass
@@ -40,8 +39,8 @@ class Report:
     changed: bool = False
     failed: str | None = None   # the forge error that stopped an apply part way
 
-    def add(self, kind, target, detail, body=None, payload=None):
-        self.actions.append(Action(kind, target, detail, body, payload))
+    def add(self, kind, target, detail, body=None):
+        self.actions.append(Action(kind, target, detail, body))
 
     def text(self) -> str:
         head = ("Applied: these changes were made on the forge." if self.applied else

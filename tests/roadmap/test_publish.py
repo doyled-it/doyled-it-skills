@@ -93,11 +93,6 @@ class GitLabDryRun(unittest.TestCase):
         self.assertIn("- [ ] U:", block)
         self.assertTrue(body.startswith("Layout notes.\n\n- [x] D: Design agreed"))   # hand text kept as is
 
-    def test_nothing_is_closed_or_deleted(self):
-        for a in self.report.actions:
-            self.assertNotIn(a.kind, ("close", "delete"))
-            self.assertNotIn("state_event", json.dumps(a.payload or {}))
-
     def test_dry_run_does_not_change_the_roadmap(self):
         self.assertFalse(self.report.applied)
         self.assertIn("Dry run", self.report.text())

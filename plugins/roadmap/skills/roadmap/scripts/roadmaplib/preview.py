@@ -12,7 +12,10 @@ import re
 
 from . import blocks, model
 
+# The preview's one third-party request: mermaid.js, pinned to a version and to
+# the hash of that file (it matches jsdelivr's published hash for it).
 MERMAID_JS = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
+MERMAID_SRI = "sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
 
 
 def _anchor(m: re.Match) -> str:
@@ -103,6 +106,7 @@ def preview_page(raw: dict, epic_id: str, full_page: str, task_list: bool = Fals
     esc = html.escape
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="roadmap epic-preview">
 <title>Epic section preview</title>
 <style>
 :root {{ --ink:#17243a; --ink2:#4a5a70; --canvas:#eef1f5; --surface:#fff; --rule:#d6dce4; --action:#2556a8;
@@ -132,7 +136,7 @@ details pre {{ white-space:pre-wrap; font-size:12.5px; }}
 </section>
 <section aria-label="Full roadmap page"><iframe src="{esc(full_page)}" title="Full roadmap page"></iframe></section>
 </main>
-<script src="{MERMAID_JS}"></script>
+<script src="{MERMAID_JS}" integrity="{MERMAID_SRI}" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>mermaid.initialize({{ startOnLoad: true, securityLevel: "strict", theme: "default" }});</script>
 </body></html>
 """
