@@ -25,8 +25,15 @@
   `bash scripts/check.sh`; run `bash tests/codegraph_smoke.sh` when CodeGraph
   behavior changes. These checks need Bash, Node.js 18+, Python 3.11+, and
   ShellCheck; the roadmap tests run offline against recorded forge responses in
-  `tests/roadmap/fixtures/` (never record private forge content there); the smoke
-  check additionally needs the CodeGraph CLI and uv for scaffold validation.
+  `tests/roadmap/fixtures/` and a stateful fake forge (`tests/roadmap/fakeforge.py`;
+  never record private forge content); the smoke check additionally needs the
+  CodeGraph CLI and uv for scaffold validation.
+- Roadmap safety rules any change must keep, each with a test: text the tool
+  writes is neutralized (no line starting with `/`, one-line titles), a
+  description with broken markers is reported and never written, tokens go only
+  to their own host over https, gates D and U pass only from `approved_by` in
+  roadmap.json, nothing is deleted, and the only thing ever closed is the tool's
+  own "Roadmap drift" issue. The plugin's hooks never write and fail open.
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.
