@@ -5,6 +5,11 @@ Actions) or by hand. A merge request names a roadmap issue when its title or
 description has the issue's short name, its forge reference (or "#12" in the
 same project), or its URL. The merge request templates put this on a
 "Roadmap issue:" line and a "Closes #N" line.
+
+A merge request that changes only the roadmap (roadmap.json and its rendered
+page) passes without naming an issue: that is the lead's agreed change, or the
+synced roadmap.json from the scheduled job. In CI the changed files are read
+from git against the merge request's base commit.
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from dataclasses import dataclass, field
 
 from . import model
@@ -43,8 +49,24 @@ def _named(it: dict, text: str, project: str | None) -> bool:
     return bool(url and re.search(rf"{re.escape(url.rstrip('/'))}(?![\w/])", text))
 
 
-def check(raw: dict, title: str, body: str, project: str | None) -> Result:
-    """Does the merge request name an issue on the agreed roadmap?"""
+def _norm(path: str) -> str:
+    return os.path.normpath(os.path.relpath(os.path.abspath(path)))
+
+
+def roadmap_only(changed: list[str] | None, roadmap_path: str | None) -> bool:
+    """True when every changed file is the roadmap or its rendered page."""
+    if not changed or not roadmap_path:
+        return False
+    own = {_norm(roadmap_path), _norm(str(os.path.splitext(roadmap_path)[0]) + ".html")}
+    return all(_norm(c) in own for c in changed)
+
+
+def check(raw: dict, title: str, body: str, project: str | None, changed: list[str] | None = None,
+          roadmap_path: str | None = None) -> Result:
+    """Does the merge request name an issue on the agreed roadmap, or change only the roadmap?"""
+    if roadmap_only(changed, roadmap_path):
+        return Result(True, f"Changes only the roadmap ({', '.join(sorted(set(changed)))}); the program lead "
+                            "reviews it, and no roadmap issue is needed.")
     if not raw.get("agreed"):
         return Result(False, 'The roadmap is a draft. Merge requests are checked against an agreed roadmap: '
                              'get the program lead\'s agreement and set "agreed": true.')
@@ -86,3 +108,32 @@ def from_ci(env=None) -> tuple[str, str, str | None]:
             raise ValueError("this workflow run is not for a pull request (run it on pull_request)")
         return pr.get("title") or "", pr.get("body") or "", env.get("GITHUB_REPOSITORY")
     raise ValueError("not in a GitLab, GitHub or Forgejo merge request pipeline; pass --title and --body instead")
+
+
+def ci_base(env=None) -> str | None:
+    """The merge request's base commit in CI, when the forge gives it."""
+    env = os.environ if env is None else env
+    if env.get("GITLAB_CI"):
+        return env.get("CI_MERGE_REQUEST_DIFF_BASE_SHA") or None
+    path = env.get("GITHUB_EVENT_PATH")
+    if path:
+        try:
+            with open(path) as fh:
+                return (((json.load(fh) or {}).get("pull_request") or {}).get("base") or {}).get("sha")
+        except (OSError, ValueError):
+            return None
+    return None
+
+
+def changed_files(base: str) -> list[str] | None:
+    """Files changed since base, from git in the working directory; None when git cannot tell."""
+    if not re.fullmatch(r"[0-9a-fA-F]{7,64}", base or ""):
+        return None
+    try:
+        proc = subprocess.run(["git", "-c", f"safe.directory={os.getcwd()}", "diff", "--name-only", f"{base}...HEAD"],
+                              capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode != 0:
+        return None
+    return [ln for ln in proc.stdout.splitlines() if ln.strip()]

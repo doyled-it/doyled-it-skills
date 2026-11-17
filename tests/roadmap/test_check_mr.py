@@ -104,6 +104,79 @@ class FromCI(unittest.TestCase):
         self.assertEqual(res.returncode, 2)
 
 
+class RoadmapChanges(unittest.TestCase):
+    """The merge request that changes the roadmap itself has no roadmap issue to name."""
+
+    def test_a_change_to_only_the_roadmap_and_its_page_passes(self):
+        draft = dict(example(), agreed=False)
+        for data in (example(), draft):
+            for changed in (["roadmap.json"], ["roadmap.json", "roadmap.html"], ["./roadmap.json"]):
+                with self.subTest(agreed=data["agreed"], changed=changed):
+                    result = checkmr.check(data, "Agree version 4", "", REPO, changed=changed,
+                                           roadmap_path="roadmap.json")
+                    self.assertTrue(result.ok, result.message)
+                    self.assertIn("only the roadmap", result.message)
+
+    def test_any_other_file_needs_a_roadmap_issue(self):
+        for changed in (["roadmap.json", "src/rank.py"], ["docs/roadmap.json"], []):
+            with self.subTest(changed=changed):
+                result = checkmr.check(example(), "Agree version 4", "", REPO, changed=changed,
+                                       roadmap_path="roadmap.json")
+                self.assertFalse(result.ok)
+
+    def git(self, repo, *args):
+        return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout
+
+    def repo_with_change(self, tmp, files):
+        repo = Path(tmp)
+        self.git(repo, "init", "-q")
+        self.git(repo, "config", "user.email", "t@example.com")
+        self.git(repo, "config", "user.name", "t")
+        (repo / "roadmap.json").write_text(json.dumps(example()))
+        self.git(repo, "add", ".")
+        self.git(repo, "commit", "-qm", "base")
+        base = self.git(repo, "rev-parse", "HEAD").strip()
+        for name in files:
+            (repo / name).parent.mkdir(parents=True, exist_ok=True)
+            (repo / name).write_text("changed\n" if name != "roadmap.json" else json.dumps(dict(example(), version="4")))
+        self.git(repo, "add", ".")
+        self.git(repo, "commit", "-qm", "change")
+        return repo, base
+
+    def run_ci(self, files, gitlab=True):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, base = self.repo_with_change(tmp, files)
+            env = {k: v for k, v in os.environ.items() if not k.startswith(("CI_", "GITLAB", "GITHUB", "FORGEJO",
+                                                                            "GITEA"))}
+            if gitlab:
+                env.update({"GITLAB_CI": "true", "CI_MERGE_REQUEST_TITLE": "Agree version 4",
+                            "CI_MERGE_REQUEST_DESCRIPTION": "", "CI_MERGE_REQUEST_PROJECT_PATH": REPO,
+                            "CI_MERGE_REQUEST_DIFF_BASE_SHA": base})
+            else:
+                event = repo.parent / f"{repo.name}-event.json"
+                event.write_text(json.dumps({"pull_request": {"title": "Agree version 4", "body": "",
+                                                              "base": {"sha": base}}}))
+                env.update({"GITHUB_ACTIONS": "true", "GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": REPO})
+            return subprocess.run([sys.executable, str(CLI), "check-mr", "roadmap.json", "--from-ci"],
+                                  capture_output=True, text=True, env=env, cwd=repo)
+
+    def test_in_ci_the_changed_files_come_from_git(self):
+        for gitlab in (True, False):
+            with self.subTest(gitlab=gitlab):
+                ok = self.run_ci(["roadmap.json"], gitlab)
+                self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+                bad = self.run_ci(["roadmap.json", "src/rank.py"], gitlab)
+                self.assertEqual(bad.returncode, 1, bad.stdout + bad.stderr)
+
+    def test_by_hand_the_changed_files_are_given(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            path.write_text(json.dumps(example()))
+            res = subprocess.run([sys.executable, str(CLI), "check-mr", str(path), "--title", "Agree version 4",
+                                  "--changed", str(path)], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+
 class Templates(unittest.TestCase):
     def test_each_forge_has_a_merge_request_template_and_ci_jobs(self):
         t = SKILL / "templates"
@@ -114,7 +187,11 @@ class Templates(unittest.TestCase):
             self.assertIn("Closes #", text, path)
         for path in ("gitlab/roadmap.gitlab-ci.yml", "github/workflows/roadmap-check.yml",
                      "forgejo/workflows/roadmap-check.yml"):
-            self.assertIn("check-mr roadmap.json --from-ci", (t / path).read_text(), path)
+            text = (t / path).read_text()
+            self.assertIn("check-mr roadmap.json --from-ci", text, path)
+            # The changed files are read from git, so the job needs history and git.
+            self.assertTrue("fetch-depth: 0" in text or 'GIT_DEPTH: "0"' in text, path)
+            self.assertNotIn("-slim", text.split("roadmap-sync")[0], path)
         for path in ("gitlab/roadmap.gitlab-ci.yml", "github/workflows/roadmap-sync.yml",
                      "forgejo/workflows/roadmap-sync.yml"):
             text = (t / path).read_text()

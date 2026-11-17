@@ -6,10 +6,16 @@
 variables:
   ROADMAP_TOOL: tools/roadmap/roadmap.py
 
-# Fails a merge request that names no issue on the agreed roadmap.
+# Fails a merge request that names no issue on the agreed roadmap. A merge
+# request that changes only roadmap.json (and roadmap.html) passes: the job
+# reads the changed files from git, so it needs the history (GIT_DEPTH 0) and
+# an image with git. GitLab does not rerun this job when only the description
+# is edited: after adding the "Roadmap issue:" line, run the pipeline again.
 roadmap-check:
   stage: test
-  image: python:3.12-slim
+  image: python:3.12
+  variables:
+    GIT_DEPTH: "0"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
@@ -21,7 +27,9 @@ roadmap-check:
 # ROADMAP_BOT_TOKEN.
 roadmap-sync:
   stage: test
-  image: registry.gitlab.com/gitlab-org/cli:latest
+  # A fixed glab release, not latest, so a new release cannot change what the
+  # job does with its api token. Move it forward on purpose.
+  image: registry.gitlab.com/gitlab-org/cli:v1.123.0
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $ROADMAP_SYNC == "1"
   variables:

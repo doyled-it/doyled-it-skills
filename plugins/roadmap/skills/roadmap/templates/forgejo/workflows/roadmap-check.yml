@@ -12,4 +12,6 @@ jobs:
       image: node:20-bookworm
     steps:
       - uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0   # check-mr reads the changed files from git
       - run: python3 tools/roadmap/roadmap.py check-mr roadmap.json --from-ci

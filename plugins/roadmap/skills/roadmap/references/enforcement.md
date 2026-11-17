@@ -41,7 +41,17 @@ To make it binding, require the job to pass before merging (GitLab: "Pipelines
 must succeed"; GitHub and Forgejo: a required status check on the protected
 branch). GitLab supplies the description to merge request pipelines as
 `CI_MERGE_REQUEST_DESCRIPTION`; where an instance does not, the check sees only
-the title, so put the issue's short name in the title.
+the title, so put the issue's short name in the title. GitLab does not rerun the
+pipeline when only the description changes, so after adding the missing
+`Roadmap issue:` line, run the pipeline again (GitHub and Forgejo rerun on an
+edit).
+
+The way through for the roadmap itself: a merge request that changes only
+`roadmap.json` (and `roadmap.html`) passes, even while the roadmap is a draft,
+so the lead's agreed change and the scheduled job's synced roadmap can be
+merged. The jobs read the changed files from git, which is why they fetch the
+full history (`GIT_DEPTH: "0"`, `fetch-depth: 0`) and use an image with git.
+Any other file in the same merge request needs a roadmap issue as usual.
 
 ### Scheduled sync and the drift issue
 

@@ -123,9 +123,16 @@ def cmd_check_mr(args) -> int:
     from . import checkmr
 
     data = _load(args.roadmap)
+    changed = args.changed
     try:
         if args.from_ci:
             title, body, project = checkmr.from_ci()
+            base = checkmr.ci_base()
+            if changed is None and base:
+                changed = checkmr.changed_files(base)
+                if changed is None:
+                    print("note: git could not list the changed files (fetch the full history); checked the "
+                          "title and description only")
         else:
             body = args.body or ""
             if args.body_file:
@@ -134,7 +141,7 @@ def cmd_check_mr(args) -> int:
     except (ValueError, OSError) as exc:
         print(f"error: {exc}")
         return 2
-    result = checkmr.check(data, title, body, project)
+    result = checkmr.check(data, title, body, project, changed=changed, roadmap_path=args.roadmap)
     print(("OK: " if result.ok else "FAIL: ") + result.message)
     for w in result.warnings:
         print(f"warning: {w}")
@@ -211,6 +218,9 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--body", help="merge request description")
     c.add_argument("--body-file", help="read the description from this file")
     c.add_argument("--project", help='project for "#12" references (default: forge.project)')
+    c.add_argument("--changed", nargs="*", metavar="PATH",
+                   help="files the merge request changes (with --from-ci: read from git); a change to only the "
+                        "roadmap and its page passes")
     c.set_defaults(func=cmd_check_mr)
 
     d = sub.add_parser("drift-issue", help='keep one "Roadmap drift" issue current (dry run unless --apply)')

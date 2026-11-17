@@ -96,6 +96,15 @@ Done. `--from-ci` reads GitLab CI (`CI_MERGE_REQUEST_TITLE`,
 Forgejo Actions. No forge call is made. Setup:
 [enforcement.md](enforcement.md).
 
+A merge request that changes only the roadmap (`roadmap.json` and its rendered
+`roadmap.html`) passes without naming an issue, even while the roadmap is a
+draft: that is how the lead's agreed change, or the synced `roadmap.json` from
+the scheduled job, gets merged. With `--from-ci` the changed files come from
+git against the merge request's base commit (`CI_MERGE_REQUEST_DIFF_BASE_SHA`,
+or the event's base commit), so the job needs the full history; by hand, list
+them with `--changed PATH...`. When git cannot tell, only the title and
+description are checked.
+
 ## drift-issue
 
 ```bash
