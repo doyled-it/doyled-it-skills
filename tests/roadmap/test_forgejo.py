@@ -84,6 +84,36 @@ class ForgejoSync(unittest.TestCase):
         self.assertNotIn(("unlinked-merge-request", "example-org/search-service#31"), kinds)
 
 
+class ForgejoPinnedEpics(unittest.TestCase):
+    """Codeberg's API cannot automate Projects, so parent issues can be pinned instead."""
+
+    def run_publish(self, pin_order=0, allowed=True):
+        responses = dict(fixture("forgejo_publish.json"))
+        epic = dict(responses["GET repos/example-org/search-service/issues/10"], pin_order=pin_order)
+        responses["GET repos/example-org/search-service/issues/10"] = epic
+        responses["GET repos/example-org/search-service/new_pin_allowed"] = {"issues": allowed}
+        data = forgejo_roadmap()
+        data["forge"]["pin_epics"] = True
+        fg = forge.make("forgejo", NoWrites(responses), data["forge"])
+        report = publish.publish(data, fg, apply=False)
+        return {a.target: a.detail for a in report.actions if a.kind == "pin-epic"}
+
+    def test_unpinned_epics_are_pinned_when_asked(self):
+        pins = self.run_publish()
+        self.assertEqual(set(pins), {"ranking", "search-page", "release-safety"})
+
+    def test_already_pinned_epic_is_left_alone(self):
+        self.assertNotIn("ranking", self.run_publish(pin_order=1))
+
+    def test_no_free_pin_slot_is_reported_not_forced(self):
+        pins = self.run_publish(allowed=False)
+        self.assertIn("no free pin slot", pins["ranking"])
+
+    def test_pinning_is_off_by_default(self):
+        actions = publish.publish(forgejo_roadmap(), make("forgejo_publish.json"), apply=False).actions
+        self.assertFalse([a for a in actions if a.kind == "pin-epic"])
+
+
 class ForgeChoice(unittest.TestCase):
     def test_codeberg_remote_means_forgejo(self):
         with mock.patch("subprocess.run") as run:

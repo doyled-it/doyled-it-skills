@@ -96,6 +96,10 @@
             ]
           },
           "description": "How sync ticks a gate from forge evidence. Default: M ticks when a linked merge request is merged; every gate ticks from the issue checklist."
+        },
+        "pin_epics": {
+          "type": "boolean",
+          "description": "Forgejo only: pin each epic's parent issue on the repository's issue list when a pin slot is free."
         }
       }
     },

@@ -123,5 +123,9 @@
    }
   }
  ],
- "GET repos/example-org/search-service/issues/20/dependencies": []
+ "GET repos/example-org/search-service/issues/20/dependencies": [],
+ "GET repos/example-org/search-service/new_pin_allowed": {
+  "issues": true,
+  "pull_requests": true
+ }
 }

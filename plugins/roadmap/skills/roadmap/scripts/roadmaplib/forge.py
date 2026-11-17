@@ -490,6 +490,26 @@ class Forgejo(GitHub):
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
         return self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
 
+    def get_epic(self, ref: str) -> dict:
+        project, n = split_issue_ref(ref)
+        d = self.t.get(f"repos/{project}/issues/{n}")
+        issue = self._issue(d, project)
+        out = {k: issue[k] for k in ("ref", "url", "id", "number", "title", "body")}
+        out["pinned"] = bool(d.get("pin_order"))
+        return out
+
+    def can_pin(self) -> bool:
+        if not self.project:
+            return False
+        try:
+            return bool(self.t.get(f"repos/{self.project}/new_pin_allowed").get("issues"))
+        except NotFound:
+            return False
+
+    def pin(self, epic: dict) -> None:
+        project = epic["ref"].rsplit("#", 1)[0]
+        self.t.send("POST", f"repos/{project}/issues/{epic['number']}/pin")
+
     def in_epic(self, issue: dict, epic: dict) -> bool:
         return issue["ref"] in blocks.epic_members(epic.get("body") or "")
 
@@ -585,7 +605,9 @@ def forge_class(kind: str):
 
 
 def make(kind: str, transport, cfg: dict):
-    return forge_class(kind)(transport, host=cfg.get("host"), project=cfg.get("project"), group=cfg.get("group"))
+    fg = forge_class(kind)(transport, host=cfg.get("host"), project=cfg.get("project"), group=cfg.get("group"))
+    fg.pin_epics = bool(cfg.get("pin_epics")) and hasattr(fg, "pin")
+    return fg
 
 
 def from_args(data: dict, args) -> GitLab | GitHub:

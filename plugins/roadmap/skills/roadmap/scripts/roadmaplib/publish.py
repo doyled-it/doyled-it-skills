@@ -48,7 +48,7 @@ class Report:
         lines = [head, f"Forge: {self.forge}", ""]
         sections = (("Epics", ("create-epic", "link-epic", "update-epic")),
                     ("Issues", ("create-issue", "link-issue", "update-issue")),
-                    ("Links", ("add-to-epic", "add-blocked-by")))
+                    ("Links", ("add-to-epic", "add-blocked-by", "pin-epic")))
         for section, kinds in sections:
             rows = [a for a in self.actions if a.kind in kinds]
             if not rows:
@@ -180,6 +180,21 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
             report.add("add-blocked-by", it["id"], f"{src} is blocked by {target}: {d}")
             if apply:
                 fg.add_blocked_by(fi, dep)
+
+    # Optional: pin parent issues so a Forgejo epic is easy to find (it has no Projects API).
+    if getattr(fg, "pin_epics", False):
+        slots = fg.can_pin()
+        for ep in data["epics"]:
+            e = epics[ep["id"]]
+            if e.get("pinned"):
+                continue
+            label = e.get("ref") or e.get("placeholder")
+            if not slots:
+                report.add("pin-epic", ep["id"], f"{label}: the forge reports no free pin slot; pin it by hand")
+                continue
+            report.add("pin-epic", ep["id"], f"pin {label} on the repository's issue list")
+            if apply:
+                fg.pin(e)
 
     # Generated section in each epic (needs the issue links written back above).
     for ep in data["epics"]:
