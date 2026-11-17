@@ -13,7 +13,15 @@ from . import blocks, model
 
 READABLE_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 # Codes such as A1, T1.1, E1.4 or TE2 used instead of a readable name.
-CODE = re.compile(r"\b[A-Z]{1,3}\d+(?:\.\d+)*[a-z]?\b")
+CODE = re.compile(r"\b[A-Z]{1,4}\d+(?:\.\d+)*[a-z]?\b")
+# Ordinary technical words that look like codes. A roadmap may add its own in
+# "allowed_terms".
+TECH_TERMS = {t.casefold() for t in (
+    "S3", "EC2", "UTF8", "UTF16", "UTF32", "HTTP1", "HTTP2", "HTTP3", "MP3", "MP4", "H264", "H265", "IPV4", "IPV6",
+    "SHA1", "SHA256", "SHA512", "MD5", "OAUTH2", "P50", "P90", "P95", "P99", "K8S", "B2B", "B2C", "WCAG2", "ES6",
+    "X509", "TLS1", "CO2", "PM25", "L1", "L2", "L3", "G5", "AV1", "VP9", "DDR4", "DDR5", "PCIE4", "PCIE5", "USB3",
+    "RS232", "ISO8601", "BASE64")}
+GATE_LETTER = re.compile(r"^[A-Z]$")
 CODE_ID = re.compile(r"^[a-z]{1,3}\d+(?:[.-]\d+)*$")
 MILESTONE = re.compile(r"\bmilestones?\b", re.IGNORECASE)
 # Words the glossary replaces, and what to say instead.
@@ -62,7 +70,11 @@ def check(raw: dict) -> list[Finding]:
     if "gates" in raw and not isinstance(raw["gates"], dict):
         err("bad-type", "gates", '"gates" must map each gate letter to what it checks')
         return out
+    for letter, text in (raw.get("gates") or {}).items():
+        if not GATE_LETTER.match(str(letter)) or not isinstance(text, str):
+            err("bad-gate", f"gates.{letter}", "each gate is one capital letter with a plain description")
 
+    raw = _well_typed(raw, err)
     data = model.normalize(raw)
     forge = data.get("forge")
     if forge is not None:
@@ -73,6 +85,7 @@ def check(raw: dict) -> list[Finding]:
                 "(no scheme, path or user)")
 
     gates = data["gates"]
+    allowed = {t.casefold() for t in data.get("allowed_terms") or [] if isinstance(t, str)} | TECH_TERMS
     lead = model.lead_gates(data)
     if "lead_gates" in data and (not isinstance(data["lead_gates"], list)
                                  or any(g not in gates for g in data["lead_gates"])):
@@ -111,7 +124,7 @@ def check(raw: dict) -> list[Finding]:
             if not READABLE_ID.match(eid) or CODE_ID.match(eid):
                 err("unreadable-id", where,
                     f'"{eid}" is not a short readable name (lowercase words joined by hyphens)')
-        if ep.get("name") and CODE.search(ep["name"]):
+        if ep.get("name") and _codes(ep["name"], allowed):
             err("glossary-code", f"{where}.name",
                 f'"{ep["name"]}" uses a code; give the epic a plain name')
         if ep.get("ref") and not REF.match(ep["ref"]):
@@ -146,7 +159,7 @@ def check(raw: dict) -> list[Finding]:
         if isinstance(iid, str) and (not READABLE_ID.match(iid) or CODE_ID.match(iid)):
             err("unreadable-id", where,
                 f'"{iid}" is not a short readable name (lowercase words joined by hyphens)')
-        if it.get("title") and CODE.search(it["title"]):
+        if it.get("title") and _codes(it["title"], allowed):
             err("glossary-code", f"{where}.title",
                 f'"{it["title"]}" uses a code; say what the issue delivers')
         if it.get("epic") and it["epic"] not in epic_ids:
@@ -245,30 +258,36 @@ def errors(findings: list[Finding]) -> list[Finding]:
 
 
 def _cycles(items: dict) -> list[list[str]]:
-    """Each dependency loop once, as a path that ends where it started."""
+    """Each dependency loop once, as a path that ends where it started.
+
+    Iterative, so a chain of thousands of issues cannot overflow the stack.
+    """
     found, seen_sets = [], set()
     state: dict[str, int] = {}
-
-    def visit(node, path):
-        state[node] = 1
-        path.append(node)
-        for d in items[node]["depends_on"]:
-            if d not in items:
-                continue
-            if state.get(d) == 1:
-                loop = path[path.index(d):] + [d]
-                key = frozenset(loop)
-                if key not in seen_sets:
-                    seen_sets.add(key)
-                    found.append(loop)
-            elif state.get(d) is None:
-                visit(d, path)
-        path.pop()
-        state[node] = 2
-
-    for node in items:
-        if state.get(node) is None:
-            visit(node, [])
+    for root in items:
+        if state.get(root):
+            continue
+        state[root] = 1
+        path = [root]
+        stack = [iter(items[root]["depends_on"])]
+        while stack:
+            for d in stack[-1]:
+                if d not in items:
+                    continue
+                if state.get(d) == 1:
+                    loop = path[path.index(d):] + [d]
+                    key = frozenset(loop)
+                    if key not in seen_sets:
+                        seen_sets.add(key)
+                        found.append(loop)
+                elif state.get(d) is None:
+                    state[d] = 1
+                    path.append(d)
+                    stack.append(iter(items[d]["depends_on"]))
+                    break
+            else:
+                state[path.pop()] = 2
+                stack.pop()
     return found
 
 
@@ -364,3 +383,57 @@ def _url_fields(data: dict):
             for key in ("url", "pipeline_url"):
                 if mr.get(key) is not None:
                     yield f"{where}.merge_requests[{n}].{key}", mr[key]
+
+
+def _codes(text: str, allowed: set[str]) -> list[str]:
+    """Work codes in the text (A1, T1.1, TE4), leaving out technical words such as S3 or HTTP2."""
+    return [m.group(0) for m in CODE.finditer(text) if m.group(0).casefold() not in allowed]
+
+
+def _well_typed(raw: dict, err) -> dict:
+    """A copy with wrongly typed entries reported and dropped, so the other checks cannot crash."""
+    raw = dict(raw)
+    for key in ("epics", "issues"):
+        kept = []
+        for n, x in enumerate(raw.get(key) or []):
+            if not isinstance(x, dict):
+                err("bad-type", f"{key}[{n}]", f"each entry in \"{key}\" must be an object")
+                continue
+            x = dict(x)
+            label = x.get("id") if isinstance(x.get("id"), str) else f"#{n}"
+            where = f"{key}[{label}]"
+            text_fields = ("id", "name", "note", "parent", "ref", "url") if key == "epics" else \
+                ("id", "title", "detail", "epic", "status", "ref", "url", "project", "iteration")
+            for field in text_fields:
+                if field in x and x[field] is not None and not isinstance(x[field], str):
+                    err("bad-type", f"{where}.{field}", f'"{field}" must be text')
+                    x[field] = None if field in ("id", "title", "name", "epic", "status") else str(x[field])
+            if key == "issues":
+                deps = x.get("depends_on", [])
+                if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
+                    err("bad-type", f"{where}.depends_on", '"depends_on" must be a list of issue ids')
+                    x["depends_on"] = [d for d in deps if isinstance(d, str)] if isinstance(deps, list) else []
+                days = x.get("estimate_days")
+                if days is not None and (isinstance(days, bool) or not isinstance(days, (int, float))):
+                    err("bad-type", f"{where}.estimate_days", '"estimate_days" must be a number of working days')
+                    x.pop("estimate_days")
+                gates = x.get("gates", [])
+                ok = []
+                for g in gates if isinstance(gates, list) else []:
+                    letter = g if isinstance(g, str) else g.get("gate") if isinstance(g, dict) else None
+                    if isinstance(letter, str) and GATE_LETTER.match(letter):
+                        ok.append(g)
+                    else:
+                        err("bad-type", f"{where}.gates", "each gate is a capital letter or "
+                            '{"gate": letter, "passed": true or false}')
+                if not isinstance(gates, list):
+                    err("bad-type", f"{where}.gates", '"gates" must be a list')
+                x["gates"] = ok
+                for field in ("links", "merge_requests"):
+                    if field in x and not isinstance(x[field], list):
+                        err("bad-type", f"{where}.{field}", f'"{field}" must be a list')
+                        x[field] = []
+            kept.append(x)
+        if key in raw:
+            raw[key] = kept
+    return raw

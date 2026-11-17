@@ -44,6 +44,13 @@
       "type": "string",
       "description": "The working rule: work only from this roadmap; diverge only with approval or a stated good reason."
     },
+    "allowed_terms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Words that look like codes but are ordinary terms for this program (for example GP3), so validate accepts them in titles and names."
+    },
     "forge": {
       "type": "object",
       "description": "Where the team tracks the work. Optional: without it the git remote decides.",

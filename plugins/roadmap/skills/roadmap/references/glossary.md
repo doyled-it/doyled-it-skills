@@ -36,11 +36,16 @@ as each gate is one capital letter with a plain description.
 - **No codes.** Ids are short readable names: lowercase words joined by hyphens
   (`checked-citations`, not `A1` or `t1-1`). Titles and epic names must not use
   codes such as `T1.1`, `E2` or `TE4`. After publishing, the forge link is the
-  second name.
+  second name. Common technical words that look like codes (`S3`, `HTTP2`,
+  `UTF8`, `IPv6`, `P95`) are fine; list others the program uses in
+  `"allowed_terms"`.
 - **No synonyms.** "Sprint", "ticket", "workstream" and "swimlane" are warnings:
   use Iteration, Issue and Epic.
 - **Two weeks at most.** `estimate_days` above 10 is an error: split the issue
   into a child epic.
+- **Well-formed entries.** Every epic and issue is an object, ids and titles
+  are text, `depends_on` is a list of issue ids, `estimate_days` is a number,
+  and each gate is one capital letter. A wrong type is an error, not a crash.
 - **Real dependencies only.** A dependency on an issue that does not exist, or a
   loop of dependencies, is an error.
 

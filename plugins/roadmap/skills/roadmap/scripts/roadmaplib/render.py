@@ -61,16 +61,23 @@ def _short(it: dict) -> str:
 
 
 def _layout(data: dict, items: dict):
+    # Column = length of the longest dependency chain below the issue. Worked out
+    # with an explicit stack: a chain of thousands of issues must not overflow it.
     level: dict[str, int] = {}
-
-    def depth(iid):
-        if iid not in level:
+    for root in items:
+        stack = [root]
+        while stack:
+            iid = stack[-1]
+            if iid in level:
+                stack.pop()
+                continue
+            waiting = [d for d in items[iid]["depends_on"] if d not in level]
+            if waiting:
+                stack.extend(waiting)
+                continue
             deps = items[iid]["depends_on"]
-            level[iid] = 0 if not deps else 1 + max(depth(d) for d in deps)
-        return level[iid]
-
-    for i in items:
-        depth(i)
+            level[iid] = 0 if not deps else 1 + max(level[d] for d in deps)
+            stack.pop()
     cols = max(level.values(), default=0) + 1
     pos, lane_top, lane_h = {}, {}, {}
     y = 0
