@@ -122,18 +122,24 @@ def cmd_sync(args) -> int:
 def cmd_check_mr(args) -> int:
     from . import checkmr
 
-    data = _load(args.roadmap)
     changed = args.changed
     try:
         if args.from_ci:
             title, body, project = checkmr.from_ci()
             base = checkmr.ci_base()
+            if base:
+                # The agreed roadmap is the base commit's, never the merge request's own copy.
+                data = checkmr.base_roadmap(base, args.roadmap)
+            else:
+                data = _load(args.roadmap)
+                print("note: the forge gave no base commit, so the roadmap in this merge request was used")
             if changed is None and base:
                 changed = checkmr.changed_files(base)
                 if changed is None:
                     print("note: git could not list the changed files (fetch the full history); checked the "
                           "title and description only")
         else:
+            data = _load(args.roadmap)
             body = args.body or ""
             if args.body_file:
                 body = Path(args.body_file).read_text()

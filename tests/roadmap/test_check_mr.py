@@ -177,6 +177,91 @@ class RoadmapChanges(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
 
 
+class JudgedByTheBaseRoadmap(unittest.TestCase):
+    """In CI the roadmap is read from the merge request's base commit, never from the change it judges."""
+
+    def git(self, repo, *args):
+        return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout
+
+    def run_ci(self, base_files, change, title, gitlab=True, base_sha=None):
+        """A scratch repository: commit base_files, apply change(repo), commit, and run check-mr --from-ci."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            self.git(repo, "init", "-q")
+            self.git(repo, "config", "user.email", "t@example.com")
+            self.git(repo, "config", "user.name", "t")
+            for name, text in base_files.items():
+                (repo / name).write_text(text)
+            self.git(repo, "add", ".")
+            self.git(repo, "commit", "-qm", "base")
+            base = base_sha or self.git(repo, "rev-parse", "HEAD").strip()
+            change(repo)
+            self.git(repo, "add", "-A")
+            self.git(repo, "commit", "-qm", "change")
+            env = {k: v for k, v in os.environ.items()
+                   if not k.startswith(("CI_", "GITLAB", "GITHUB", "FORGEJO", "GITEA"))}
+            if gitlab:
+                env.update({"GITLAB_CI": "true", "CI_MERGE_REQUEST_TITLE": title,
+                            "CI_MERGE_REQUEST_DESCRIPTION": "", "CI_MERGE_REQUEST_PROJECT_PATH": REPO,
+                            "CI_MERGE_REQUEST_DIFF_BASE_SHA": base})
+            else:
+                event = Path(tmp) / "event.json"
+                event.write_text(json.dumps({"pull_request": {"title": title, "body": "", "base": {"sha": base}}}))
+                env.update({"GITHUB_ACTIONS": "true", "GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": REPO})
+            return subprocess.run([sys.executable, str(CLI), "check-mr", "roadmap.json", "--from-ci"],
+                                  capture_output=True, text=True, env=env, cwd=repo)
+
+    @staticmethod
+    def add_own_issue(agreed=True):
+        def change(repo):
+            data = json.loads((repo / "roadmap.json").read_text())
+            data["agreed"] = agreed
+            data["issues"].append(dict(issue(data, "page-build"), id="my-side-thing", title="My side thing"))
+            (repo / "roadmap.json").write_text(json.dumps(data))
+            (repo / "app.py").write_text("print('changed')\n")
+        return change
+
+    def test_a_merge_request_cannot_add_and_name_its_own_issue(self):
+        base = {"roadmap.json": json.dumps(example()), "app.py": "print('base')\n"}
+        for gitlab in (True, False):
+            with self.subTest(gitlab=gitlab):
+                res = self.run_ci(base, self.add_own_issue(), "my-side-thing: tweak", gitlab)
+                self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+                self.assertIn("names no issue on the agreed roadmap", res.stdout)
+                ok = self.run_ci(base, self.add_own_issue(), "ranking-model: tweak", gitlab)
+                self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+
+    def test_a_merge_request_cannot_agree_a_draft_and_use_it(self):
+        base = {"roadmap.json": json.dumps(dict(example(), agreed=False)), "app.py": "print('base')\n"}
+        res = self.run_ci(base, self.add_own_issue(agreed=True), "ranking-model: tweak")
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("draft", res.stdout)
+
+    def test_a_merge_request_that_adds_the_roadmap_with_code_fails(self):
+        def change(repo):
+            (repo / "roadmap.json").write_text(json.dumps(example()))
+            (repo / "app.py").write_text("print('changed')\n")
+        res = self.run_ci({"app.py": "print('base')\n"}, change, "ranking-model: tweak")
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("no roadmap.json", res.stdout)
+
+    def test_a_base_commit_git_cannot_find_stops_the_check(self):
+        base = {"roadmap.json": json.dumps(example()), "app.py": "print('base')\n"}
+        res = self.run_ci(base, self.add_own_issue(), "my-side-thing: tweak", base_sha="0123456789abcdef0123")
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn("full history", res.stdout)
+
+    def test_renaming_code_to_the_roadmap_page_is_not_a_roadmap_change(self):
+        base = {"roadmap.json": json.dumps(example()), "core.py": "def main():\n    return 1\n" * 20}
+
+        def change(repo):
+            self.git(repo, "mv", "core.py", "roadmap.html")
+        res = self.run_ci(base, change, "tidy")
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertNotIn("only the roadmap", res.stdout)
+
+
 class Templates(unittest.TestCase):
     def test_each_forge_has_a_merge_request_template_and_ci_jobs(self):
         t = SKILL / "templates"

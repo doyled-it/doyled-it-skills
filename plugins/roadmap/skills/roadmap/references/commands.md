@@ -102,8 +102,15 @@ draft: that is how the lead's agreed change, or the synced `roadmap.json` from
 the scheduled job, gets merged. With `--from-ci` the changed files come from
 git against the merge request's base commit (`CI_MERGE_REQUEST_DIFF_BASE_SHA`,
 or the event's base commit), so the job needs the full history; by hand, list
-them with `--changed PATH...`. When git cannot tell, only the title and
-description are checked.
+them with `--changed PATH...`. A rename counts as a delete and an add, so
+renaming code to `roadmap.html` is not a roadmap change. When git cannot list
+the changed files, only the title and description are checked.
+
+With `--from-ci` the agreed roadmap is read from that base commit, not from the
+merge request: a merge request that adds an issue to `roadmap.json`, or sets
+`"agreed": true`, and changes other files is judged against the roadmap as it
+was before it. A base with no `roadmap.json` fails such a merge request, and a
+base commit git cannot find (a shallow clone) exits 2.
 
 ## drift-issue
 

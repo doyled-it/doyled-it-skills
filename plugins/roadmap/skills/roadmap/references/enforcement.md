@@ -51,7 +51,13 @@ The way through for the roadmap itself: a merge request that changes only
 so the lead's agreed change and the scheduled job's synced roadmap can be
 merged. The jobs read the changed files from git, which is why they fetch the
 full history (`GIT_DEPTH: "0"`, `fetch-depth: 0`) and use an image with git.
-Any other file in the same merge request needs a roadmap issue as usual.
+Any other file in the same merge request needs a roadmap issue as usual, and a
+renamed file counts as changed under both names.
+
+The roadmap the check trusts is the one at the merge request's base commit.
+A merge request cannot add its own issue to `roadmap.json`, or agree a draft,
+and name it in the same change: the issue must be on the agreed roadmap before
+the work's merge request is opened.
 
 ### Scheduled sync and the drift issue
 

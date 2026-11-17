@@ -9,7 +9,10 @@ same project), or its URL. The merge request templates put this on a
 A merge request that changes only the roadmap (roadmap.json and its rendered
 page) passes without naming an issue: that is the lead's agreed change, or the
 synced roadmap.json from the scheduled job. In CI the changed files are read
-from git against the merge request's base commit.
+from git against the merge request's base commit (renames count as a delete and
+an add, so renaming code to roadmap.html is not a roadmap change), and the
+agreed roadmap is read from that base commit too: a merge request cannot add an
+issue to roadmap.json, or agree a draft, and then name it.
 """
 
 from __future__ import annotations
@@ -61,12 +64,15 @@ def roadmap_only(changed: list[str] | None, roadmap_path: str | None) -> bool:
     return all(_norm(c) in own for c in changed)
 
 
-def check(raw: dict, title: str, body: str, project: str | None, changed: list[str] | None = None,
+def check(raw: dict | None, title: str, body: str, project: str | None, changed: list[str] | None = None,
           roadmap_path: str | None = None) -> Result:
     """Does the merge request name an issue on the agreed roadmap, or change only the roadmap?"""
     if roadmap_only(changed, roadmap_path):
         return Result(True, f"Changes only the roadmap ({', '.join(sorted(set(changed)))}); the program lead "
                             "reviews it, and no roadmap issue is needed.")
+    if raw is None:
+        return Result(False, "The merge request's base commit has no roadmap.json, so there is no agreed roadmap to "
+                             "check against. Add the roadmap in a merge request of its own first.")
     if not raw.get("agreed"):
         return Result(False, 'The roadmap is a draft. Merge requests are checked against an agreed roadmap: '
                              'get the program lead\'s agreement and set "agreed": true.')
@@ -130,10 +136,44 @@ def changed_files(base: str) -> list[str] | None:
     if not re.fullmatch(r"[0-9a-fA-F]{7,64}", base or ""):
         return None
     try:
-        proc = subprocess.run(["git", "-c", f"safe.directory={os.getcwd()}", "diff", "--name-only", f"{base}...HEAD"],
+        proc = subprocess.run(["git", "-c", f"safe.directory={os.getcwd()}", "diff", "--name-only", "--no-renames",
+                               f"{base}...HEAD"],
                               capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
     if proc.returncode != 0:
         return None
     return [ln for ln in proc.stdout.splitlines() if ln.strip()]
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-c", f"safe.directory={os.getcwd()}", *args], capture_output=True, text=True,
+                          timeout=30)
+
+
+def base_roadmap(base: str, roadmap_path: str) -> dict | None:
+    """roadmap.json as it is at the base commit; None when the base has none.
+
+    The merge request's own copy is never used: it could add the very issue the
+    merge request names. ValueError when git cannot read the base commit.
+    """
+    history = 'fetch the full history (fetch-depth: 0, or GIT_DEPTH: "0" on GitLab)'
+    if not re.fullmatch(r"[0-9a-fA-F]{7,64}", base or ""):
+        raise ValueError(f"the base commit {str(base)[:70]!r} is not a commit id")
+    try:
+        found = _git("cat-file", "-e", f"{base}^{{commit}}")
+        if found.returncode != 0:
+            raise ValueError(f"git cannot find the base commit {base} to read the agreed roadmap from; {history}")
+        rel = os.path.relpath(os.path.abspath(roadmap_path)).replace(os.sep, "/")
+        shown = _git("show", f"{base}:./{rel}")
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError(f"git could not read the base commit ({exc}); {history}") from None
+    if shown.returncode != 0:
+        return None
+    try:
+        raw = json.loads(shown.stdout)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"roadmap.json at the base commit {base} is not valid JSON: {exc}") from None
+    if not isinstance(raw, dict):
+        raise ValueError(f"roadmap.json at the base commit {base} must hold one JSON object")
+    return raw
