@@ -63,7 +63,9 @@ closes. Every kind of drift counts, because each is something the lead, the
 team or an agent can clear (the table of kinds in [commands.md](commands.md)
 says who). Only an issue opened by the token's own user is kept current or
 closed; a copy someone else opens with the same title and markers is left
-alone, and `--apply` stops if the forge will not say whose token it is. Work
+alone, and `--apply` stops if the forge will not say whose token it is (in
+GitHub Actions the workflow token cannot be asked, and its issues are by
+`github-actions[bot]`). Work
 that has not started is not drift: a To do or Blocked issue
 never goes stale, and a Done issue that publish skipped is not "not
 published", so an untouched backlog does not keep the issue open. The synced `roadmap.json` and page are job artifacts; the lead reviews

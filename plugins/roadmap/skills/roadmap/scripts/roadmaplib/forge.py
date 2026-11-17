@@ -551,8 +551,19 @@ class GitHub:
                 "is_pull_request": "pull_request" in d, "author": (d.get("user") or {}).get("login")}
 
     def current_user(self) -> str | None:
-        """The user the token or login belongs to."""
-        return (self.t.get("user") or {}).get("login")
+        """The user the token or login belongs to.
+
+        A GitHub Actions workflow token cannot read GET /user; the issues it
+        opens are by github-actions[bot].
+        """
+        import os
+
+        try:
+            return (self.t.get("user") or {}).get("login")
+        except ForgeError:
+            if self.kind == "github" and os.environ.get("GITHUB_ACTIONS") == "true":
+                return "github-actions[bot]"
+            raise
 
     def get_issue(self, ref: str) -> dict:
         project, n = split_issue_ref(ref)

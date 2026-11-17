@@ -7,6 +7,7 @@ and finding its own title and marker block.
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from fakeforge import FakeGitHub, github
 from helpers import example, issue
@@ -141,6 +142,15 @@ class OnlyItsOwnIssue(unittest.TestCase):
         self.assertEqual(len(fake.writes), n)
         dry = run(quiet(), fake, apply=False)
         self.assertTrue(any("token" in note for note in dry.notes))
+
+    def test_in_github_actions_the_workflow_token_is_the_actions_bot(self):
+        """GITHUB_TOKEN cannot read GET /user; issues it opens are by github-actions[bot]."""
+        fake = fresh_forge()
+        fake.me = None
+        with mock.patch.dict("os.environ", {"GITHUB_ACTIONS": "true"}):
+            self.assertEqual(github(fake).current_user(), "github-actions[bot]")
+        with mock.patch.dict("os.environ", {}, clear=True), self.assertRaises(forge.ForgeError):
+            github(fake).current_user()
 
     def test_close_rereads_the_author(self):
         fake = fresh_forge()
