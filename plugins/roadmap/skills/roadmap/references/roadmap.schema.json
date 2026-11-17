@@ -252,6 +252,7 @@
             },
             "approved_by": {
               "type": "string",
+              "minLength": 1,
               "description": "Who approved a lead gate. Required when a lead gate is passed."
             },
             "approved_on": {

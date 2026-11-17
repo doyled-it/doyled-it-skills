@@ -170,10 +170,11 @@ def check(raw: dict) -> list[Finding]:
         for g in it["gates"]:
             if g["gate"] not in gates:
                 err("unknown-gate", f"{where}.gates", f'gate "{g["gate"]}" is not defined in "gates"')
-            if g["passed"] and g["gate"] in lead and not g.get("approved_by"):
+            who = g.get("approved_by")
+            if g["passed"] and g["gate"] in lead and not (isinstance(who, str) and who.strip()):
                 err("unrecorded-approval", f"{where}.gates[{g['gate']}]",
                     f'{g["gate"]} is passed but only the program lead can pass it; record who approved it '
-                    'and when ("approved_by", "approved_on"), or leave it open')
+                    'and when ("approved_by" naming them, "approved_on"), or leave it open')
         days = it.get("estimate_days")
         if isinstance(days, (int, float)) and days > model.MAX_ISSUE_DAYS:
             err("too-big", where,
@@ -393,6 +394,17 @@ def _codes(text: str, allowed: set[str]) -> list[str]:
 def _well_typed(raw: dict, err) -> dict:
     """A copy with wrongly typed entries reported and dropped, so the other checks cannot crash."""
     raw = dict(raw)
+    for key, what in (("iterations", 'objects with a "name"'), ("timeline", 'objects with a "date" and "text"')):
+        if key not in raw:
+            continue
+        if not isinstance(raw[key], list):
+            err("bad-type", key, f'"{key}" must be a list of {what}')
+            raw[key] = []
+            continue
+        for n, x in enumerate(raw[key]):
+            if not isinstance(x, dict):
+                err("bad-type", f"{key}[{n}]", f'each entry in "{key}" must be an object')
+        raw[key] = [x for x in raw[key] if isinstance(x, dict)]
     for key in ("epics", "issues"):
         kept = []
         for n, x in enumerate(raw.get(key) or []):
@@ -422,6 +434,10 @@ def _well_typed(raw: dict, err) -> dict:
                 for g in gates if isinstance(gates, list) else []:
                     letter = g if isinstance(g, str) else g.get("gate") if isinstance(g, dict) else None
                     if isinstance(letter, str) and GATE_LETTER.match(letter):
+                        if isinstance(g, dict):
+                            for field in ("approved_on", "evidence"):
+                                if g.get(field) is not None and not isinstance(g[field], str):
+                                    err("bad-type", f"{where}.gates[{letter}].{field}", f'"{field}" must be text')
                         ok.append(g)
                     else:
                         err("bad-type", f"{where}.gates", "each gate is a capital letter or "

@@ -36,6 +36,29 @@ class WrongTypesAreFindings(unittest.TestCase):
         self.check(lambda d: d["issues"].append(dict(issue(d, "page-build"), id=42)))
         self.check(lambda d: issue(d, "page-build").__setitem__("detail", ["a"]))
 
+    def test_iterations_and_timeline_must_be_lists_of_objects(self):
+        for key in ("iterations", "timeline"):
+            for value in (5, "soon", {"name": "x"}, [5], ["text"]):
+                with self.subTest(key=key, value=value):
+                    data = example()
+                    data[key] = value
+                    found = [f for f in validate.errors(validate.check(data)) if f.code == "bad-type"]
+                    self.assertTrue(found and found[0].where.startswith(key), found)
+                    with self.assertRaises(render.RenderError):
+                        render.render_page(data)
+
+    def test_an_approval_record_must_name_who_approved(self):
+        for who in (True, 1, "", "  ", ["the lead"]):
+            with self.subTest(who=who):
+                data = example()
+                issue(data, "page-design")["gates"] = [{"gate": "U", "passed": True, "approved_by": who,
+                                                        "approved_on": "2026-11-17"}, "D"]
+                self.assertIn("unrecorded-approval", codes(data))
+        data = example()
+        issue(data, "page-design")["gates"] = [{"gate": "U", "passed": True, "approved_by": "the program lead",
+                                                "approved_on": 20261117}, "D"]
+        self.assertIn("bad-type", codes(data))
+
     def test_depends_on_must_be_a_list_of_ids(self):
         data = example()
         issue(data, "page-build")["depends_on"] = "page-design"
