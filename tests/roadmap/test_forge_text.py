@@ -75,6 +75,10 @@ class GitLabCommandLines(unittest.TestCase):
                 ("/close\t", ["/close"]),
                 ("```\nunclosed fence\n/close", ["/close"]),
                 ("<div>\n```\n</div>\n/close\n```", ["/close"]),
+                ("/assign @someone", ["/assign @someone"]),
+                ("/spend 1h", ["/spend 1h"]),
+                ("Notes.\n/copy_metadata #3", ["/copy_metadata #3"]),
+                ("/Move group/other", ["/Move group/other"]),
         ):
             with self.subTest(text=text):
                 self.assertEqual(blocks.gitlab_commands(text), expected)
@@ -82,7 +86,8 @@ class GitLabCommandLines(unittest.TestCase):
     def test_lines_gitlab_does_not_run(self):
         for text in ("  /close", "see /close", "/api/v2 endpoints return 500", "/usr/local/bin/x --all", "/",
                      CODE_STEPS, "```python\n/close\n```", "<details>\n/close\n</details>", ">>>\n/close\n>>>",
-                     "`/close`", "\\/close"):
+                     "`/close`", "\\/close", "/etc is full", "/health returns 503", "Disk.\n/etc is full",
+                     "/closed by hand", "/closeall", "/var/log is large"):
             with self.subTest(text=text):
                 self.assertEqual(blocks.gitlab_commands(text), [])
 
@@ -95,7 +100,8 @@ class GuardRefusesCommandsAndMultiLineTitles(unittest.TestCase):
                 guard.check("PUT", "projects/1/issues/2", payload)
             self.assertIn("command", str(ctx.exception))
         for payload in ({"description": "see a/b\n\\/close"}, {"description": CODE_STEPS},
-                        {"description": "  /reopen"}, {"title": "/api/v2 endpoints return 500", "description": "x"}):
+                        {"description": "  /reopen"}, {"title": "/api/v2 endpoints return 500", "description": "x"},
+                        {"description": "/etc is full\n/health returns 503"}):
             with self.subTest(payload=payload):
                 guard.check("PUT", "projects/1/issues/2", payload)
 
@@ -140,6 +146,15 @@ class HandTextNeverStopsAWrite(unittest.TestCase):
         written = [b["description"] for _, p, b in rec.calls if b and "description" in b]
         self.assertTrue(any(CODE_STEPS in w for w in written))
         self.assertTrue(any(w.startswith("Run `/close` never.") for w in written))
+
+    def test_a_path_at_the_start_of_a_line_is_not_a_command(self):
+        """GitLab runs only its own command names; "/etc is full" is prose."""
+        report, rec = self.publish("Anonymous counts.\n/etc is full", epic10="Plan.\n/health returns 503")
+        self.assertIsNone(report.failed)
+        self.assertEqual([a for a in report.actions if a.kind == "hand-fix"], [])
+        written = [b["description"] for _, p, b in rec.calls if b and "description" in b]
+        self.assertTrue(any("/etc is full" in w for w in written))
+        self.assertTrue(any("/health returns 503" in w for w in written))
 
     def test_a_live_command_in_hand_text_holds_back_only_that_write(self):
         for apply in (False, True):

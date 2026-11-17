@@ -172,9 +172,11 @@ counts as an epic member only when it is in the parent's repository.
 GitLab runs a line such as `/close`, `/move` or `/label ~done` in an issue or
 epic description as a quick action, also when the description is written
 through the API. It runs only lines that start with the `/` (no indent) and sit
-outside a fenced code block (three backticks), an HTML block and a `>>>` quote;
-a path such as `/usr/local/bin` or a title such as "/api/v2 endpoints" is never
-a command. Everything the tool writes is neutralized first: a line shaped like a
+outside a fenced code block (three backticks), an HTML block and a `>>>` quote,
+and only when the word after the `/` is one of GitLab's own command names
+(`blocks.GITLAB_COMMANDS`, taken from GitLab's quick actions list). Prose such
+as "/etc is full", a path such as `/usr/local/bin` and a title such as
+"/api/v2 endpoints" are never commands. Everything the tool writes is neutralized first: a line shaped like a
 command is written as `\/close`, which shows as `/close` and runs nothing.
 Titles and names are written on one line, and the text they carry into a
 generated section is escaped, so it cannot add a link, a hidden comment, a
