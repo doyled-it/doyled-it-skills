@@ -90,8 +90,9 @@ added elsewhere in a description:
   that merge request, never from a checkbox. `mr_merged` (the default for M)
   ticks when a merged merge request in the roadmap's own projects closes the
   issue (`Closes #12`, `Fixes group/project#12`, or the issue's URL after a
-  closing word the forge itself accepts) or is named in the roadmap issue's
-  own text (`!12`). `mr_green` ticks when such a merge request has a green
+  closing word the forge itself accepts: close, fix and resolve in their
+  usual forms everywhere, and on GitLab also the -ing forms and "implements")
+  or is named in the roadmap issue's own text (`!12`). `mr_green` ticks when such a merge request has a green
   pipeline. A ticked `- [x] M: ...` line with no merged merge request ticks
   nothing. A rule cannot name a lead gate. (`mr_approved_green` was renamed
   `mr_green`: it never checked approvals.)

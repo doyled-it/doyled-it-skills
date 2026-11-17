@@ -136,6 +136,26 @@ class MergedTicks(unittest.TestCase):
         self.assertNotIn(("ranking-model", "R"), ticks)
 
 
+class ClosingWords(unittest.TestCase):
+    """Only the words the forge itself treats as closing count."""
+
+    def closes(self, text, kind):
+        return sync.closes({"title": "", "body": text, "project": "o/r"}, {"ref": "o/r#12", "url": None}, kind)
+
+    def test_every_forge_knows_close_fix_and_resolve(self):
+        for kind in ("gitlab", "github", "forgejo"):
+            for word in ("Closes", "closed", "Fix", "fixes", "Resolves", "resolved"):
+                with self.subTest(kind=kind, word=word):
+                    self.assertTrue(self.closes(f"{word} #12", kind))
+
+    def test_implements_and_ing_forms_close_only_on_gitlab(self):
+        for word in ("Implements", "implemented", "Closing", "fixing", "resolving"):
+            with self.subTest(word=word):
+                self.assertTrue(self.closes(f"{word} #12", "gitlab"))
+                self.assertFalse(self.closes(f"{word} #12", "github"))
+                self.assertFalse(self.closes(f"{word} #12", "forgejo"))
+
+
 class ApprovalRecords(unittest.TestCase):
     def codes(self, data):
         return {f.code for f in validate.errors(validate.check(data))}

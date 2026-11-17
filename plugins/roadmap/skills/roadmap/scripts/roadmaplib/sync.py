@@ -191,15 +191,26 @@ def named_merge_requests(data: dict, projects: list[str], default: str | None) -
 # A closing reference in a merge request: "Closes #12", "fixes group/project#12",
 # "Resolves https://host/.../issues/12", several joined by commas or "and".
 REF_ITEM = r"(?:(?:[\w.-]+(?:/[\w.-]+)*)?#\d+|https?://[^\s,;]+)"
-CLOSING = re.compile(rf"\b(?:close[sd]?|closing|fix(?:e[sd]|ing)?|resolve[sd]?|resolving|implement(?:s|ed|ing)?)"
-                     rf":?\s+({REF_ITEM}(?:\s*(?:,|\band\b)\s*{REF_ITEM})*)", re.IGNORECASE)
+# The words each forge itself treats as closing. GitLab also accepts the -ing
+# forms and "implement"; GitHub, Forgejo and Gitea do not.
+CLOSING_WORDS = {
+    "gitlab": r"close[sd]?|closing|fix(?:e[sd]|ing)?|resolve[sd]?|resolving|implement(?:s|ed|ing)?",
+    "github": r"close[sd]?|fix(?:e[sd])?|resolve[sd]?",
+}
+
+
+def _closing(kind: str) -> re.Pattern:
+    words = CLOSING_WORDS["gitlab" if kind == "gitlab" else "github"]
+    return re.compile(rf"\b(?:{words}):?\s+({REF_ITEM}(?:\s*(?:,|\band\b)\s*{REF_ITEM})*)", re.IGNORECASE)
+
+
 GATE_RULES = ("mr_merged", "mr_green", "checklist")
 
 
-def closes(mr: dict, fi: dict) -> bool:
-    """The merge request's title or description closes this forge issue."""
+def closes(mr: dict, fi: dict, kind: str = "gitlab") -> bool:
+    """The merge request's title or description closes this forge issue, by the forge's own closing words."""
     text = f"{mr.get('title', '')}\n{mr.get('body', '')}"
-    for m in CLOSING.finditer(text):
+    for m in _closing(kind).finditer(text):
         for ref in re.findall(REF_ITEM, m.group(1)):
             if ref.lower().startswith("http"):
                 if fi.get("url") and ref.rstrip("/.") == fi["url"]:
@@ -305,7 +316,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             report.notes.append(f'{iid}: ignored {len(related) - len(mrs)} merge request(s) outside the roadmap\'s '
                                 f'projects that mention {fi["ref"]}')
         named = named_merge_requests({"issues": [it]}, projects, cfg.get("project"))
-        linked = [m for m in mrs if m["ref"] in named or closes(m, fi)]
+        linked = [m for m in mrs if m["ref"] in named or closes(m, fi, getattr(fg, "kind", "gitlab"))]
         known_mrs |= {m["ref"] for m in mrs}
         if mrs:
             report.merge_requests[iid] = [{k: m.get(k) for k in ("ref", "url", "state", "draft", "pipeline",
