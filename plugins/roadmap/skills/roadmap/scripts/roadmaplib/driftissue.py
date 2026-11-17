@@ -2,8 +2,9 @@
 
 Created once when there is drift, updated in place (only the text between its
 own markers), and closed when drift is zero. Only an open issue with that title
-and marker block that the token's own user opened counts: anyone can copy the
-title and the markers. It is the only issue the tool ever closes, and the close
+and marker block, opened by the token's own user, with no text outside the
+block but the tool's intro, counts: anyone (or another workflow under the same
+token's user) can copy the title and the markers around text of their own. It is the only issue the tool ever closes, and the close
 re-reads the issue and checks its title, marker block and author first. When the sync report is incomplete (a forge call failed), nothing is
 written: an incomplete report must not close the issue or rewrite it.
 """
@@ -15,8 +16,8 @@ from dataclasses import dataclass, field
 from . import blocks, forge
 
 TITLE = forge.DRIFT_TITLE
-INTRO = ("This issue is kept by the roadmap tool's scheduled sync. It lists where the forge, Orca and the "
-         "agreed roadmap disagree, and closes itself when they agree again. Edit the roadmap, not this section.")
+INTRO = forge.DRIFT_INTRO
+skeleton = forge.drift_body
 
 
 @dataclass
@@ -80,7 +81,12 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
                                    "cannot be told apart from a copy someone else opened; check the token")
         result.notes.append("could not read which user the token belongs to, so no existing drift issue is "
                             "trusted; with --apply this stops")
-    open_ones = _mine(fg.all_issues(project), me)
+    issues = fg.all_issues(project)
+    open_ones = _mine(issues, me)
+    for other in issues:
+        if forge.drift_lookalike(other) and other not in open_ones and me and other.get("author") == me:
+            result.notes.append(f'{other["ref"]} has the "{TITLE}" title and markers but text this tool did not '
+                                "write, so it is left alone; close it by hand if it is an old copy")
     if len(open_ones) > 1:
         result.notes.append(f'{len(open_ones)} open "{TITLE}" issues carry the marker; only '
                             f'{open_ones[0]["ref"]} is kept current')
@@ -94,7 +100,7 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
         return result
     content = section(report, today)
     if current is None:
-        body = blocks.replace_block(blocks.md_block(INTRO), blocks.DRIFT_START, blocks.DRIFT_END, content)
+        body = skeleton(content)
         result.actions.append(Action("create-drift-issue", f'"{TITLE}" in {project}, {len(drift)} items'))
         if apply:
             fg.create_issue(project, TITLE, body, None)

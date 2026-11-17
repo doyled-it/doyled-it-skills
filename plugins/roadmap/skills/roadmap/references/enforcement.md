@@ -67,13 +67,16 @@ generated sections and statuses), then `drift-issue --no-orca --apply`, then
 there is drift, and closes it when drift is zero: the only thing the tool ever
 closes. Every kind of drift counts, because each is something the lead, the
 team or an agent can clear (the table of kinds in [commands.md](commands.md)
-says who). Only an issue opened by the token's own user is kept current or
-closed; a copy someone else opens with the same title and markers is left
-alone, and `--apply` stops if the forge will not say whose token it is (in
-GitHub Actions the workflow token cannot be asked, and its issues are by
-`github-actions[bot]`). Work
-that has not started is not drift: a To do or Blocked issue
-never goes stale, and a Done issue that publish skipped is not "not
+says who). Only an issue opened by the token's own user, holding nothing
+outside its marker block but the tool's own intro, is kept current or closed.
+A copy with the same title and markers, opened by someone else or holding other
+text (another workflow can open issues under the same bot user), is left alone
+and named in a note. `--apply` stops, and creates nothing, if the forge will
+not say whose token it is. The one exception is the GitHub Actions workflow
+token: GitHub answers its `GET /user` with 403 "Resource not accessible by
+integration", and its issues are by `github-actions[bot]`; a rate limit, a
+server error or no network stops the run like any other failure. Work that has
+not started is not drift: a To do or Blocked issue never goes stale, and a Done issue that publish skipped is not "not
 published", so an untouched backlog does not keep the issue open. The synced `roadmap.json` and page are job artifacts; the lead reviews
 and commits them, since the pipeline never pushes.
 

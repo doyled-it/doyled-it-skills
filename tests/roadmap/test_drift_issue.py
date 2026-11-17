@@ -144,13 +144,57 @@ class OnlyItsOwnIssue(unittest.TestCase):
         self.assertTrue(any("token" in note for note in dry.notes))
 
     def test_in_github_actions_the_workflow_token_is_the_actions_bot(self):
-        """GITHUB_TOKEN cannot read GET /user; issues it opens are by github-actions[bot]."""
+        """GITHUB_TOKEN cannot read GET /user (403); issues it opens are by github-actions[bot]."""
         fake = fresh_forge()
-        fake.me = None
+        fake.user_error = "gh api user failed: gh: Resource not accessible by integration (HTTP 403)"
         with mock.patch.dict("os.environ", {"GITHUB_ACTIONS": "true"}):
             self.assertEqual(github(fake).current_user(), "github-actions[bot]")
         with mock.patch.dict("os.environ", {}, clear=True), self.assertRaises(forge.ForgeError):
             github(fake).current_user()
+
+    def test_in_github_actions_any_other_failure_is_not_the_actions_bot(self):
+        """A rate limit, a server error or no network says nothing about whose token it is."""
+        for error in ("gh api user failed: HTTP 401: Bad credentials", "gh api user failed: HTTP 502",
+                      "gh api user failed: API rate limit exceeded (HTTP 403)",
+                      "GET user failed: the forge could not be reached"):
+            with self.subTest(error=error), mock.patch.dict("os.environ", {"GITHUB_ACTIONS": "true"}):
+                fake = fresh_forge()
+                run(drifting(), fake)
+                self.assertEqual(len(drift_issues(fake)), 1)
+                n = len(fake.writes)
+                fake.user_error = error
+                with self.assertRaises(forge.ForgeError):
+                    github(fake).current_user()
+                with self.assertRaises(forge.ForgeError):
+                    run(drifting(), fake)
+                self.assertEqual(len(fake.writes), n)
+                self.assertEqual(len(drift_issues(fake)), 1)
+
+
+class AdoptsOnlyItsOwnIssue(unittest.TestCase):
+    """An issue by the same user with the title and markers is adopted only if it holds the tool's text alone."""
+
+    def test_text_the_tool_did_not_write_is_not_adopted(self):
+        fake = fresh_forge()
+        own = driftissue.skeleton("- **old** item: gone")
+        for body in ("Phishing link here.\n\n" + own, own + "\n\nPhishing link here.",
+                     own.replace(driftissue.INTRO, "Something else entirely.")):
+            with self.subTest(body=body[:40]):
+                fake = fresh_forge()
+                fake.add_issue(REPO, 50, "Roadmap drift", body)
+                result = run(drifting(), fake)
+                self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
+                self.assertEqual(fake.issues[(REPO, 50)]["body"], body)
+                self.assertTrue(any(f"{REPO}#50" in n for n in result.notes), result.notes)
+                run(quiet(), fake)
+                self.assertEqual(fake.issues[(REPO, 50)]["state"], "open")
+
+    def test_the_tools_own_text_is_adopted(self):
+        fake = fresh_forge()
+        fake.add_issue(REPO, 50, "Roadmap drift", driftissue.skeleton("- **old** item: gone").replace("\n", "\r\n"))
+        result = run(drifting(), fake)
+        self.assertEqual([a.kind for a in result.actions], ["update-drift-issue"])
+        self.assertEqual(len(drift_issues(fake)), 1)
 
     def test_close_rereads_the_author(self):
         fake = fresh_forge()
@@ -163,20 +207,21 @@ class OnlyItsOwnIssue(unittest.TestCase):
 
 
 class HandTextOnGitLab(unittest.TestCase):
-    def test_a_live_command_in_the_hand_text_holds_back_the_update(self):
+    def test_hand_text_with_a_live_command_is_never_written(self):
+        """Hand text outside the markers means the issue is not the tool's own: it is left alone."""
         fake = fresh_forge()
         run(drifting(), fake)
         mine = drift_issues(fake)[0]
         mine["body"] = "Notes.\n/close\n" + mine["body"]
-        n = len(fake.writes)
+        before = mine["body"]
         fg = github(fake)
         fg.kind = "gitlab"   # GitLab runs quick actions; the fake answers like GitHub otherwise
         data = drifting()
         data["issues"] = [i for i in data["issues"] if i["id"] != "weekly-release"]
         result = driftissue.run(data, fg, sync.sync(data, fg, orca_tasks=None, now=NOW), apply=True, today=NOW)
-        self.assertEqual(len(fake.writes), n)
-        self.assertEqual(result.actions, [])
-        self.assertTrue(any("/close" in note for note in result.notes))
+        self.assertEqual(mine["body"], before)
+        self.assertNotIn(("PATCH", f"repos/{REPO}/issues/{mine['number']}"), [w[:2] for w in fake.writes])
+        self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
 
 
 class CloseIsNarrow(unittest.TestCase):

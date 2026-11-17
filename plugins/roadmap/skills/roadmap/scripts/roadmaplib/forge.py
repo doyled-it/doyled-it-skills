@@ -35,6 +35,10 @@ class NotFound(ForgeError):
 
 
 DRIFT_TITLE = "Roadmap drift"
+DRIFT_INTRO = ("This issue is kept by the roadmap tool's scheduled sync. It lists where the forge, Orca and the "
+               "agreed roadmap disagree, and closes itself when they agree again. Edit the roadmap, not this section.")
+# The only error that means "a GitHub Actions workflow token": it cannot read GET /user.
+WORKFLOW_TOKEN_ERROR = "Resource not accessible by integration"
 
 
 class WriteGuard:
@@ -334,11 +338,36 @@ class HttpTransport:
         return self._request(method, path, body)
 
 
-def is_drift_issue(issue: dict, author: str | None) -> bool:
-    """The tool's own open drift issue: its title, its marker block, and opened by the token's user."""
+def drift_body(content: str) -> str:
+    """The drift issue's whole description: the tool's intro and its marker block holding content."""
+    return blocks.replace_block(blocks.md_block(DRIFT_INTRO), blocks.DRIFT_START, blocks.DRIFT_END, content)
+
+
+def drift_lookalike(issue: dict) -> bool:
+    """An open issue with the drift issue's title and marker block, whoever wrote the rest."""
     return (issue.get("state") == "open" and blocks.one_line(issue.get("title")) == DRIFT_TITLE
-            and blocks.block_content(issue.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is not None
-            and bool(author) and issue.get("author") == author)
+            and blocks.block_content(issue.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is not None)
+
+
+def _only_tool_text(body: str) -> bool:
+    """True when nothing outside the marker block differs from what the tool writes."""
+    body = (body or "").replace("\r\n", "\n")
+    try:
+        emptied = blocks.replace_block(body, blocks.DRIFT_START, blocks.DRIFT_END, "")
+    except (blocks.MarkerError, ValueError):
+        return False
+    return emptied.strip() == drift_body("").strip()
+
+
+def is_drift_issue(issue: dict, author: str | None) -> bool:
+    """The tool's own open drift issue.
+
+    Its title, its marker block, opened by the token's user, and no text outside
+    the block but the tool's own intro. Anyone, or another workflow sharing the
+    token's user, can copy the title and the markers around text of their own.
+    """
+    return (drift_lookalike(issue) and bool(author) and issue.get("author") == author
+            and _only_tool_text(issue.get("body") or ""))
 
 
 def _check_drift_issue(issue: dict, author: str | None) -> dict:
@@ -553,15 +582,22 @@ class GitHub:
     def current_user(self) -> str | None:
         """The user the token or login belongs to.
 
-        A GitHub Actions workflow token cannot read GET /user; the issues it
-        opens are by github-actions[bot].
+        A GitHub Actions workflow token cannot read GET /user: GitHub answers
+        403 "Resource not accessible by integration", and the issues that token
+        opens are by github-actions[bot]. Any other failure (a rate limit, a
+        server error, no network) says nothing about whose token it is, so it
+        is raised and the caller stops.
         """
         import os
 
         try:
             return (self.t.get("user") or {}).get("login")
-        except ForgeError:
-            if self.kind == "github" and os.environ.get("GITHUB_ACTIONS") == "true":
+        except NotFound:
+            raise
+        except ForgeError as exc:
+            msg = str(exc)
+            if (self.kind == "github" and os.environ.get("GITHUB_ACTIONS") == "true"
+                    and "403" in msg and WORKFLOW_TOKEN_ERROR.lower() in msg.lower()):
                 return "github-actions[bot]"
             raise
 

@@ -24,6 +24,7 @@ class FakeGitHub:
         self.guard = forge.WriteGuard(commands=False)
         self._next_id = 9000
         self.me: str | None = "roadmap-bot"   # the token's user; None: the forge will not say
+        self.user_error: str | None = None     # when set, GET user fails with this message
 
     # state helpers
     def add_issue(self, repo: str, number: int, title: str, body: str = "", state: str = "open",
@@ -46,6 +47,8 @@ class FakeGitHub:
     def get(self, path: str):
         path, _, query = path.partition("?")
         if path == "user":
+            if self.user_error:
+                raise forge.ForgeError(self.user_error)
             if self.me is None:
                 raise forge.ForgeError("GET user failed: HTTP 401")
             return {"login": self.me}
