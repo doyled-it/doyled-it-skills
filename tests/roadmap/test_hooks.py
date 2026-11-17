@@ -258,6 +258,45 @@ class PostToolUseHook(Hook):
                 self.assertEqual(self.post(command).stdout.strip(), "")
 
 
+class EveryHookIsCapped(Hook):
+    """PostToolUse and codex-notify sync at most MAX_STOP_ISSUES issues, like the Stop hook."""
+
+    def many(self):
+        data = sync_roadmap()
+        for n, it in enumerate(data["issues"]):
+            it["status"], it["ref"] = "in_progress", it.get("ref") or f"acme/search#{100 + n}"
+        self.roadmap(data)
+        return [it["id"] for it in data["issues"]]
+
+    def capped(self, call):
+        hook = self.load()
+        seen = []
+
+        def fake_sync(path, chosen):
+            seen.append(list(chosen))
+            return {"drift": [], "status_changes": [], "gate_ticks": []}, None
+
+        with mock.patch.object(hook, "run_sync", fake_sync), mock.patch.object(hook, "MAX_STOP_ISSUES", 2), \
+                mock.patch.object(hook, "notify", lambda message: seen.append(message)), \
+                mock.patch.dict("os.environ", {"ROADMAP_FILE": str(self.dir / "roadmap.json")}):
+            call(hook)
+        return seen
+
+    def test_a_merge_that_names_no_issue_syncs_a_capped_few(self):
+        ids = self.many()
+        self.assertGreater(len(ids), 2)
+        seen = self.capped(lambda hook: hook.post_tool_use(
+            {"tool_name": "Bash", "cwd": str(self.dir), "tool_input": {"command": "glab mr merge 99"}}))
+        self.assertEqual([len(x) for x in seen], [2])
+
+    def test_codex_notify_syncs_a_capped_few(self):
+        ids = self.many()
+        payload = json.dumps({"type": "agent-turn-complete", "cwd": str(self.dir),
+                              "input-messages": [" ".join(ids)], "last-assistant-message": "Done."})
+        seen = self.capped(lambda hook: hook.codex_notify(payload))
+        self.assertEqual(len(seen[0]), 2)
+
+
 class CodexNotify(Hook):
     def test_drift_is_sent_to_the_notifier(self):
         data = sync_roadmap()

@@ -103,7 +103,8 @@ The roadmap plugin registers two hooks (`hooks/hooks.json`, script
   `gh issue close`, `tea` and `fj` equivalents, run as commands, not quoted
   text), it runs a read-only
   `sync --only` for the roadmap issues the command names (or, when it names
-  none, the issues In progress or In review) and tells the agent what changed.
+  none, the issues In progress or In review), at most five of them with the
+  rest named in a note, and tells the agent what changed.
 - **Stop**: at the end of a turn it finds the roadmap issues this turn changed
   (named in a git commit, push, merge or tag, or a merge request or issue
   command it ran) and runs `sync --only` for at most five of them; the rest
@@ -131,7 +132,8 @@ they fail open: a one-line warning and no block.
 
 Codex's `notify` program runs after each turn and cannot block it or reach the
 agent, so for Codex the forge layer is the enforcement. The same script has a
-`codex-notify` mode that runs the Stop check and shows any drift as a desktop
+`codex-notify` mode that runs the same check for the issues the turn's messages
+name (at most five) and shows any drift as a desktop
 notification (`osascript` on macOS, `notify-send` on Linux, or the command in
 `ROADMAP_HOOK_NOTIFIER`). To use it, the lead adds this line to
 `~/.codex/config.toml` (Codex appends its JSON payload as the last argument):

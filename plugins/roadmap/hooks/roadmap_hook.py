@@ -14,6 +14,8 @@
   roadmap_hook.py codex-notify J  Codex "notify" program (J is its JSON payload): the same
                                   check, sent to a desktop notification (Codex cannot block)
 
+Every mode syncs at most MAX_STOP_ISSUES issues and names the rest in a note.
+
 It does nothing, and says nothing, without a roadmap of this tool's shape
 (ROADMAP_FILE, else roadmap.json in the working directory or at the git root,
 with "epics" and "issues" lists), never writes anything, and fails open: a slow or
@@ -64,7 +66,7 @@ WRAPPERS = {"env", "command", "time", "nohup", "sudo", "exec", "builtin"}
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 SEPARATORS = {";", "&", "&&", "|", "||", "|&", "(", ")", ";;"}
 GIT_OPTIONS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
-# Issues a turn end syncs at most; each costs two or three forge calls.
+# Issues any one hook run syncs at most; each costs two or three forge calls.
 MAX_STOP_ISSUES = 5
 DEFAULT_TIMEOUT = 20
 TRANSCRIPT_TAIL = 2_000_000
@@ -253,7 +255,7 @@ def check(cwd: str, text: str, ids_if_none: str = "",
         return [], [], f"roadmap check skipped: {why}", ids
     fix, show = findings(report, ids, ids, data)
     if skipped:
-        show.append(f"{len(skipped)} more changed issue(s) not checked at this turn end ({', '.join(skipped[:8])}); "
+        show.append(f"{len(skipped)} more changed issue(s) not checked here ({', '.join(skipped[:8])}); "
                     "run `roadmap.py sync roadmap.json` for all of them")
     return fix, show, None, ids
 
@@ -331,7 +333,8 @@ def post_tool_use(payload: dict) -> dict | None:
     command = ((payload.get("tool_input") or {}).get("command")) or ""
     if payload.get("tool_name") not in (None, "Bash") or not runs_merge_or_close(command):
         return None
-    fix, show, warning, ids = check(payload.get("cwd") or os.getcwd(), command, ids_if_none="active")
+    fix, show, warning, ids = check(payload.get("cwd") or os.getcwd(), command, ids_if_none="active",
+                                    limit=MAX_STOP_ISSUES)
     if warning:
         return {"systemMessage": warning}
     if not ids:
@@ -350,7 +353,7 @@ def codex_notify(raw: str) -> None:
     if payload.get("type") != "agent-turn-complete":
         return
     text = "\n".join(map(str, payload.get("input-messages") or [])) + "\n" + str(payload.get("last-assistant-message"))
-    found, _, warning, _ = check(payload.get("cwd") or os.getcwd(), text)
+    found, _, warning, _ = check(payload.get("cwd") or os.getcwd(), text, limit=MAX_STOP_ISSUES)
     message = warning or ("Roadmap drift: " + "; ".join(found) if found else "")
     if message:
         notify(message[:300])
