@@ -13,7 +13,10 @@ roadmap.py validate roadmap.json
 
 Prints each finding as `error:` or `warning:` with where it is and why, then a
 count. Exits 1 when there is any error. See [glossary.md](glossary.md) for the
-rules.
+rules. A field of the wrong type (an iteration name that is not text,
+`allowed_terms` that is not a list of words, `orca` or `forge` that is not an
+object) is a `bad-type` error, never a crash, and `publish`, `sync` and
+`drift-issue` refuse to run, listing those errors, until it is fixed.
 
 ## render
 

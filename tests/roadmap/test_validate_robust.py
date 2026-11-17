@@ -9,7 +9,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from helpers import example, issue
+from helpers import FIXTURES, example, issue
 from roadmaplib import cli, render, validate
 
 
@@ -35,6 +35,7 @@ class WrongTypesAreFindings(unittest.TestCase):
         self.check(lambda d: d["epics"][1].__setitem__("id", 7))
         self.check(lambda d: d["issues"].append(dict(issue(d, "page-build"), id=42)))
         self.check(lambda d: issue(d, "page-build").__setitem__("detail", ["a"]))
+        self.check(lambda d: issue(d, "page-build").__setitem__("merge_requests", [5]))
 
     def test_iterations_and_timeline_must_be_lists_of_objects(self):
         for key in ("iterations", "timeline"):
@@ -93,6 +94,84 @@ class WrongTypesAreFindings(unittest.TestCase):
                 code = cli.main(["validate", str(path)])
         self.assertEqual(code, 1)
         self.assertIn("bad-type", out.getvalue())
+
+
+class OddTypesAreNamed(unittest.TestCase):
+    """Each wrongly typed field is a finding that says what it must be, never a crash."""
+
+    def found(self, key, value):
+        data = example()
+        data[key] = value
+        return [f for f in validate.errors(validate.check(data)) if f.code == "bad-type"]
+
+    def test_iterations_need_text_names(self):
+        for value in ([{"name": ["x"]}], [{"name": 5}], [{"name": "Week 1", "start": 3}]):
+            with self.subTest(value=value):
+                found = self.found("iterations", value)
+                self.assertTrue(found and found[0].where.startswith("iterations[0]"), found)
+                self.assertIn("must be text", found[0].message)
+
+    def test_allowed_terms_must_be_a_list_of_text(self):
+        for value in (5, True, "GP3", [5], [["GP3"]]):
+            with self.subTest(value=value):
+                found = self.found("allowed_terms", value)
+                self.assertTrue(found and found[0].where == "allowed_terms", found)
+                self.assertIn("list of words", found[0].message)
+
+    def test_orca_must_be_an_object_with_a_text_run(self):
+        for value, where in ((5, "orca"), ("run-1", "orca"), ([{}], "orca"), ({"run": 5}, "orca.run"),
+                             ({"run": ["x"]}, "orca.run")):
+            with self.subTest(value=value):
+                found = self.found("orca", value)
+                self.assertTrue(found and found[0].where == where, found)
+
+    def test_lead_gates_must_be_letters(self):
+        for value in ([{}], [["U"]], [5], "U"):
+            with self.subTest(value=value):
+                data = example()
+                data["lead_gates"] = value
+                self.assertIn("bad-lead-gates", codes(data))
+
+    def test_forge_fields_must_be_text(self):
+        for key, value in (("project", 5), ("project", ["a/b"]), ("group", 5), ("host", ["x"]), ("projects", "a/b"),
+                           ("projects", [5]), ("status_labels", ["x"]), ("status_labels", {"blocked": 5})):
+            with self.subTest(key=key, value=value):
+                data = example()
+                data["forge"][key] = value
+                found = [f for f in validate.errors(validate.check(data)) if f.code == "bad-type"]
+                self.assertTrue(found and found[0].where == f"forge.{key}", found)
+        data = example()
+        data["forge"] = 5
+        self.assertTrue(validate.errors(validate.check(data)))
+
+
+class OddTypesNeverCrashACommand(unittest.TestCase):
+    """validate, sync and drift-issue print findings or an error for any odd type: never a traceback."""
+
+    ODD = (5, "x", True, [5], [["x"]], {"a": 1}, [{"name": ["x"]}], {"run": 5}, None)
+    KEYS = ("iterations", "allowed_terms", "orca", "lead_gates", "timeline", "gates", "forge", "forge.host",
+            "forge.project", "forge.group", "forge.projects", "forge.status_labels", "forge.gate_rules")
+
+    def test_every_command_survives(self):
+        from test_sync import sync_roadmap
+
+        recorded = str(FIXTURES / "gitlab_sync.json")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            for key in self.KEYS:
+                for value in self.ODD:
+                    data = sync_roadmap()
+                    if "." in key:
+                        data["forge"][key.split(".")[1]] = value
+                    else:
+                        data[key] = value
+                    path.write_text(json.dumps(data))
+                    orca = [] if key == "orca" else ["--orca-json", str(FIXTURES / "orca_tasks.json")]
+                    for argv in (["validate", str(path)],
+                                 ["sync", str(path), "--recorded", recorded, "--now", "2026-11-17", *orca],
+                                 ["drift-issue", str(path), "--recorded", recorded, "--now", "2026-11-17", *orca]):
+                        with self.subTest(key=key, value=value, command=argv[0]), redirect_stdout(io.StringIO()):
+                            self.assertIn(cli.main(argv), (0, 1, 2))
 
 
 class DeepChains(unittest.TestCase):

@@ -18,6 +18,18 @@ def _load(path: str) -> dict:
         raise SystemExit(1) from exc
 
 
+def _refuse_broken(data: dict) -> bool:
+    """Print the findings and return True when the roadmap's shape is too broken to run a command on."""
+    from . import render
+
+    blocking = [f for f in validate.errors(validate.check(data)) if f.code in render.BLOCKING]
+    if blocking:
+        print("error: fix these first (roadmap.py validate lists them all):")
+        for f in blocking:
+            print(f"  {f}")
+    return bool(blocking)
+
+
 def cmd_validate(args) -> int:
     findings = validate.check(_load(args.roadmap))
     for f in findings:
@@ -74,6 +86,8 @@ def cmd_publish(args) -> int:
     from . import forge, publish
 
     data = _load(args.roadmap)
+    if _refuse_broken(data):
+        return 2
     try:
         fg = forge.from_args(data, args)
         report = publish.publish(data, fg, apply=args.apply, allow_draft=False)
@@ -94,6 +108,8 @@ def cmd_sync(args) -> int:
         print("error: --update-epics needs --write, so the epics on the forge and roadmap.json show the same status")
         return 2
     data = _load(args.roadmap)
+    if _refuse_broken(data):
+        return 2
     try:
         fg = forge.from_args(data, args)
     except forge.ForgeError as exc:
@@ -160,6 +176,8 @@ def cmd_drift_issue(args) -> int:
     from . import driftissue, forge, orca, sync
 
     data = _load(args.roadmap)
+    if _refuse_broken(data):
+        return 2
     try:
         fg = forge.from_args(data, args)
         tasks = orca.tasks_from_args(data, args)

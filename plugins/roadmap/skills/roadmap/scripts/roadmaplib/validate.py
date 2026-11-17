@@ -88,7 +88,7 @@ def check(raw: dict) -> list[Finding]:
     allowed = {t.casefold() for t in data.get("allowed_terms") or [] if isinstance(t, str)} | TECH_TERMS
     lead = model.lead_gates(data)
     if "lead_gates" in data and (not isinstance(data["lead_gates"], list)
-                                 or any(g not in gates for g in data["lead_gates"])):
+                                 or any(not isinstance(g, str) or g not in gates for g in data["lead_gates"])):
         err("bad-lead-gates", "lead_gates", '"lead_gates" must list gate letters defined in "gates"')
     if isinstance(forge, dict):
         rules = forge.get("gate_rules") or {}
@@ -394,17 +394,57 @@ def _codes(text: str, allowed: set[str]) -> list[str]:
 def _well_typed(raw: dict, err) -> dict:
     """A copy with wrongly typed entries reported and dropped, so the other checks cannot crash."""
     raw = dict(raw)
-    for key, what in (("iterations", 'objects with a "name"'), ("timeline", 'objects with a "date" and "text"')):
+    for key, what, fields in (("iterations", 'objects with a "name"', ("name", "start", "end")),
+                              ("timeline", 'objects with a "date" and "text"', ("date", "text"))):
         if key not in raw:
             continue
         if not isinstance(raw[key], list):
             err("bad-type", key, f'"{key}" must be a list of {what}')
             raw[key] = []
             continue
+        kept = []
         for n, x in enumerate(raw[key]):
             if not isinstance(x, dict):
                 err("bad-type", f"{key}[{n}]", f'each entry in "{key}" must be an object')
-        raw[key] = [x for x in raw[key] if isinstance(x, dict)]
+                continue
+            x = dict(x)
+            for field in fields:
+                if x.get(field) is not None and not isinstance(x[field], str):
+                    err("bad-type", f"{key}[{n}].{field}", f'"{field}" must be text')
+                    x.pop(field)
+            kept.append(x)
+        raw[key] = kept
+    if "allowed_terms" in raw and not (isinstance(raw["allowed_terms"], list)
+                                       and all(isinstance(t, str) for t in raw["allowed_terms"])):
+        err("bad-type", "allowed_terms", '"allowed_terms" must be a list of words (text), such as ["GP3"]')
+        terms = raw["allowed_terms"]
+        raw["allowed_terms"] = [t for t in terms if isinstance(t, str)] if isinstance(terms, list) else []
+    if "orca" in raw and raw["orca"] is not None:
+        if not isinstance(raw["orca"], dict):
+            err("bad-type", "orca", '"orca" must be an object such as {"run": "<run id>"}')
+            raw.pop("orca")
+        elif raw["orca"].get("run") is not None and not isinstance(raw["orca"]["run"], str):
+            err("bad-type", "orca.run", '"run" must be text: the Orca run id')
+            raw["orca"] = {k: v for k, v in raw["orca"].items() if k != "run"}
+    if "forge" in raw and raw["forge"] is not None:
+        if not isinstance(raw["forge"], dict):
+            err("bad-type", "forge", '"forge" must be an object with a "kind", such as {"kind": "gitlab"}')
+            raw.pop("forge")
+        else:
+            fg = dict(raw["forge"])
+            for field in ("kind", "host", "project", "group"):
+                if fg.get(field) is not None and not isinstance(fg[field], str):
+                    err("bad-type", f"forge.{field}", f'"{field}" must be text')
+                    fg.pop(field)
+            projects = fg.get("projects")
+            if projects is not None and not (isinstance(projects, list) and all(isinstance(p, str) for p in projects)):
+                err("bad-type", "forge.projects", '"projects" must be a list of projects, such as ["group/web"]')
+                fg.pop("projects")
+            labels = fg.get("status_labels")
+            if labels is not None and not (isinstance(labels, dict) and all(isinstance(v, str) for v in labels.values())):
+                err("bad-type", "forge.status_labels", '"status_labels" must map a status to a label name (text)')
+                fg.pop("status_labels")
+            raw["forge"] = fg
     for key in ("epics", "issues"):
         kept = []
         for n, x in enumerate(raw.get(key) or []):
@@ -449,6 +489,9 @@ def _well_typed(raw: dict, err) -> dict:
                     if field in x and not isinstance(x[field], list):
                         err("bad-type", f"{where}.{field}", f'"{field}" must be a list')
                         x[field] = []
+                if any(not isinstance(m, dict) for m in x.get("merge_requests") or []):
+                    err("bad-type", f"{where}.merge_requests", 'each entry in "merge_requests" must be an object')
+                    x["merge_requests"] = [m for m in x["merge_requests"] if isinstance(m, dict)]
             kept.append(x)
         if key in raw:
             raw[key] = kept

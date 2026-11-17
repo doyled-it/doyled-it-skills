@@ -55,8 +55,9 @@ def tasks_from_args(data: dict, args):
     if getattr(args, "orca_json", None):
         with open(args.orca_json) as fh:
             return parse_tasks(json.load(fh))
-    run = getattr(args, "orca_run", None) or (data.get("orca") or {}).get("run")
-    if not run:
+    cfg = data.get("orca") if isinstance(data.get("orca"), dict) else {}
+    run = getattr(args, "orca_run", None) or cfg.get("run")
+    if not isinstance(run, str) or not run:
         return 'Orca not checked: set "orca": {"run": ...} in roadmap.json or pass --orca-run.'
     try:
         return read_run(run)

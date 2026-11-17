@@ -890,7 +890,7 @@ def make(kind: str, transport, cfg: dict):
 
 
 def from_args(data: dict, args) -> GitLab | GitHub:
-    cfg = dict(data.get("forge") or {})
+    cfg = dict(data["forge"]) if isinstance(data.get("forge"), dict) else {}
     kind = getattr(args, "forge", None) or cfg.get("kind")
     if not kind:
         kind, host = detect_from_remote(getattr(args, "repo", "."))
