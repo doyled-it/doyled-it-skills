@@ -13,6 +13,10 @@ Commands:
   sync ROADMAP [--write]        read issue status, merge requests, pipelines and Orca tasks;
                                 report drift (read-only on the forge and Orca unless
                                 --update-epics)
+  check-mr ROADMAP --from-ci    fail a merge request that names no issue on the agreed
+                                roadmap (offline; a change to only the roadmap passes)
+  drift-issue ROADMAP [--apply] keep one "Roadmap drift" issue current: create, update in
+                                place, close when drift is zero; dry run unless --apply
 
 Standard library only; Python 3.11 or newer.
 """

@@ -83,5 +83,15 @@ class PreviewNeverClobbers(unittest.TestCase):
             self.assertIn("x-full.html", res.stdout)
 
 
+class DocsListEveryCommand(unittest.TestCase):
+    def test_the_command_docstring_names_every_subcommand(self):
+        from roadmaplib import cli
+
+        commands = set(cli.build_parser()._subparsers._group_actions[0].choices)
+        doc = CLI.read_text().split('"""')[1]
+        listed = set(re.findall(r"^  ([a-z][a-z-]+) ROADMAP", doc, re.MULTILINE))
+        self.assertEqual(listed, commands)
+
+
 if __name__ == "__main__":
     unittest.main()
