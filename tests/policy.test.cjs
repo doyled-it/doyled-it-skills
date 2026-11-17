@@ -258,9 +258,24 @@ test('roadmap: references are linked one level deep and exist', () => {
 
 test('roadmap: the skill is generic, with no project specifics', () => {
   for (const file of walkFiles('plugins/roadmap')) {
-    if (/global-instructions\.md$|__pycache__/u.test(file)) continue;
+    if (/__pycache__/u.test(file)) continue;
     assert.doesNotMatch(read(file), /\b(?:ep2p|irmbpmn|mdoyle|CDP|gemma)\b/u, `project specific text in ${file}`);
   }
+});
+
+test('roadmap: SKILL.md says where the command lives and the docs match the code', () => {
+  const text = rmSkill();
+  assert.match(text, /in this skill's\s+own directory/u);
+  assert.match(text, /-path '\*roadmap\/scripts\/roadmap\.py'/u);
+  const desc = (text.match(/^description:\s*(.*)$/mu) || [])[1] || '';
+  assert.doesNotMatch(desc, /\. (?:Keeps|Renders|Publishes)\b/u, 'description should name triggers only');
+  for (const file of ['SKILL.md', 'references/glossary.md']) {
+    assert.doesNotMatch(read(`plugins/roadmap/skills/roadmap/${file}`), /\| Iteration \|[^\n]*sprint/iu,
+      `Iteration defined with "sprint" in ${file}`);
+  }
+  assert.match(read('plugins/roadmap/skills/roadmap/references/forges.md'), /from `--forge` when given, then `forge\.kind`/u);
+  assert.ok(!walkFiles('plugins/roadmap').some((f) => /global-instructions/u.test(f)),
+    'the personal global-instructions draft does not belong in the public plugin');
 });
 
 test('roadmap: no em dashes in the plugin or its tests', () => {

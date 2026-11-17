@@ -1,6 +1,6 @@
 ---
 name: roadmap
-description: Use when orchestrating a program of work across several issues, workers or sessions (Claude or Codex), before starting any worker; when kicking off a program, finishing an issue, taking on new work, or handing a program to the next session; or when asked to draft, render, publish or sync a roadmap. Keeps one roadmap agreed with the program lead in roadmap.json, renders it as one page, publishes it to GitLab, GitHub or Forgejo, and reports drift.
+description: Use when orchestrating a program of work across several issues, workers or sessions (Claude or Codex), before starting any worker; when kicking off a program, finishing an issue, sending a program update, taking on new work, or handing a program to the next session; or when asked to draft, render, publish or sync a roadmap.
 compatibility: Reads the Agent Skills standard (Claude Code, Codex, opencode). The roadmap command needs Python 3.11 or newer (standard library only); publish and sync use glab for GitLab, gh for GitHub, and the REST API for Forgejo, Gitea and Codeberg. Sync reads Orca tasks through the orca CLI when it is present.
 ---
 
@@ -29,7 +29,7 @@ nobody can map back to a plan.
 | Gate | A check that must pass before an issue is Done. A checklist line in the issue. |
 | Merge request | A reviewed change. GitHub and Forgejo call it a pull request. |
 | Status | To do, In progress, In review, Blocked, Done. |
-| Iteration | A two-week sprint. |
+| Iteration | A fixed two-week period of work. |
 
 Default gates (a project may define its own set in `roadmap.json`): **D**
 design agreed, **R** independent review, **G** quality gate with a recorded
@@ -55,7 +55,13 @@ request and gate evidence item on it links to the forge.
 
 ## The command
 
-One standard-library Python 3.11+ CLI, `scripts/roadmap.py`:
+One standard-library Python 3.11+ CLI, `scripts/roadmap.py`, in this skill's
+own directory (next to this SKILL.md), not in the project. Run it by its full
+path from the project directory: the path is the base directory this skill was
+loaded from (Claude Code prints it when the skill loads; Codex shows the
+SKILL.md path). If neither is shown, find it with
+`find ~/.claude ~/.codex ~/.agents -path '*roadmap/scripts/roadmap.py' 2>/dev/null`.
+The examples below write it as `scripts/roadmap.py`.
 
 ```bash
 python3 scripts/roadmap.py validate roadmap.json          # schema, cycles, dangling dependencies, glossary

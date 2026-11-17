@@ -13,7 +13,7 @@ any of them.
 | Gate | A check that must pass before an issue is Done, kept as a checklist line in the issue. | Checklist line |
 | Merge request | A reviewed change. | GitHub and Forgejo: pull request |
 | Status | To do, In progress, In review, Blocked, Done. | Derived from forge state |
-| Iteration | A two-week sprint. | Kept in the roadmap only |
+| Iteration | A fixed two-week period of work. | Kept in the roadmap only |
 
 ## Gates
 
@@ -48,7 +48,6 @@ as each gate is one capital letter with a plain description.
   and each gate is one capital letter. A wrong type is an error, not a crash.
 - **Real dependencies only.** A dependency on an issue that does not exist, or a
   loop of dependencies, is an error.
-
 - **Plain links only.** Every link (issue and epic `url`, `links`, gate
   `evidence`, merge request and pipeline links, `page_url`) must be an `http`
   or `https` link. The page, the epic preview and the generated sections make

@@ -1,7 +1,7 @@
 # Forges: how the roadmap maps onto GitLab, GitHub and Forgejo
 
-`publish` and `sync` pick the forge from `forge.kind` in `roadmap.json`, then
-`--forge`, then the checkout's `origin` remote: a `github` host means GitHub; a
+`publish` and `sync` pick the forge from `--forge` when given, then `forge.kind`
+in `roadmap.json`, then the checkout's `origin` remote: a `github` host means GitHub; a
 `codeberg`, `forgejo` or `gitea` host means Forgejo; anything else means GitLab.
 A self-hosted Forgejo with a neutral host name needs `"kind": "forgejo"`.
 

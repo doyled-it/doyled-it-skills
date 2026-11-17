@@ -1,8 +1,9 @@
 # The roadmap command
 
-`scripts/roadmap.py`, standard library only, Python 3.11 or newer. Run it with
-`python3 scripts/roadmap.py <command> roadmap.json [options]` from the skill
-directory, or with its full path from anywhere.
+`scripts/roadmap.py`, standard library only, Python 3.11 or newer. It lives in
+the skill's directory, not in the project: run it by its full path from the
+project directory, `python3 <skill dir>/scripts/roadmap.py <command>
+roadmap.json [options]` (SKILL.md says how to find the skill directory).
 
 ## validate
 
