@@ -73,8 +73,9 @@ class GateEvidence(unittest.TestCase):
         self.assertEqual(self.ticks[("click-signals", "M")],
                          "https://gitlab.example.com/acme/search/-/merge_requests/30")
 
-    def test_ticked_checklist_line_ticks_the_gate_with_its_link(self):
-        self.assertEqual(self.ticks[("page-design", "D")], "https://example.com/design-notes")
+    def test_a_lead_gate_ticked_on_the_forge_is_reported_not_ticked(self):
+        self.assertNotIn(("page-design", "D"), self.ticks)
+        self.assertIn(("lead-gate-ticked-on-forge", "page-design"), {(d.kind, d.target) for d in self.report.drift})
 
     def test_unticked_lines_and_open_merge_requests_tick_nothing(self):
         self.assertNotIn(("page-design", "U"), self.ticks)

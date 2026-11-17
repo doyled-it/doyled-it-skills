@@ -88,6 +88,7 @@ Drift kinds:
 | `no-recent-activity` | No forge activity on an unfinished issue for `--stale-days`. |
 | `nothing-behind` | In progress or in review, with no merge request and no Orca task. |
 | `done-but-open` | Done on the roadmap, open on the forge. |
+| `lead-gate-ticked-on-forge` | A lead gate (D or U) is ticked on the forge but not recorded in `roadmap.json`; it was not ticked. |
 | `marker-problem` | A description's generated-section markers are broken; nothing was read from or written to that section. Fix it by hand. |
 | `unlisted-epic-issue` | An open issue in a roadmap epic that the roadmap does not list. |
 | `unlinked-merge-request` | An open merge request that no roadmap issue accounts for. |

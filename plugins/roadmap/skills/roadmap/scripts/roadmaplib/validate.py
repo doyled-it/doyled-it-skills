@@ -69,6 +69,27 @@ def check(raw: dict) -> list[Finding]:
             err("bad-forge", "forge", 'forge "kind" must be "gitlab", "github" or "forgejo"')
 
     gates = data["gates"]
+    lead = model.lead_gates(data)
+    if "lead_gates" in data and (not isinstance(data["lead_gates"], list)
+                                 or any(g not in gates for g in data["lead_gates"])):
+        err("bad-lead-gates", "lead_gates", '"lead_gates" must list gate letters defined in "gates"')
+    if isinstance(forge, dict):
+        rules = forge.get("gate_rules") or {}
+        if not isinstance(rules, dict):
+            err("bad-gate-rule", "forge.gate_rules", '"gate_rules" must map a gate letter to a rule')
+            rules = {}
+        for letter, rule in rules.items():
+            where = f"forge.gate_rules.{letter}"
+            if rule == "mr_approved_green":
+                err("bad-gate-rule", where, '"mr_approved_green" never checked approvals; it is now "mr_green" '
+                    "(a linked merge request with a green pipeline)")
+            elif rule not in ("mr_merged", "mr_green", "checklist"):
+                err("bad-gate-rule", where, f'unknown rule "{rule}"; use mr_merged, mr_green or checklist')
+            if letter in lead:
+                err("bad-gate-rule", where, f'{letter} is a lead gate; it passes only from an approval recorded in '
+                    'roadmap.json ("approved_by"), never from a forge rule')
+            elif letter not in gates:
+                err("bad-gate-rule", where, f'gate "{letter}" is not defined in "gates"')
     iterations = {i.get("name") for i in data.get("iterations", []) if isinstance(i, dict)}
 
     # Epics.
@@ -132,6 +153,10 @@ def check(raw: dict) -> list[Finding]:
         for g in it["gates"]:
             if g["gate"] not in gates:
                 err("unknown-gate", f"{where}.gates", f'gate "{g["gate"]}" is not defined in "gates"')
+            if g["passed"] and g["gate"] in lead and not g.get("approved_by"):
+                err("unrecorded-approval", f"{where}.gates[{g['gate']}]",
+                    f'{g["gate"]} is passed but only the program lead can pass it; record who approved it '
+                    'and when ("approved_by", "approved_on"), or leave it open')
         days = it.get("estimate_days")
         if isinstance(days, (int, float)) and days > model.MAX_ISSUE_DAYS:
             err("too-big", where,

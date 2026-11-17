@@ -39,6 +39,11 @@ DEFAULT_GATES = {
     "U": "Explicit approval from the program lead",
 }
 
+# Gates only the program lead can pass: they pass only from an approval recorded
+# in roadmap.json ("approved_by"), never from a checkbox or a forge event. A
+# roadmap may name its own set in "lead_gates".
+DEFAULT_LEAD_GATES = ("D", "U")
+
 REQUIRED_TOP = ("title", "version", "date", "agreed", "goal", "rule", "gates", "epics", "issues")
 REQUIRED_EPIC = ("id", "name")
 REQUIRED_ISSUE = ("id", "title", "epic", "status")
@@ -85,9 +90,16 @@ def gate_obj(g) -> dict:
     if isinstance(g, str):
         return {"gate": g, "passed": False}
     out = {"gate": g.get("gate"), "passed": bool(g.get("passed"))}
-    if g.get("evidence"):
-        out["evidence"] = g["evidence"]
+    for key in ("evidence", "approved_by", "approved_on"):
+        if g.get(key):
+            out[key] = g[key]
     return out
+
+
+def lead_gates(data: dict) -> set[str]:
+    """Gate letters only the program lead can pass."""
+    lead = data.get("lead_gates")
+    return {g for g in lead if isinstance(g, str)} if isinstance(lead, list) else set(DEFAULT_LEAD_GATES)
 
 
 def normalize(data: dict) -> dict:

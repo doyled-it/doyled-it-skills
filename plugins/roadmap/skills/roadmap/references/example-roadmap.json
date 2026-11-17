@@ -50,7 +50,8 @@
       "status": "done",
       "depends_on": [],
       "gates": [
-        {"gate": "D", "passed": true, "evidence": "https://github.com/example-org/search-service/issues/11#issuecomment-1"},
+        {"gate": "D", "passed": true, "evidence": "https://github.com/example-org/search-service/issues/11#issuecomment-1",
+         "approved_by": "the program lead", "approved_on": "2026-11-10"},
         {"gate": "R", "passed": true, "evidence": "https://github.com/example-org/search-service/pull/21"},
         {"gate": "M", "passed": true, "evidence": "https://github.com/example-org/search-service/pull/21"}
       ],
@@ -66,7 +67,8 @@
       "status": "in_progress",
       "depends_on": ["click-signals"],
       "gates": [
-        {"gate": "D", "passed": true, "evidence": "https://github.com/example-org/search-service/issues/12#issuecomment-2"},
+        {"gate": "D", "passed": true, "evidence": "https://github.com/example-org/search-service/issues/12#issuecomment-2",
+         "approved_by": "the program lead", "approved_on": "2026-11-10"},
         "R",
         "M"
       ],

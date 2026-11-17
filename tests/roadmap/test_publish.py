@@ -84,14 +84,14 @@ class GitLabDryRun(unittest.TestCase):
         self.assertIn("page-design", added)        # linked by title, not yet in its epic
         self.assertNotIn("click-signals", added)   # already in the epic
 
-    def test_gate_checklists_are_written_and_keep_forge_ticks(self):
+    def test_gate_checklists_are_written_and_hand_text_is_kept(self):
         updates = {a.target: a for a in kinds(self.report, "update-issue")}
         self.assertIn("page-design", updates)
         body = updates["page-design"].body
-        self.assertIn("<!-- roadmap:start -->", body)
-        self.assertIn("- [x] D:", body)            # ticked on the forge, kept
-        self.assertIn("- [ ] U:", body)
-        self.assertIn("Layout notes.", body)       # text outside the block survives
+        block = body.split("<!-- roadmap:start -->", 1)[1]
+        self.assertIn("- [ ] D:", block)           # a checkbox outside the block, and a lead gate, tick nothing
+        self.assertIn("- [ ] U:", block)
+        self.assertTrue(body.startswith("Layout notes.\n\n- [x] D: Design agreed"))   # hand text kept as is
 
     def test_nothing_is_closed_or_deleted(self):
         for a in self.report.actions:

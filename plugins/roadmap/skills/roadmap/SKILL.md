@@ -106,7 +106,9 @@ Forge choice, the per-forge mapping and every flag:
   start" panel on the page lists exactly those.
 - An issue with a **D** gate goes through the development loop: invoke
   `development-loop` (native name `development-loop:development-loop`) for
-  brainstorm, design, plan and build. Tick D only after the design is agreed.
+  brainstorm, design, plan and build. Pass D only after the lead agrees the
+  design, by recording it in `roadmap.json` (`"passed": true`, `"approved_by"`,
+  `"approved_on"`). D and U never pass from a forge checkbox.
 - Orca: begin every task title and worker brief with the issue's short name and
   link, for example `checked-citations acme/search#412: ...`. `sync`
   flags any active Orca task that does not, and any task started before its

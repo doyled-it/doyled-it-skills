@@ -74,14 +74,29 @@ changing it.
 
 ## How sync ticks gates
 
-A gate is ticked, with an evidence link, when:
+Gates tick only from things that can be checked, never from a checkbox someone
+added elsewhere in a description:
 
-- its checklist line is ticked on the forge (`- [x] R: ...`); the first link on
-  that line is the evidence, otherwise the issue itself; or
-- a rule in `forge.gate_rules` matches. The default is `{"M": "mr_merged"}`: M
-  ticks when a linked merge request is merged, with that merge request as the
-  evidence. `mr_approved_green` ticks a gate when a linked merge request has a
-  green pipeline.
+- **Lead gates** (D and U by default, or the roadmap's `lead_gates`) pass only
+  when `roadmap.json` records the approval on the gate: `"passed": true`,
+  `"approved_by"` and `"approved_on"`. `validate` refuses a passed lead gate
+  without `approved_by`. A lead gate ticked on the forge is reported as
+  `lead-gate-ticked-on-forge` drift and is not ticked.
+- **Other gates** tick when their line in the generated checklist (inside the
+  issue's markers, in the shape `- [x] R: ...`) is ticked. The first http or
+  https link on that line is the evidence, otherwise the issue itself.
+- **Rules** in `forge.gate_rules`: `mr_merged` (the default for M) ticks when a
+  merged merge request in the roadmap's own projects closes the issue
+  (`Closes #12`, `Fixes group/project#12`, or the issue's URL after a closing
+  word) or is named in the roadmap issue's own text (`!12`). `mr_green` ticks
+  when such a merge request has a green pipeline. A rule cannot name a lead
+  gate. (`mr_approved_green` was renamed `mr_green`: it never checked
+  approvals.)
+
+Merge requests in other projects that mention an issue are ignored for status
+and gates, so a stranger's repository cannot move an issue or tick a gate. The
+roadmap's own projects are `forge.project`, `forge.projects`, and each issue's
+`project` and reference.
 
 A tick is never removed by `publish` or `sync`.
 

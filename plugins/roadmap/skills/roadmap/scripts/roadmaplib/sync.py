@@ -144,6 +144,41 @@ def named_merge_requests(data: dict, projects: list[str], default: str | None) -
     return found
 
 
+# A closing reference in a merge request: "Closes #12", "fixes group/project#12",
+# "Resolves https://host/.../issues/12", several joined by commas or "and".
+REF_ITEM = r"(?:(?:[\w.-]+(?:/[\w.-]+)*)?#\d+|https?://[^\s,;]+)"
+CLOSING = re.compile(rf"\b(?:close[sd]?|closing|fix(?:e[sd]|ing)?|resolve[sd]?|resolving|implement(?:s|ed|ing)?)"
+                     rf":?\s+({REF_ITEM}(?:\s*(?:,|\band\b)\s*{REF_ITEM})*)", re.IGNORECASE)
+GATE_RULES = ("mr_merged", "mr_green", "checklist")
+
+
+def closes(mr: dict, fi: dict) -> bool:
+    """The merge request's title or description closes this forge issue."""
+    text = f"{mr.get('title', '')}\n{mr.get('body', '')}"
+    for m in CLOSING.finditer(text):
+        for ref in re.findall(REF_ITEM, m.group(1)):
+            if ref.lower().startswith("http"):
+                if fi.get("url") and ref.rstrip("/.") == fi["url"]:
+                    return True
+            elif ref.startswith("#"):
+                if f"{mr.get('project')}#{ref[1:]}" == fi["ref"]:
+                    return True
+            elif ref == fi["ref"]:
+                return True
+    return False
+
+
+def roadmap_projects(data: dict, cfg: dict) -> list[str]:
+    """The roadmap's own projects: forge.project, forge.projects, and every issue's project."""
+    projects: list[str] = []
+    for p in [cfg.get("project"), *(cfg.get("projects") or []),
+              *(it.get("project") for it in data["issues"]),
+              *((it.get("ref") or "").rsplit("#", 1)[0] for it in data["issues"])]:
+        if p and p not in projects:
+            projects.append(p)
+    return projects
+
+
 RANK = {"to_do": 0, "blocked": 1, "in_progress": 2, "in_review": 3, "done": 4}
 
 
@@ -170,6 +205,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         for t in orca.active(tasks):
             task_issue[t["id"]] = orca.match(t, items)
 
+    projects = roadmap_projects(data, cfg)
+    lead = model.lead_gates(data)
     known_mrs: set[str] = set()
     roadmap_refs = {it["ref"]: iid for iid, it in items.items() if it.get("ref")}
 
@@ -183,7 +220,15 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         except Exception as exc:  # a missing or unreadable issue is drift, not a crash
             report.drift.append(Drift("missing-on-forge", iid, f'{it["ref"]} could not be read: {exc}'))
             continue
-        mrs = fg.related_mrs(fi)
+        related = fg.related_mrs(fi)
+        # Only merge requests in the roadmap's own projects count: anyone can
+        # mention an issue from a repository of their own.
+        mrs = [m for m in related if m.get("project") in projects]
+        if len(mrs) < len(related):
+            report.notes.append(f'{iid}: ignored {len(related) - len(mrs)} merge request(s) outside the roadmap\'s '
+                                f'projects that mention {fi["ref"]}')
+        named = named_merge_requests({"issues": [it]}, projects, cfg.get("project"))
+        linked = [m for m in mrs if m["ref"] in named or closes(m, fi)]
         known_mrs |= {m["ref"] for m in mrs}
         if mrs:
             report.merge_requests[iid] = [{k: m.get(k) for k in ("ref", "url", "state", "draft", "pipeline",
@@ -208,18 +253,23 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         except blocks.MarkerError as exc:
             report.drift.append(Drift("marker-problem", fi["ref"], f"{exc}. Its gate checklist was not read"))
         ticks = blocks.ticked_gates(fi["body"])
-        merged = [m for m in mrs if m["state"] == "merged"]
+        merged = [m for m in linked if m["state"] == "merged"]
+        on_forge = sorted(g["gate"] for g in it["gates"] if not g["passed"] and g["gate"] in lead and g["gate"] in ticks)
+        if on_forge:
+            report.drift.append(Drift("lead-gate-ticked-on-forge", iid,
+                                      f'{" ".join(on_forge)} ticked on {fi["ref"]}; the lead\'s approval counts only '
+                                      'when recorded in roadmap.json ("approved_by"), so it was not ticked'))
         new_gates = []
         for g in it["gates"]:
             g = dict(g)
-            if not g["passed"]:
+            if not g["passed"] and g["gate"] not in lead:
                 evidence, reason = None, ""
                 if g["gate"] in ticks:
-                    evidence, reason = ticks[g["gate"]] or fi["url"], "ticked on the forge"
+                    evidence, reason = ticks[g["gate"]] or fi["url"], "ticked in the generated checklist"
                 elif rules.get(g["gate"]) == "mr_merged" and merged:
-                    evidence, reason = merged[0]["url"], f"merge request {merged[0]['ref']} merged"
-                elif rules.get(g["gate"]) == "mr_approved_green":
-                    ok = [m for m in mrs if m["state"] in ("open", "merged") and m.get("pipeline") == "success"]
+                    evidence, reason = merged[0]["url"], f"merge request {merged[0]['ref']} merged and closes the issue"
+                elif rules.get(g["gate"]) == "mr_green":
+                    ok = [m for m in linked if m["state"] in ("open", "merged") and m.get("pipeline") == "success"]
                     if ok:
                         evidence, reason = ok[0].get("pipeline_url") or ok[0]["url"], "pipeline green"
                 if evidence:
@@ -278,15 +328,6 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
                                 "run sync --update-epics to rewrite only that section")
 
     # Open merge requests with no roadmap issue.
-    projects = []
-    for p in [cfg.get("project"), *(cfg.get("projects") or []),
-              *(model.issues_by_id(data)[i].get("project") for i in items)]:
-        if p and p not in projects:
-            projects.append(p)
-    for it in items.values():
-        p = (it.get("ref") or "").rsplit("#", 1)[0]
-        if p and p not in projects:
-            projects.append(p)
     ids = sorted(items, key=len, reverse=True)
     named = named_merge_requests(data, projects, cfg.get("project"))
     for project in projects:

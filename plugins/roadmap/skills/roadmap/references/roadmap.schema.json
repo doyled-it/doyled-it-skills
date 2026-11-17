@@ -91,11 +91,11 @@
           "additionalProperties": {
             "enum": [
               "mr_merged",
-              "mr_approved_green",
+              "mr_green",
               "checklist"
             ]
           },
-          "description": "How sync ticks a gate from forge evidence. Default: M ticks when a linked merge request is merged; every gate ticks from the issue checklist."
+          "description": "How sync ticks a gate from forge evidence. Default: M ticks when a merged merge request in the roadmap's projects closes the issue (mr_merged). mr_green: such a merge request has a green pipeline. Every other gate ticks from its line in the generated checklist. Lead gates cannot have a rule."
         },
         "pin_epics": {
           "type": "boolean",
@@ -121,6 +121,14 @@
       "propertyNames": {
         "pattern": "^[A-Z]$"
       }
+    },
+    "lead_gates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]$"
+      },
+      "description": "Gates only the program lead can pass (default D and U). They pass only from an approval recorded on the gate (approved_by, approved_on), never from the forge."
     },
     "iterations": {
       "type": "array",
@@ -234,6 +242,14 @@
             "evidence": {
               "type": "string",
               "description": "Link that shows the gate passed."
+            },
+            "approved_by": {
+              "type": "string",
+              "description": "Who approved a lead gate. Required when a lead gate is passed."
+            },
+            "approved_on": {
+              "type": "string",
+              "description": "Date of that approval."
             }
           }
         }

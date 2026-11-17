@@ -17,7 +17,8 @@ from . import model
 
 ISSUE_START, ISSUE_END = "<!-- roadmap:start -->", "<!-- roadmap:end -->"
 EPIC_START, EPIC_END = "<!-- roadmap:epic:start -->", "<!-- roadmap:epic:end -->"
-TICK = re.compile(r"^\s*[-*] \[(?P<x>[ xX])\] (?P<gate>[A-Z])\b[:.)]?(?P<rest>.*)$", re.MULTILINE)
+# A checklist line as issue_block writes it: "- [x] R: what the gate checks (link)".
+TICK = re.compile(r"^[ \t]*[-*] \[(?P<x>[ xX])\] (?P<gate>[A-Z]):(?P<rest>.*)$", re.MULTILINE)
 URL = re.compile(r"https?://[^\s)>\]]+")
 
 # Mermaid colors per status: fill and stroke readable in light and dark themes.
@@ -154,22 +155,31 @@ def replace_block(body: str, start: str, end: str, content: str) -> str:
 
 
 def ticked_gates(body: str) -> dict[str, str | None]:
-    """Gates ticked anywhere in a description: letter -> first link on that line."""
+    """Gates ticked in the generated checklist: letter -> first http(s) link on that line.
+
+    Only lines inside the description's one well-formed issue block count; a
+    checkbox anywhere else is ignored, and so is a broken block.
+    """
+    content = block_content(body or "", ISSUE_START, ISSUE_END)
     out: dict[str, str | None] = {}
-    for m in TICK.finditer(body or ""):
+    for m in TICK.finditer(content or ""):
         if m["x"].lower() == "x":
-            link = URL.search(m["rest"])
-            out.setdefault(m["gate"], link.group(0) if link else None)
+            links = [u for u in URL.findall(m["rest"]) if model.safe_url(u)]
+            out.setdefault(m["gate"], links[0] if links else None)
     return out
 
 
-def merged_gates(it: dict, forge_body: str) -> list[dict]:
-    """The issue's gates with forge ticks added; a tick is never removed."""
+def merged_gates(it: dict, forge_body: str, lead: set[str] | frozenset = frozenset()) -> list[dict]:
+    """The issue's gates with checklist ticks added; a tick is never removed.
+
+    Lead gates are never taken from the forge: they pass only from the
+    approval recorded in roadmap.json.
+    """
     ticks = ticked_gates(forge_body)
     out = []
     for g in it["gates"]:
         g = dict(g)
-        if not g["passed"] and g["gate"] in ticks:
+        if not g["passed"] and g["gate"] in ticks and g["gate"] not in lead:
             g["passed"] = True
             if ticks[g["gate"]]:
                 g["evidence"] = ticks[g["gate"]]
@@ -191,7 +201,7 @@ def issue_block(data: dict, it: dict, gates: list[dict], epic_name: str) -> str:
 
 
 def issue_body(data: dict, it: dict, forge_body: str, epic_name: str) -> str:
-    gates = merged_gates(it, forge_body)
+    gates = merged_gates(it, forge_body, model.lead_gates(data))
     return replace_block(forge_body, ISSUE_START, ISSUE_END, issue_block(data, it, gates, epic_name))
 
 
