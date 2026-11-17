@@ -38,18 +38,21 @@ COMMAND_LINE = re.compile(r"^([ \t]*)/(?=[^\s/]+(?:[ \t]|$))", re.MULTILINE)
 # GitLab's quick action names and aliases (its quick actions documentation).
 # GitLab runs a line only when it names one of these, so prose such as
 # "/etc is full" is never held back. Text the tool writes is escaped whatever
-# the name (defang), so this list matters only for hand text.
+# the name (defang), so this list matters only for hand text. Names the current
+# docs no longer list stay, for older self-managed GitLab: holding back too much
+# is the safe side.
 GITLAB_COMMANDS = frozenset("""
     add_child add_contacts add_email approve assign assign_reviewer award blocked_by blocks board_move cc
-    checkin_reviewer child_epic clear_health_status clear_weight clone close confidential convert_to_ticket
+    checkin_reminder child_epic clear_health_status clear_weight clone close confidential convert_to_ticket
     copy_metadata create_merge_request done draft due duplicate epic estimate estimate_time health_status
-    invite_email iteration label labels link lock merge milestone move page parent_epic promote promote_to
-    promote_to_incident publish q react ready reassign reassign_reviewer rebase relabel relate remove_child
-    remove_child_epic remove_contacts remove_due_date remove_email remove_epic remove_estimate remove_iteration
-    remove_label remove_milestone remove_parent remove_parent_epic remove_reviewer remove_time_estimate
-    remove_time_spent remove_zoom reopen request_review reviewer set_parent severity shrug spend spend_time spent
-    status submit_review subscribe summarize_diff tableflip target_branch timeline title todo type unapprove
-    unassign unassign_reviewer unlabel unlink unlock unsubscribe weight wip zoom
+    internal_note invite_email iteration label labels link lock merge milestone move page parent_epic promote
+    promote_to promote_to_incident publish q react ready reassign reassign_reviewer rebase relabel relate
+    remove_child remove_child_epic remove_contacts remove_due_date remove_email remove_epic remove_estimate
+    remove_iteration remove_label remove_milestone remove_parent remove_parent_epic remove_reviewer
+    remove_time_estimate remove_time_spent remove_zoom reopen request_review reviewer run_pipeline set_parent
+    severity shrug spend spend_time spent status submit_review subscribe summarize_diff tableflip tag
+    target_branch timeline title todo type unapprove unassign unassign_reviewer unlabel unlink unlock unsubscribe
+    weight wip zoom
 """.split())
 # How GitLab finds the quick actions it runs, scanning left to right as its own
 # extractor does: a command counts only at the very start of a line and outside

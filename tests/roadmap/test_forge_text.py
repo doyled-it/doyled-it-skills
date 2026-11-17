@@ -79,6 +79,10 @@ class GitLabCommandLines(unittest.TestCase):
                 ("/spend 1h", ["/spend 1h"]),
                 ("Notes.\n/copy_metadata #3", ["/copy_metadata #3"]),
                 ("/Move group/other", ["/Move group/other"]),
+                ("/checkin_reminder weekly", ["/checkin_reminder weekly"]),
+                ("/run_pipeline", ["/run_pipeline"]),
+                ("/tag v1.0", ["/tag v1.0"]),
+                ("/internal_note", ["/internal_note"]),
         ):
             with self.subTest(text=text):
                 self.assertEqual(blocks.gitlab_commands(text), expected)
@@ -87,7 +91,7 @@ class GitLabCommandLines(unittest.TestCase):
         for text in ("  /close", "see /close", "/api/v2 endpoints return 500", "/usr/local/bin/x --all", "/",
                      CODE_STEPS, "```python\n/close\n```", "<details>\n/close\n</details>", ">>>\n/close\n>>>",
                      "`/close`", "\\/close", "/etc is full", "/health returns 503", "Disk.\n/etc is full",
-                     "/closed by hand", "/closeall", "/var/log is large"):
+                     "/closed by hand", "/closeall", "/var/log is large", "/checkin_reviewer"):
             with self.subTest(text=text):
                 self.assertEqual(blocks.gitlab_commands(text), [])
 
