@@ -139,28 +139,73 @@ class CliTransport:
         return self._run(args, body)
 
 
-TOKEN_VARS = ("FORGEJO_TOKEN", "CODEBERG_TOKEN", "GITEA_TOKEN")
+# Each token variable and the host it may be sent to. CODEBERG_TOKEN belongs to
+# codeberg.org; FORGEJO_TOKEN and GITEA_TOKEN belong to the host named in
+# FORGEJO_HOST or GITEA_HOST, set beside the token, never in roadmap.json (a
+# shared roadmap could name any host).
+TOKEN_VARS = (("CODEBERG_TOKEN", None), ("FORGEJO_TOKEN", "FORGEJO_HOST"), ("GITEA_TOKEN", "GITEA_HOST"))
+BARE_HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::\d{1,5})?$")
+
+
+def _same_host_redirects(host: str):
+    import urllib.request
+    from urllib.parse import urlsplit
+
+    class SameHostRedirects(urllib.request.HTTPRedirectHandler):
+        """Follow a redirect only to https on the same host and port."""
+
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            u = urlsplit(newurl)
+            if u.scheme != "https" or u.netloc.lower() != host:
+                raise ForgeError(f"refusing a redirect away from https://{host} (HTTP {code})")
+            return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+    return SameHostRedirects()
 
 
 class HttpTransport:
     """Forgejo and Gitea REST API over HTTPS (Codeberg runs Forgejo).
 
-    Reads work without a token on public repositories. Writes need a token in
-    FORGEJO_TOKEN, CODEBERG_TOKEN or GITEA_TOKEN; it is read from the
-    environment at call time and never stored, printed or logged.
+    Reads work without a token on public repositories. Writes need a token:
+    CODEBERG_TOKEN for codeberg.org, or FORGEJO_TOKEN (or GITEA_TOKEN) with
+    FORGEJO_HOST (or GITEA_HOST) naming the host it belongs to. A token is read
+    from the environment at call time, sent only over https to its own host,
+    never across a redirect to another host or to http, and never stored,
+    printed or logged.
     """
 
     PAGE = 50
+    MAX_PAGES = 1000
 
     def __init__(self, host: str | None):
-        self.base = f"https://{host or 'codeberg.org'}/api/v1/"
+        host = (host or "codeberg.org").strip().lower()
+        if not BARE_HOST.match(host):
+            raise ForgeError(f'forge host "{host[:60]}" must be a bare host name such as codeberg.org '
+                             "(no scheme, path or user)")
+        self.host = host
+        self.base = f"https://{host}/api/v1/"
         self.guard = WriteGuard(commands=False)
+        import urllib.request
+
+        self._redirects = _same_host_redirects(host)
+        self._opener = urllib.request.build_opener(self._redirects)
 
     def __repr__(self) -> str:
         return f"HttpTransport({self.base!r})"
 
-    def _request(self, method: str, path: str, body=None):
+    def _token(self) -> str | None:
         import os
+
+        for var, host_var in TOKEN_VARS:
+            value = os.environ.get(var)
+            if not value:
+                continue
+            bound = "codeberg.org" if host_var is None else (os.environ.get(host_var) or "").strip().lower()
+            if bound and bound == self.host:
+                return value
+        return None
+
+    def _request(self, method: str, path: str, body=None, headers_out: dict | None = None):
         import urllib.error
         import urllib.request
 
@@ -169,34 +214,44 @@ class HttpTransport:
         req.add_header("Accept", "application/json")
         if data is not None:
             req.add_header("Content-Type", "application/json")
-        token = next((os.environ[v] for v in TOKEN_VARS if os.environ.get(v)), None)
+        token = self._token()
         if token:
             req.add_header("Authorization", "token " + token)
+        del token
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with self._opener.open(req, timeout=30) as resp:
                 raw = resp.read().decode()
+                if headers_out is not None:
+                    headers_out.update({k.lower(): v for k, v in dict(resp.headers or {}).items()})
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 raise NotFound(f"{path}: not found") from None
             raise ForgeError(f"{method} {path} failed: HTTP {exc.code}") from None
-        except urllib.error.URLError as exc:
-            raise ForgeError(f"{method} {path} failed: {exc.reason}") from None
+        except urllib.error.URLError:
+            raise ForgeError(f"{method} {path} failed: the forge could not be reached") from None
         return json.loads(raw) if raw.strip() else {}
 
     def get(self, path: str):
         return self._request("GET", path)
 
     def get_all(self, path: str) -> list:
-        out, page = [], 1
+        """Every page: follows X-Total-Count, or reads until an empty page when the header is missing.
+
+        A server may cap a page below the requested limit, so a short page does
+        not mean the last page.
+        """
+        out: list = []
         sep = "&" if "?" in path else "?"
-        while True:
-            chunk = self.get(f"{path}{sep}limit={self.PAGE}&page={page}")
+        for page in range(1, self.MAX_PAGES + 1):
+            headers: dict = {}
+            chunk = self._request("GET", f"{path}{sep}limit={self.PAGE}&page={page}", headers_out=headers)
             if not isinstance(chunk, list):
                 raise ForgeError(f"expected a list from {path}")
             out.extend(chunk)
-            if len(chunk) < self.PAGE:
+            total = str(headers.get("x-total-count", ""))
+            if not chunk or (total.isdigit() and len(out) >= int(total)):
                 return out
-            page += 1
+        raise ForgeError(f"{path} has more than {self.MAX_PAGES} pages")
 
     def send(self, method: str, path: str, body=None):
         self.guard.check(method, path, body)

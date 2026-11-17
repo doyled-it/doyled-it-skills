@@ -26,6 +26,7 @@ SYNONYMS = {
 URL = re.compile(r"https?://\S+")
 REF = re.compile(r"^[\w.-]+(?:/[\w.-]+)*[#&]\d+$")
 FORGES = ("gitlab", "github", "forgejo", "gitea")
+BARE_HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::\d{1,5})?$")
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,9 @@ def check(raw: dict) -> list[Finding]:
     if forge is not None:
         if not isinstance(forge, dict) or forge.get("kind") not in FORGES:
             err("bad-forge", "forge", 'forge "kind" must be "gitlab", "github" or "forgejo"')
+        elif forge.get("host") is not None and not BARE_HOST.match(str(forge["host"])):
+            err("bad-forge", "forge.host", 'forge "host" must be a bare host name such as gitlab.example.com '
+                "(no scheme, path or user)")
 
     gates = data["gates"]
     lead = model.lead_gates(data)

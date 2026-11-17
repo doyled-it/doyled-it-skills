@@ -127,9 +127,17 @@ GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
   GitLab tier with group epics.
 - **GitHub:** `gh api` with the login `gh auth` already holds. Sub-issues and
   issue dependencies must be enabled for the repository.
-- **Forgejo:** HTTPS REST API (`/api/v1`). Public reads need no token; writes
-  read `FORGEJO_TOKEN`, `CODEBERG_TOKEN` or `GITEA_TOKEN` from the environment at
-  call time. The token is never stored, printed or logged.
+- **Forgejo:** HTTPS REST API (`/api/v1`). Public reads need no token. A token
+  is bound to its host, which is never taken from `roadmap.json` (a shared
+  roadmap could name any host): `CODEBERG_TOKEN` is sent only to
+  `codeberg.org`; `FORGEJO_TOKEN` (or `GITEA_TOKEN`) is sent only to the host
+  named in `FORGEJO_HOST` (or `GITEA_HOST`) beside it. Requests use https only,
+  a redirect to another host, port or to http is refused, and pages are read
+  until `X-Total-Count` is reached (or an empty page), since a server may cap a
+  page below the requested size. The token is read at call time and never
+  stored, printed or logged.
+- `forge.host` must be a bare host name (`gitlab.example.com`); `validate`
+  rejects a scheme, path or user in it.
 
 Every write passes a guard that refuses any delete, any close, and any title
 that is not one line.
