@@ -47,7 +47,7 @@
   },
   "web_url": "https://gitlab.example.com/acme/search/-/issues/12"
  },
- "GET projects/acme%2Fsearch/issues?state=opened": [
+ "GET projects/acme%2Fsearch/issues?state=all": [
   {
    "id": 1012,
    "iid": 12,

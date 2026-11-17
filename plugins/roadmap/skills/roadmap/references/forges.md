@@ -163,7 +163,7 @@ only, while the written text is neutralized the same way on every forge.
 | Purpose | GitLab | GitHub | Forgejo |
 | --- | --- | --- | --- |
 | Read an issue | `GET projects/:id/issues/:iid` | `GET repos/:o/:r/issues/:n` | `GET repos/:o/:r/issues/:n` |
-| Find same-title issues | `GET projects/:id/issues?state=opened` | `GET repos/:o/:r/issues?state=open` | `GET repos/:o/:r/issues?state=open&type=issues` |
+| Find same-title issues (open and closed) | `GET projects/:id/issues?state=all` | `GET repos/:o/:r/issues?state=all` | `GET repos/:o/:r/issues?state=all&type=issues` |
 | Create an issue | `POST projects/:id/issues` (with `epic_id`) | `POST repos/:o/:r/issues` | `POST repos/:o/:r/issues` |
 | Update the generated section | `PUT projects/:id/issues/:iid` | `PATCH repos/:o/:r/issues/:n` | `PATCH repos/:o/:r/issues/:n` |
 | Epic membership | `PUT ...issues/:iid` with `epic_id` | `POST .../issues/:parent/sub_issues` | task list in the parent's section |

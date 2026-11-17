@@ -50,7 +50,7 @@
    "full_name": "example-org/search-service"
   }
  },
- "GET repos/example-org/search-service/issues?state=open&type=issues": [
+ "GET repos/example-org/search-service/issues?state=all&type=issues": [
   {
    "id": 7010,
    "number": 10,

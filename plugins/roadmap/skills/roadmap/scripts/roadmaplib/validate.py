@@ -170,6 +170,24 @@ def check(raw: dict) -> list[Finding]:
         if it.get("ref") and not REF.match(it["ref"]):
             err("bad-ref", f"{where}.ref", f'"{it["ref"]}" is not a forge reference like group/project#12')
 
+    # Publish links forge items by title and by reference, so both must be unique.
+    titles: dict[str, str] = {}
+    refs: dict[str, str] = {}
+    for kind, coll, key in (("epics", data["epics"], "name"), ("issues", data["issues"], "title")):
+        for x in coll:
+            where = f"{kind}[{x.get('id')}]"
+            if isinstance(x.get(key), str) and x[key].strip():
+                t = blocks.one_line(x[key]).casefold()
+                if t in titles:
+                    err("duplicate-title", f"{where}.{key}", f'"{x[key]}" is also the title of {titles[t]}; '
+                        "publish links forge items by title, so give each epic and issue its own")
+                titles.setdefault(t, where)
+            if isinstance(x.get("ref"), str):
+                if x["ref"] in refs:
+                    err("duplicate-ref", f"{where}.ref", f'{x["ref"]} is also named by {refs[x["ref"]]}; '
+                        "each forge item belongs to one epic or issue")
+                refs.setdefault(x["ref"], where)
+
     items = {i["id"]: i for i in data["issues"] if i.get("id")}
     for iid, it in items.items():
         for d in it["depends_on"]:

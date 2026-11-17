@@ -33,7 +33,7 @@
   "updated_at": "2026-11-16T10:00:00Z",
   "html_url": "https://github.com/example-org/search-service/issues/12"
  },
- "GET repos/example-org/search-service/issues?state=open": [
+ "GET repos/example-org/search-service/issues?state=all": [
   {
    "id": 9010,
    "number": 10,

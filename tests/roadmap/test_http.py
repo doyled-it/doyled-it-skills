@@ -104,9 +104,9 @@ class TokenGoesOnlyToItsHost(unittest.TestCase):
 class TokenIsNeverPrinted(unittest.TestCase):
     def test_no_output_and_no_error_text_carries_the_token(self):
         failures = [Response({"ok": True}),
-                    urllib.error.HTTPError("https://codeberg.org/api/v1/x", 500, "boom " + TOKEN, {}, None),
+                    urllib.error.HTTPError("https://codeberg.org/api/v1/x", 500, "boom " + TOKEN, {}, io.BytesIO()),
                     urllib.error.URLError("refused " + TOKEN),
-                    urllib.error.HTTPError("https://codeberg.org/api/v1/x", 404, "nope", {}, None)]
+                    urllib.error.HTTPError("https://codeberg.org/api/v1/x", 404, "nope", {}, io.BytesIO())]
         with mock.patch.dict("os.environ", {"CODEBERG_TOKEN": TOKEN}, clear=True):
             t = transport("codeberg.org", *failures)
             out, err = io.StringIO(), io.StringIO()

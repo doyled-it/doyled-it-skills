@@ -14,7 +14,7 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field
 
-from . import blocks, model, validate
+from . import blocks, forge, model, validate
 
 
 class PublishRefused(Exception):
@@ -38,6 +38,7 @@ class Report:
     roadmap: dict
     actions: list[Action] = field(default_factory=list)
     changed: bool = False
+    failed: str | None = None   # the forge error that stopped an apply part way
 
     def add(self, kind, target, detail, body=None, payload=None):
         self.actions.append(Action(kind, target, detail, body, payload))
@@ -46,8 +47,13 @@ class Report:
         head = ("Applied: these changes were made on the forge." if self.applied else
                 "Dry run: nothing was written. Run again with --apply to make these changes.")
         lines = [head, f"Forge: {self.forge}", ""]
+        if self.failed:
+            lines[:0] = [f"Stopped by a forge error: {self.failed}",
+                         "The changes listed before the last one were made; nothing after it was tried. "
+                         "Forge links for what was created are saved into the roadmap. Fix the cause and run "
+                         "publish again: it links what exists instead of creating it twice.", ""]
         sections = (("Epics", ("create-epic", "link-epic", "update-epic")),
-                    ("Issues", ("create-issue", "link-issue", "update-issue")),
+                    ("Issues", ("create-issue", "link-issue", "update-issue", "skip-issue")),
                     ("Links", ("add-to-epic", "add-blocked-by", "pin-epic")),
                     ("Needs a hand fix (nothing was written to these)", ("hand-fix",)))
         for section, kinds in sections:
@@ -80,6 +86,12 @@ def _write_back(raw_item: dict, forge_item: dict) -> None:
 
 
 def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Report:
+    """Plan (and with apply, make) the forge changes for an agreed roadmap.
+
+    Raises PublishRefused before any forge call when the roadmap is a draft or
+    has errors. A forge error part way through stops the run and is recorded
+    in report.failed, so the caller can still print and save what was done.
+    """
     if not raw.get("agreed") and not allow_draft:
         raise PublishRefused("this roadmap is a draft; publish only a version the program lead agreed "
                              '(set "agreed": true once they have)')
@@ -88,12 +100,23 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
         raise PublishRefused("fix these first:\n" + "\n".join(str(e) for e in errs))
 
     out = copy.deepcopy(raw)
+    where = f"{fg.kind} ({fg.host or 'default host'}), project {fg.project or 'not set'}"
+    report = Report(applied=apply, forge=where, roadmap=out)
+    try:
+        _publish(raw, fg, apply, report)
+    except forge.ForgeError as exc:
+        report.failed = str(exc)
+    return report
+
+
+def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
+    out = report.roadmap
     data = model.normalize(raw)
     raw_epics = {e["id"]: e for e in out["epics"]}
     raw_issues = {i["id"]: i for i in out["issues"]}
-    where = f"{fg.kind} ({fg.host or 'default host'}), project {fg.project or 'not set'}"
-    report = Report(applied=apply, forge=where, roadmap=out)
     native_epics = getattr(fg, "native_epics", True)
+    # Forge items already taken: each one belongs to one roadmap epic or issue.
+    claimed = {x["ref"] for x in data["epics"] + data["issues"] if x.get("ref")}
 
     # Epics.
     epics: dict[str, dict] = {}
@@ -102,8 +125,9 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
             epics[ep["id"]] = fg.get_epic(ep["ref"])
             report.add("link-epic", ep["id"], f'{ep["ref"]} (named in the roadmap)')
             continue
-        match = next((e for e in fg.open_epics() if e["title"].strip() == ep["name"].strip()), None)
+        match = next((e for e in fg.open_epics() if e["ref"] not in claimed and _same(e["title"], ep["name"])), None)
         if match:
+            claimed.add(match["ref"])
             epics[ep["id"]] = match
             report.add("link-epic", ep["id"], f'{match["ref"]} (open {fg.epic_word} with the same title)')
             _write_back(raw_epics[ep["id"]], match)
@@ -113,6 +137,7 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
         report.add("create-epic", ep["id"], f'new {fg.epic_word} "{blocks.one_line(ep["name"])}"', body=first_body)
         if apply:
             created = fg.create_epic(blocks.one_line(ep["name"]), first_body)
+            claimed.add(created["ref"])
             _write_back(raw_epics[ep["id"]], created)
             epics[ep["id"]] = created
             report.changed = True
@@ -134,18 +159,28 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
         else:
             if not project:
                 raise PublishRefused(f'issue "{iid}" has no project; set forge.project or the issue\'s project')
-            match = next((o for o in fg.open_issues(project) if o["title"].strip() == it["title"].strip()), None)
+            # Open issues first, then closed ones: finished work keeps its closed issue.
+            same = [o for o in fg.all_issues(project) if o["ref"] not in claimed and _same(o["title"], it["title"])]
+            match = sorted(same, key=lambda o: o["state"] != "open")[0] if same else None
             if match:
                 fi = match
-                report.add("link-issue", iid, f'{match["ref"]} (open issue with the same title)')
+                claimed.add(match["ref"])
+                report.add("link-issue", iid, f'{match["ref"]} ({match["state"]} issue with the same title)')
                 _write_back(raw_issues[iid], match)
                 report.changed = True
+            elif it["status"] == "done":
+                report.add("skip-issue", iid, "Done on the roadmap with no forge issue; not created (an open issue "
+                           "for finished work could never be closed by publish). Name its issue in \"ref\" if "
+                           "it has one")
+                issues[iid] = _placeholder("issue", iid, it["title"]) | {"skipped": True}
+                continue
             else:
                 body = blocks.issue_body(data, it, blocks.defang(it["detail"]), epic_name)
                 title = blocks.one_line(it["title"])
                 report.add("create-issue", iid, f'"{title}" in {project}, epic "{epic_name}"', body=body)
                 if apply:
                     fi = fg.create_issue(project, title, body, epic if not epic.get("new") else None)
+                    claimed.add(fi["ref"])
                     _write_back(raw_issues[iid], fi)
                     fresh.add(iid)
                     report.changed = True
@@ -178,10 +213,13 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
     # Blocked-by links.
     for it in data["issues"]:
         fi = issues[it["id"]]
-        existing = set() if fi.get("new") or it["id"] in fresh else fg.blocked_by(fi)
+        if fi.get("skipped"):
+            continue
+        existing = [] if fi.get("new") or it["id"] in fresh else fg.blocked_by(fi)
+        have = {e.get("id") for e in existing if e.get("id")} | {e.get("ref") for e in existing if e.get("ref")}
         for d in it["depends_on"]:
             dep = issues[d]
-            if dep.get("ref") and dep["ref"] in existing:
+            if dep.get("skipped") or (dep.get("id") in have or dep.get("ref") in have) and not dep.get("new"):
                 continue
             src, target = fi.get("ref") or "new issue", dep.get("ref") or "new issue"
             report.add("add-blocked-by", it["id"], f"{src} is blocked by {target}: {d}")
@@ -218,4 +256,7 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
                        body=body)
             if apply:
                 fg.update_epic_body(e, body)
-    return report
+
+
+def _same(a: str, b: str) -> bool:
+    return blocks.one_line(a).casefold() == blocks.one_line(b).casefold()

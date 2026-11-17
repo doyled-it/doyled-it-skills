@@ -224,6 +224,7 @@ class HttpTransport:
                 if headers_out is not None:
                     headers_out.update({k.lower(): v for k, v in dict(resp.headers or {}).items()})
         except urllib.error.HTTPError as exc:
+            exc.close()
             if exc.code == 404:
                 raise NotFound(f"{path}: not found") from None
             raise ForgeError(f"{method} {path} failed: HTTP {exc.code}") from None
@@ -305,11 +306,16 @@ class GitLab:
         project, n = split_issue_ref(ref)
         return self._issue(self.t.get(f"projects/{enc(project)}/issues/{n}"))
 
-    def open_issues(self, project: str) -> list[dict]:
+    def all_issues(self, project: str) -> list[dict]:
+        """Open and closed issues, so a title match also finds finished work."""
         if project not in self._open_cache:
-            raw = self.t.get_all(f"projects/{enc(project)}/issues?state=opened")
+            raw = self.t.get_all(f"projects/{enc(project)}/issues?state=all")
             self._open_cache[project] = [self._issue(d) for d in raw]
         return self._open_cache[project]
+
+    def blocked_by(self, issue: dict) -> list[dict]:
+        links = self.t.get_all(f"projects/{enc(issue['project'])}/issues/{issue['number']}/links")
+        return [self._issue(d) for d in links if d.get("link_type") == "is_blocked_by"]
 
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
         payload = {"title": title, "description": body}
@@ -325,10 +331,6 @@ class GitLab:
 
     def add_to_epic(self, issue: dict, epic: dict) -> None:
         self.t.send("PUT", f"projects/{enc(issue['project'])}/issues/{issue['number']}", {"epic_id": epic["id"]})
-
-    def blocked_by(self, issue: dict) -> set[str]:
-        links = self.t.get_all(f"projects/{enc(issue['project'])}/issues/{issue['number']}/links")
-        return {(d.get("references") or {}).get("full") for d in links if d.get("link_type") == "is_blocked_by"}
 
     def add_blocked_by(self, issue: dict, dep: dict) -> None:
         self.t.send("POST", f"projects/{enc(issue['project'])}/issues/{issue['number']}/links",
@@ -412,7 +414,16 @@ class GitHub:
         self.project = project
         self._open_cache: dict[str, list] = {}
 
+    @staticmethod
+    def _project_of(d: dict, default: str) -> str:
+        """The issue's own repository: from repository_url, then repository, then the one asked for."""
+        url = d.get("repository_url") or ""
+        if "/repos/" in url:
+            return url.split("/repos/", 1)[1].strip("/")
+        return (d.get("repository") or {}).get("full_name") or default
+
     def _issue(self, d: dict, project: str) -> dict:
+        project = self._project_of(d, project)
         n = d.get("number")
         return {"ref": f"{project}#{n}", "url": d.get("html_url"), "id": d.get("id"), "number": n,
                 "project": project, "title": d.get("title", ""),
@@ -425,12 +436,15 @@ class GitHub:
         project, n = split_issue_ref(ref)
         return self._issue(self.t.get(f"repos/{project}/issues/{n}"), project)
 
-    def open_issues(self, project: str) -> list[dict]:
+    def all_issues(self, project: str) -> list[dict]:
         if project not in self._open_cache:
-            raw = self.t.get_all(f"repos/{project}/issues?state=open")
+            raw = self.t.get_all(f"repos/{project}/issues?state=all")
             self._open_cache[project] = [i for i in (self._issue(d, project) for d in raw)
                                          if not i["is_pull_request"]]
         return self._open_cache[project]
+
+    def open_issues(self, project: str) -> list[dict]:
+        return [i for i in self.all_issues(project) if i["state"] == "open"]
 
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
         issue = self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
@@ -444,19 +458,15 @@ class GitHub:
     def in_epic(self, issue: dict, epic: dict) -> bool:
         if not epic.get("number"):
             return False
-        return issue["ref"] in {i["ref"] for i in self.epic_issues(epic)}
+        return issue.get("id") in {i["id"] for i in self.epic_issues(epic)}
 
     def add_to_epic(self, issue: dict, epic: dict) -> None:
         project = epic["ref"].rsplit("#", 1)[0]
         self.t.send("POST", f"repos/{project}/issues/{epic['number']}/sub_issues", {"sub_issue_id": issue["id"]})
 
-    def blocked_by(self, issue: dict) -> set[str]:
+    def blocked_by(self, issue: dict) -> list[dict]:
         raw = self.t.get_all(f"repos/{issue['project']}/issues/{issue['number']}/dependencies/blocked_by")
-        out = set()
-        for d in raw:
-            repo = (d.get("repository") or {}).get("full_name") or issue["project"]
-            out.add(f"{repo}#{d.get('number')}")
-        return out
+        return [self._issue(d, issue["project"]) for d in raw]
 
     def add_blocked_by(self, issue: dict, dep: dict) -> None:
         self.t.send("POST", f"repos/{issue['project']}/issues/{issue['number']}/dependencies/blocked_by",
@@ -555,9 +565,9 @@ class Forgejo(GitHub):
         out["is_pull_request"] = bool(d.get("pull_request"))
         return out
 
-    def open_issues(self, project: str) -> list[dict]:
+    def all_issues(self, project: str) -> list[dict]:
         if project not in self._open_cache:
-            raw = self.t.get_all(f"repos/{project}/issues?state=open&type=issues")
+            raw = self.t.get_all(f"repos/{project}/issues?state=all&type=issues")
             self._open_cache[project] = [i for i in (self._issue(d, project) for d in raw)
                                          if not i["is_pull_request"]]
         return self._open_cache[project]
@@ -591,9 +601,9 @@ class Forgejo(GitHub):
     def add_to_epic(self, issue: dict, epic: dict) -> None:
         """Membership is the task list in the epic's generated section, written with it."""
 
-    def blocked_by(self, issue: dict) -> set[str]:
+    def blocked_by(self, issue: dict) -> list[dict]:
         raw = self.t.get_all(f"repos/{issue['project']}/issues/{issue['number']}/dependencies")
-        return {f"{(d.get('repository') or {}).get('full_name') or issue['project']}#{d.get('number')}" for d in raw}
+        return [self._issue(d, issue["project"]) for d in raw]
 
     def add_blocked_by(self, issue: dict, dep: dict) -> None:
         owner, repo = dep["project"].split("/", 1)

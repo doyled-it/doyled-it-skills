@@ -174,7 +174,7 @@ class GitLabApply(unittest.TestCase):
         data["issues"] = [issue(data, "click-signals"), issue(data, "ranking-model")]
         del issue(data, "ranking-model")["ref"]
         responses = dict(fixture("gitlab_publish.json"))
-        responses["GET projects/acme%2Fsearch/issues?state=opened"] = []
+        responses["GET projects/acme%2Fsearch/issues?state=all"] = []
         responses["POST projects/acme%2Fsearch/issues"] = {
             "id": 2021, "iid": 21, "project_id": 7, "title": "Rank results by open rate", "description": "",
             "state": "opened", "labels": [], "references": {"full": "acme/search#21"},

@@ -78,7 +78,7 @@ def cmd_publish(args) -> int:
     if args.apply and report.changed:
         model.save(args.roadmap, report.roadmap)
         print(f"wrote forge links back into {args.roadmap}")
-    return 0
+    return 2 if report.failed else 0
 
 
 def cmd_sync(args) -> int:
