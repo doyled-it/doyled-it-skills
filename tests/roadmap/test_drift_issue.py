@@ -152,6 +152,23 @@ class OnlyItsOwnIssue(unittest.TestCase):
         self.assertEqual(fake.issues[(REPO, 41)]["state"], "open")
 
 
+class HandTextOnGitLab(unittest.TestCase):
+    def test_a_live_command_in_the_hand_text_holds_back_the_update(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        mine = drift_issues(fake)[0]
+        mine["body"] = "Notes.\n/close\n" + mine["body"]
+        n = len(fake.writes)
+        fg = github(fake)
+        fg.kind = "gitlab"   # GitLab runs quick actions; the fake answers like GitHub otherwise
+        data = drifting()
+        data["issues"] = [i for i in data["issues"] if i["id"] != "weekly-release"]
+        result = driftissue.run(data, fg, sync.sync(data, fg, orca_tasks=None, now=NOW), apply=True, today=NOW)
+        self.assertEqual(len(fake.writes), n)
+        self.assertEqual(result.actions, [])
+        self.assertTrue(any("/close" in note for note in result.notes))
+
+
 class CloseIsNarrow(unittest.TestCase):
     def test_close_refuses_any_issue_that_is_not_the_drift_issue(self):
         fake = fresh_forge()
