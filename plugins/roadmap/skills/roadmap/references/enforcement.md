@@ -91,7 +91,9 @@ The roadmap plugin registers two hooks (`hooks/hooks.json`, script
   `unlinked-merge-request` come only from a full `sync` or the drift issue.)
 
 Both look for `ROADMAP_FILE`, else `roadmap.json` in the working directory or
-at the git root, and do nothing without one. They never write, never block
+at the git root, and do nothing and say nothing without one (a `roadmap.json`
+without `epics` and `issues` lists belongs to another tool and is ignored).
+Only with a roadmap present do they warn that Python is older than 3.11. They never write, never block
 twice in a row, skip Orca, and stop after `ROADMAP_HOOK_TIMEOUT` seconds
 (default 20). When the forge is slow or unreachable, or anything else fails,
 they fail open: a one-line warning and no block.

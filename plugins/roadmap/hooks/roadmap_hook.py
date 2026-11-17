@@ -12,8 +12,9 @@
   roadmap_hook.py codex-notify J  Codex "notify" program (J is its JSON payload): the same
                                   check, sent to a desktop notification (Codex cannot block)
 
-It does nothing without a roadmap (ROADMAP_FILE, else roadmap.json in the working
-directory or at the git root), never writes anything, and fails open: a slow or
+It does nothing, and says nothing, without a roadmap of this tool's shape
+(ROADMAP_FILE, else roadmap.json in the working directory or at the git root,
+with "epics" and "issues" lists), never writes anything, and fails open: a slow or
 unreachable forge, a missing tool or any error gives a one-line warning, never a
 blocked turn. Standard library only; Python 3.11 or newer.
 
@@ -129,15 +130,17 @@ def check(cwd: str, text: str, changes: str | None = None,
     changes is the text of what the session changed (its git and forge
     commands); None means everything the text names was changed.
     """
-    if sys.version_info < (3, 11):
-        return [], [], "roadmap check skipped: it needs Python 3.11 or newer", []
     path = find_roadmap(cwd)
     if path is None:
         return [], [], None, []
     try:
         data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        return [], [], f"roadmap check skipped: {path} could not be read ({exc})", []
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return [], [], None, []   # not a roadmap this tool can read: another tool's file, say nothing
+    if not (isinstance(data, dict) and isinstance(data.get("issues"), list) and isinstance(data.get("epics"), list)):
+        return [], [], None, []
+    if sys.version_info < (3, 11):
+        return [], [], "roadmap check skipped: it needs Python 3.11 or newer", []
     ids = touched(data, text)
     if not ids and ids_if_none == "active":
         ids = [it["id"] for it in data.get("issues", []) if isinstance(it, dict)

@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from helpers import FIXTURES, ROOT, fixture, issue
 from test_publish import NoWrites
@@ -133,6 +134,36 @@ class StopHook(Hook):
         res = self.stop("Merged the change for ranking-model.", recorded=str(self.dir / "missing.json"))
         self.assertEqual(res.returncode, 0)
         self.assertNotIn("decision", json.loads(res.stdout))
+
+
+class QuietWithoutARoadmap(Hook):
+    """The hook runs in every project; it says nothing unless this one has a roadmap of ours."""
+
+    def load(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("roadmap_hook_under_test", HOOK)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_an_old_python_is_silent_where_there_is_no_roadmap(self):
+        hook = self.load()
+        with mock.patch.object(hook.sys, "version_info", (3, 9, 6)), \
+                mock.patch.dict("os.environ", {"ROADMAP_FILE": ""}):
+            self.assertEqual(hook.check(str(self.dir), "page-design"), ([], [], None, []))
+            self.roadmap()
+            fix, show, warning, _ = hook.check(str(self.dir), "page-design")
+        self.assertIn("3.11", warning)
+
+    def test_a_roadmap_json_from_another_tool_is_ignored(self):
+        for other in ({"name": "q3", "items": ["page-design"]}, {"issues": "page-design", "epics": 3}, ["page-design"],
+                      {"issues": [{"id": "page-design"}]}):
+            with self.subTest(other=other):
+                (self.dir / "roadmap.json").write_text(json.dumps(other))
+                res = self.stop("worked on page-design", commands=['git commit -m "page-design"'])
+                self.assertEqual(res.returncode, 0, res.stderr)
+                self.assertEqual(res.stdout.strip(), "")
 
 
 class PostToolUseHook(Hook):
