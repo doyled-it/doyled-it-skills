@@ -20,7 +20,6 @@ from datetime import date, datetime, timedelta, timezone
 
 from . import blocks, forge, model, orca, render, validate
 
-DEFAULT_GATE_RULES = {"M": "mr_merged"}
 BLOCKED_LABELS = {"blocked", "status::blocked", "status: blocked", "workflow::blocked"}
 PROGRESS_LABELS = {"in progress", "doing", "status::in progress", "status::doing", "workflow::in progress",
                    "status: in progress"}
@@ -228,7 +227,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     raw_items = {i["id"]: i for i in out["issues"]}
     report = SyncReport(roadmap=out)
     cfg = data.get("forge") or {}
-    rules = dict(DEFAULT_GATE_RULES, **(cfg.get("gate_rules") or {}))
+    rules = model.gate_rules(data)
+    unchecked = model.unchecked_gates(data)
     today = (parse_now(now) if now
              else datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc))
     stale_before = today - timedelta(days=stale_days)
@@ -315,7 +315,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             g = dict(g)
             if not g["passed"] and g["gate"] not in lead:
                 evidence, reason = None, ""
-                if g["gate"] in ticks:
+                if g["gate"] in ticks and g["gate"] not in unchecked:
                     evidence, reason = ticks[g["gate"]] or fi["url"], "ticked in the generated checklist"
                 elif rules.get(g["gate"]) == "mr_merged" and merged:
                     evidence, reason = merged[0]["url"], f"merge request {merged[0]['ref']} merged and closes the issue"

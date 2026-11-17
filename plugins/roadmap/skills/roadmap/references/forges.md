@@ -86,16 +86,20 @@ added elsewhere in a description:
   `"approved_by"` and `"approved_on"`. `validate` refuses a passed lead gate
   without `approved_by`. A lead gate ticked on the forge is reported as
   `lead-gate-ticked-on-forge` drift and is not ticked.
-- **Other gates** tick when their line in the generated checklist (inside the
-  issue's markers, in the shape `- [x] R: ...`) is ticked. The first http or
-  https link on that line is the evidence, otherwise the issue itself.
-- **Rules** in `forge.gate_rules`: `mr_merged` (the default for M) ticks when a
-  merged merge request in the roadmap's own projects closes the issue
-  (`Closes #12`, `Fixes group/project#12`, or the issue's URL after a closing
-  word) or is named in the roadmap issue's own text (`!12`). `mr_green` ticks
-  when such a merge request has a green pipeline. A rule cannot name a lead
-  gate. (`mr_approved_green` was renamed `mr_green`: it never checked
-  approvals.)
+- **Gates with a merge request rule** in `forge.gate_rules` tick only from
+  that merge request, never from a checkbox. `mr_merged` (the default for M)
+  ticks when a merged merge request in the roadmap's own projects closes the
+  issue (`Closes #12`, `Fixes group/project#12`, or the issue's URL after a
+  closing word the forge itself accepts) or is named in the roadmap issue's
+  own text (`!12`). `mr_green` ticks when such a merge request has a green
+  pipeline. A ticked `- [x] M: ...` line with no merged merge request ticks
+  nothing. A rule cannot name a lead gate. (`mr_approved_green` was renamed
+  `mr_green`: it never checked approvals.)
+- **Other gates** (no rule, or the rule `checklist`) tick when their line in
+  the generated checklist (inside the issue's markers, in the shape
+  `- [x] R: ...`) is ticked. The first http or https link on that line is the
+  evidence, otherwise the issue itself. Publish carries the same ticks, and only
+  these, into the checklist it writes.
 
 Merge requests in other projects that mention an issue are ignored for status
 and gates, so a stranger's repository cannot move an issue or tick a gate. The

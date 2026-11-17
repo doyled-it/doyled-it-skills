@@ -102,6 +102,28 @@ def lead_gates(data: dict) -> set[str]:
     return {g for g in lead if isinstance(g, str)} if isinstance(lead, list) else set(DEFAULT_LEAD_GATES)
 
 
+# The forge rule for M unless the roadmap sets forge.gate_rules.
+DEFAULT_GATE_RULES = {"M": "mr_merged"}
+# Rules that tick a gate from forge evidence (a merged or green merge request).
+EVIDENCE_RULES = ("mr_merged", "mr_green")
+
+
+def gate_rules(data: dict) -> dict[str, str]:
+    """Each gate letter with a forge rule, defaults included."""
+    cfg = data.get("forge") if isinstance(data.get("forge"), dict) else {}
+    rules = cfg.get("gate_rules") if isinstance(cfg.get("gate_rules"), dict) else {}
+    return dict(DEFAULT_GATE_RULES, **rules)
+
+
+def unchecked_gates(data: dict) -> set[str]:
+    """Gates a ticked checklist line never passes.
+
+    Lead gates pass only from the approval recorded in roadmap.json, and a gate
+    with a merge request rule (M by default) only from that merge request.
+    """
+    return lead_gates(data) | {g for g, rule in gate_rules(data).items() if rule in EVIDENCE_RULES}
+
+
 def normalize(data: dict) -> dict:
     """Return a copy with defaults filled in and older field names mapped.
 

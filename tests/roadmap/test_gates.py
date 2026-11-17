@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 
 from helpers import example, fixture, issue
-from roadmaplib import blocks, forge, publish, sync, validate
+from roadmaplib import blocks, forge, model, publish, sync, validate
 from test_publish import NoWrites, gitlab_roadmap
 from test_sync import sync_roadmap
 
@@ -52,10 +52,13 @@ def merged_mr(description: str, project: str = "acme/search", iid: int = 30) -> 
 
 class CheckboxTicks(unittest.TestCase):
     def test_a_tick_outside_the_generated_checklist_ticks_nothing(self):
-        _, ticks = run(**{ISSUE20: issue20("- [x] R looks approved to me https://evil.example/x\n"
-                                           "- [x] U approved https://evil.example/y")})
-        self.assertNotIn(("page-design", "R"), ticks)
-        self.assertNotIn(("page-design", "U"), ticks)
+        # Lines in the exact checklist shape, but outside the markers: with no
+        # block at all, and before and after a block that leaves R open.
+        outside = "- [x] R: looks approved to me (https://evil.example/x)\n"
+        for body in (outside, f"{outside}{IS}\n- [ ] R: Independent review\n{IE}\n{outside}"):
+            with self.subTest(body=body):
+                _, ticks = run(**{ISSUE20: issue20(body)})
+                self.assertNotIn(("page-design", "R"), ticks)
 
     def test_a_tick_inside_the_generated_checklist_ticks_the_gate(self):
         _, ticks = run(**{ISSUE20: issue20(f"Notes.\n{IS}\n- [x] R: Independent review (https://example.com/r)\n{IE}")})
@@ -79,6 +82,25 @@ class CheckboxTicks(unittest.TestCase):
 
 
 class MergedTicks(unittest.TestCase):
+    def test_a_checked_m_line_with_no_merged_merge_request_ticks_nothing(self):
+        data = roadmap()
+        issue(data, "page-design")["gates"] = ["D", "R", "M"]
+        _, ticks = run(data, **{ISSUE20: issue20(f"{IS}\n- [x] M: Merged and released (https://example.com/m)\n{IE}")})
+        self.assertNotIn(("page-design", "M"), ticks)
+
+    def test_a_checked_line_for_a_green_pipeline_gate_ticks_nothing(self):
+        data = roadmap()
+        data["forge"]["gate_rules"] = {"R": "mr_green"}
+        _, ticks = run(data, **{ISSUE20: issue20(f"{IS}\n- [x] R: review (https://example.com/r)\n{IE}")})
+        self.assertNotIn(("page-design", "R"), ticks)
+
+    def test_a_checklist_rule_still_ticks_from_the_checklist(self):
+        data = roadmap()
+        data["forge"]["gate_rules"] = {"M": "checklist"}
+        issue(data, "page-design")["gates"] = ["D", "R", "M"]
+        _, ticks = run(data, **{ISSUE20: issue20(f"{IS}\n- [x] M: merged (https://example.com/m)\n{IE}")})
+        self.assertEqual(ticks[("page-design", "M")], "https://example.com/m")
+
     def test_a_merged_merge_request_that_closes_the_issue_ticks_m(self):
         _, ticks = run(**{MRS11: [merged_mr("Closes #11")]})
         self.assertEqual(ticks[("click-signals", "M")], "https://gitlab.example.com/acme/search/-/merge_requests/30")
@@ -142,6 +164,20 @@ class ApprovalRecords(unittest.TestCase):
 
 
 class PublishWritesOnlyRecordedLeadApprovals(unittest.TestCase):
+    def body(self, data, forge_body):
+        it = next(i for i in model.normalize(data)["issues"] if i["id"] == "page-design")
+        return blocks.issue_body(model.normalize(data), it, forge_body, "Search page")
+
+    def test_publish_keeps_lead_gates_and_m_open_when_the_forge_ticks_them(self):
+        data = example()
+        issue(data, "page-design")["gates"] = ["D", "R", "M", "U"]
+        forge_body = (f"Notes.\n{IS}\n- [x] D: agreed (https://e.example/d)\n- [x] R: review (https://e.example/r)\n"
+                      f"- [x] M: merged (https://e.example/m)\n- [x] U: approved\n{IE}")
+        body = self.body(data, forge_body)
+        for letter in ("D", "M", "U"):
+            self.assertIn(f"- [ ] {letter}:", body)
+        self.assertIn("- [x] R:", body)
+
     def test_forge_ticks_of_lead_gates_are_not_carried_into_the_checklist(self):
         responses = dict(fixture("gitlab_publish.json"))
         fg = forge.GitLab(NoWrites(responses), host="gitlab.example.com", project="acme/search", group="acme")

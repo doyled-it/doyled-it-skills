@@ -170,17 +170,17 @@ def ticked_gates(body: str) -> dict[str, str | None]:
     return out
 
 
-def merged_gates(it: dict, forge_body: str, lead: set[str] | frozenset = frozenset()) -> list[dict]:
+def merged_gates(it: dict, forge_body: str, never: set[str] | frozenset = frozenset()) -> list[dict]:
     """The issue's gates with checklist ticks added; a tick is never removed.
 
-    Lead gates are never taken from the forge: they pass only from the
-    approval recorded in roadmap.json.
+    Gates in never (model.unchecked_gates: the lead's gates, and M or any gate
+    with a merge request rule) are never taken from a checkbox.
     """
     ticks = ticked_gates(forge_body)
     out = []
     for g in it["gates"]:
         g = dict(g)
-        if not g["passed"] and g["gate"] in ticks and g["gate"] not in lead:
+        if not g["passed"] and g["gate"] in ticks and g["gate"] not in never:
             g["passed"] = True
             if ticks[g["gate"]]:
                 g["evidence"] = ticks[g["gate"]]
@@ -202,7 +202,7 @@ def issue_block(data: dict, it: dict, gates: list[dict], epic_name: str) -> str:
 
 
 def issue_body(data: dict, it: dict, forge_body: str, epic_name: str) -> str:
-    gates = merged_gates(it, forge_body, model.lead_gates(data))
+    gates = merged_gates(it, forge_body, model.unchecked_gates(data))
     return replace_block(forge_body, ISSUE_START, ISSUE_END, issue_block(data, it, gates, epic_name))
 
 
