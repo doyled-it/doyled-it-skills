@@ -158,9 +158,12 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
         else:
             if not project:
                 raise PublishRefused(f'issue "{iid}" has no project; set forge.project or the issue\'s project')
-            # Open issues first, then closed ones: finished work keeps its closed issue.
+            # Open issues first. A closed one is linked only to Done work: for
+            # unfinished work it is earlier work, and sync would then mark this Done.
             same = [o for o in fg.all_issues(project) if o["ref"] not in claimed and _same(o["title"], it["title"])]
-            match = sorted(same, key=lambda o: o["state"] != "open")[0] if same else None
+            usable = [o for o in same if o["state"] == "open" or it["status"] == "done"]
+            match = sorted(usable, key=lambda o: o["state"] != "open")[0] if usable else None
+            closed_alike = [o["ref"] for o in same if o["state"] != "open"]
             if match:
                 fi = match
                 claimed.add(match["ref"])
@@ -176,7 +179,9 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
             else:
                 body = blocks.issue_body(data, it, blocks.defang(it["detail"]), epic_name)
                 title = blocks.one_line(it["title"])
-                report.add("create-issue", iid, f'"{title}" in {project}, epic "{epic_name}"', body=body)
+                seen = (f"; closed {', '.join(closed_alike)} has the same title and was not linked: if it is this "
+                        'work, name it in "ref" instead' if closed_alike else "")
+                report.add("create-issue", iid, f'"{title}" in {project}, epic "{epic_name}"{seen}', body=body)
                 if apply:
                     fi = fg.create_issue(project, title, body, epic if not epic.get("new") else None)
                     claimed.add(fi["ref"])

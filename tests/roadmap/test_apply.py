@@ -82,6 +82,22 @@ class DoneWork(unittest.TestCase):
         self.assertEqual(issue(report.roadmap, "page-design")["ref"], f"{REPO}#13")
         self.assertEqual(fake.titles(REPO).count("Design the results page"), 1)
 
+    def test_unfinished_work_is_never_linked_to_an_old_closed_issue(self):
+        """A closed issue with the same title is earlier work; linking it would make sync mark this Done."""
+        fake = fresh_forge()
+        fake.add_issue(REPO, 1, "Release every Tuesday", "From last year.", state="closed")
+        for status in ("to_do", "in_progress"):
+            with self.subTest(status=status):
+                data = example()
+                issue(data, "weekly-release")["status"] = status
+                report = publish.publish(data, github(fake), apply=False)
+                kinds = {a.kind for a in report.actions if a.target == "weekly-release"}
+                self.assertNotIn("link-issue", kinds)
+                self.assertIn("create-issue", kinds)
+                create = next(a for a in report.actions if a.kind == "create-issue" and a.target == "weekly-release")
+                self.assertIn(f"{REPO}#1", create.detail)
+                self.assertNotIn("ref", issue(report.roadmap, "weekly-release"))
+
     def test_done_issue_with_nothing_on_the_forge_is_not_created(self):
         fake = fresh_forge()
         data = example()

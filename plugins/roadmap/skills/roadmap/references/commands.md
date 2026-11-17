@@ -66,10 +66,12 @@ roadmap.py publish roadmap.json --apply    # make the changes
 Refuses a roadmap that is not agreed, or that has validate errors. The report
 groups the changes into epics, issues and links and ends with a count.
 
-- An issue or epic without a `ref` is linked to an existing forge item with the
-  same title (open first, then closed), and each forge item is linked to one
-  roadmap item only. `validate` refuses two epics or issues with the same title
-  or the same `ref`.
+- An issue or epic without a `ref` is linked to an existing open forge item
+  with the same title, and each forge item is linked to one roadmap item only.
+  A closed issue with the same title is linked only to a Done roadmap issue: for
+  unfinished work it is earlier work, so publish creates a new issue and names
+  the closed one in the report (put it in `ref` if it really is this work).
+  `validate` refuses two epics or issues with the same title or the same `ref`.
 - A Done issue with no forge issue is skipped, not created: publish never
   closes anything, so a new open issue for finished work could never be closed.
 - When a forge write fails part way, the report shows what was done and the
