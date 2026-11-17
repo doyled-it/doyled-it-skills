@@ -98,18 +98,21 @@ The roadmap plugin registers two hooks (`hooks/hooks.json`, script
 
 - **PostToolUse** (Bash): after a command that merges a merge request or
   closes an issue (`glab mr merge`, `gh pr merge`, `glab issue close`,
-  `gh issue close`, `tea` and `fj` equivalents), it runs a read-only
+  `gh issue close`, `tea` and `fj` equivalents, run as commands, not quoted
+  text), it runs a read-only
   `sync --only` for the roadmap issues the command names (or, when it names
   none, the issues In progress or In review) and tells the agent what changed.
-- **Stop**: at the end of a turn it finds the roadmap issues the session's
-  transcript names and runs `sync --only` for them. It blocks the turn only for
-  an issue the session changed (one named in a git commit, push or merge, or a
-  merge request or issue command it ran) and only for drift the agent can fix:
-  roadmap.json behind the forge (a status or gate the forge now shows),
-  `done-but-open`, `missing-on-forge` and `marker-problem`. Drift on an issue
-  the session only named (by reading roadmap.json, running `validate`, or
-  asking about it), and drift that needs the lead or the team
-  (`lead-gate-ticked-on-forge`, `no-recent-activity`), is shown as a one-line
+- **Stop**: at the end of a turn it finds the roadmap issues this turn changed
+  (named in a git commit, push, merge or tag, or a merge request or issue
+  command it ran) and runs `sync --only` for at most five of them; the rest
+  are named in a note. A turn that changed no roadmap issue makes no forge
+  call, so reading roadmap.json, running `validate` or asking about an issue
+  costs nothing. A command counts only when git or the forge CLI is the
+  command itself, not text inside `echo`, `grep` or quotes. It blocks the turn
+  only for drift the agent can fix: roadmap.json behind the forge (a status or
+  gate the forge now shows), `done-but-open`, `missing-on-forge` and
+  `marker-problem`. Drift that needs the lead or the team
+  (`lead-gate-ticked-on-forge`, `no-recent-activity`) is shown as a one-line
   note and never blocks. (`--only` skips Orca, epics and open merge requests,
   so `nothing-behind`, `started-early`, `unlisted-epic-issue` and
   `unlinked-merge-request` come only from a full `sync` or the drift issue.)

@@ -36,13 +36,20 @@ class Hook(unittest.TestCase):
         path.write_text(json.dumps(data or sync_roadmap()))
         return path
 
-    def transcript(self, text, commands=()):
-        """A transcript with the user's text and the Bash commands the agent ran."""
-        lines = [{"type": "user", "message": {"content": text}}]
-        for n, command in enumerate(commands):
-            lines.append({"type": "assistant", "message": {"content": [
-                {"type": "text", "text": "Running it."},
-                {"type": "tool_use", "id": f"t{n}", "name": "Bash", "input": {"command": command}}]}})
+    def transcript(self, text, commands=(), turns=()):
+        """A transcript: earlier (text, commands) turns, then the user's text and the Bash commands this turn ran.
+
+        Each command gets a tool result, which is a user line but not a new turn.
+        """
+        lines = []
+        for n, (said, ran) in enumerate([*turns, (text, commands)]):
+            lines.append({"type": "user", "message": {"role": "user", "content": said}})
+            for k, command in enumerate(ran):
+                lines.append({"type": "assistant", "message": {"content": [
+                    {"type": "text", "text": "Running it."},
+                    {"type": "tool_use", "id": f"t{n}-{k}", "name": "Bash", "input": {"command": command}}]}})
+                lines.append({"type": "user", "message": {"role": "user", "content": [
+                    {"type": "tool_result", "tool_use_id": f"t{n}-{k}", "content": "ok"}]}})
         path = self.dir / "transcript.jsonl"
         path.write_text("".join(json.dumps(x) + "\n" for x in lines))
         return path
@@ -56,9 +63,17 @@ class Hook(unittest.TestCase):
         return subprocess.run([sys.executable, str(HOOK), mode, *argv], input=json.dumps(payload), text=True,
                               capture_output=True, env=env, cwd=self.dir, timeout=60)
 
-    def stop(self, text, active=False, commands=(), **kw):
+    def stop(self, text, active=False, commands=(), turns=(), **kw):
         return self.run_hook("stop", {"hook_event_name": "Stop", "cwd": str(self.dir), "stop_hook_active": active,
-                                      "transcript_path": str(self.transcript(text, commands))}, **kw)
+                                      "transcript_path": str(self.transcript(text, commands, turns))}, **kw)
+
+    def load(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("roadmap_hook_under_test", HOOK)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
 
 
 class StopHook(Hook):
@@ -86,17 +101,74 @@ class StopHook(Hook):
         self.assertEqual(out["decision"], "block")
         self.assertIn("--write", out["reason"])
 
-    def test_an_issue_only_mentioned_never_blocks(self):
-        """Reading roadmap.json or asking about an issue names it; that is not work on it."""
+    def test_an_issue_only_mentioned_is_not_checked(self):
+        """Reading roadmap.json or asking about an issue names it; that is not work on it, so nothing is synced."""
         data = sync_roadmap()
         issue(data, "page-design")["status"] = "done"
         self.roadmap(data)
         res = self.stop("What does page-design depend on? Just asking, no work. Also ranking-model?",
                         commands=["cat roadmap.json", "python3 tools/roadmap/roadmap.py validate roadmap.json"])
         self.assertEqual(res.returncode, 0, res.stderr)
-        out = json.loads(res.stdout or "{}")
-        self.assertNotIn("decision", out)
-        self.assertIn("page-design", out.get("systemMessage", ""))
+        self.assertEqual(res.stdout.strip(), "")
+
+    def test_only_changes_made_in_this_turn_are_checked(self):
+        data = sync_roadmap()
+        issue(data, "page-design")["status"] = "done"
+        self.roadmap(data)
+        earlier = [("Finish the results page design.", ['git commit -m "feat: results page layout (page-design)"'])]
+        res = self.stop("Thanks. What is next on the roadmap?", turns=earlier, commands=["cat roadmap.json"])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(res.stdout.strip(), "")
+        res = self.stop("Commit it.", turns=earlier, commands=['git commit -m "fix: spacing (page-design)"'])
+        self.assertEqual(json.loads(res.stdout)["decision"], "block")
+
+    def test_text_that_only_looks_like_a_change_command_is_not_one(self):
+        data = sync_roadmap()
+        issue(data, "page-design")["status"] = "done"
+        self.roadmap(data)
+        for command in ("echo 'git commit page-design'", 'printf "%s" "gh pr create page-design"',
+                        "grep -n 'git push' notes.md  # page-design", "# git commit page-design"):
+            with self.subTest(command=command):
+                res = self.stop("Look around.", commands=[command])
+                self.assertEqual(res.stdout.strip(), "")
+
+    def test_real_change_commands_count_in_any_form(self):
+        hook = self.load()
+        for command in ('cd repo && git commit -m "x"', 'git -C repo -c user.name=x commit -m "x"',
+                        "FOO=1 gh pr create --title x", "(cd repo; /usr/bin/git push origin HEAD)",
+                        "git status\ngit commit -m 'it\'s done'", "git commit -F - <<'EOF'\nDon't stop\nEOF",
+                        "tea pulls merge 3", "glab issue close 20", "echo start  # note\ngit commit -m x",
+                        'git commit -m "first line\nsecond line"'):
+            with self.subTest(command=command):
+                self.assertTrue(hook.runs_change(command))
+        for command in ("echo 'git commit x'", "git log --oneline", "gh pr view 3", "cat roadmap.json",
+                        "python3 -c 'import os; os.system(\"ls\")'", "git commitish"):
+            with self.subTest(command=command):
+                self.assertFalse(hook.runs_change(command))
+
+    def test_a_turn_that_changed_many_issues_checks_a_capped_few(self):
+        """Each issue costs forge calls; the turn end must stay well inside the hook's timeout."""
+        data = sync_roadmap()
+        self.roadmap(data)
+        hook = self.load()
+        ids = [it["id"] for it in data["issues"]]
+        seen = []
+
+        def fake_sync(path, chosen):
+            seen.append(list(chosen))
+            return {"drift": [], "status_changes": [], "gate_ticks": []}, None
+
+        commands = "\n".join(f'git commit -m "work on {i}"' for i in ids)
+        with mock.patch.object(hook, "run_sync", fake_sync), mock.patch.object(hook, "MAX_STOP_ISSUES", 2), \
+                mock.patch.dict("os.environ", {"ROADMAP_FILE": str(self.dir / "roadmap.json")}):
+            fix, show, warning, checked = hook.check(str(self.dir), commands, limit=hook.MAX_STOP_ISSUES)
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(len(seen[0]), 2)
+        self.assertEqual(checked, seen[0])
+        self.assertTrue(any("not checked" in line for line in show), show)
+        self.assertLessEqual(self.load().MAX_STOP_ISSUES, 5)
+        stop_timeout = json.loads(HOOKS_JSON.read_text())["hooks"]["Stop"][0]["hooks"][0]["timeout"]
+        self.assertLessEqual(hook.DEFAULT_TIMEOUT, stop_timeout - 10)
 
     def test_drift_only_the_lead_or_time_can_clear_never_blocks(self):
         """A stale backlog item and a lead gate ticked on the forge need the lead, not the agent."""
@@ -123,7 +195,7 @@ class StopHook(Hook):
         data = sync_roadmap()
         data["forge"] = {"kind": "forgejo", "host": "127.0.0.1:9", "project": "acme/search"}   # nothing listens
         self.roadmap(data)
-        res = self.stop("Merged the change for ranking-model.", recorded=None)
+        res = self.stop("Merge it.", commands=["glab mr merge 31  # ranking-model"], recorded=None)
         self.assertEqual(res.returncode, 0)
         out = json.loads(res.stdout)
         self.assertNotIn("decision", out)
@@ -131,21 +203,16 @@ class StopHook(Hook):
 
     def test_a_broken_tool_fails_open_too(self):
         self.roadmap()
-        res = self.stop("Merged the change for ranking-model.", recorded=str(self.dir / "missing.json"))
+        res = self.stop("Merge it.", commands=["glab mr merge 31  # ranking-model"],
+                        recorded=str(self.dir / "missing.json"))
         self.assertEqual(res.returncode, 0)
-        self.assertNotIn("decision", json.loads(res.stdout))
+        out = json.loads(res.stdout)
+        self.assertNotIn("decision", out)
+        self.assertIn("skipped", out["systemMessage"])
 
 
 class QuietWithoutARoadmap(Hook):
     """The hook runs in every project; it says nothing unless this one has a roadmap of ours."""
-
-    def load(self):
-        import importlib.util
-
-        spec = importlib.util.spec_from_file_location("roadmap_hook_under_test", HOOK)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
 
     def test_an_old_python_is_silent_where_there_is_no_roadmap(self):
         hook = self.load()
@@ -186,7 +253,9 @@ class PostToolUseHook(Hook):
 
     def test_other_commands_do_nothing(self):
         self.roadmap()
-        self.assertEqual(self.post("ls -la").stdout.strip(), "")
+        for command in ("ls -la", "echo 'glab mr merge 31'", "grep 'gh issue close' notes.md"):
+            with self.subTest(command=command):
+                self.assertEqual(self.post(command).stdout.strip(), "")
 
 
 class CodexNotify(Hook):
