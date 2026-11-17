@@ -1,0 +1,295 @@
+{
+ "GET projects/acme%2Fsearch/issues/11": {
+  "id": 1011,
+  "iid": 11,
+  "project_id": 7,
+  "title": "Record which results people open",
+  "description": "Anonymous counts.",
+  "state": "closed",
+  "labels": [],
+  "updated_at": "2026-11-10T10:00:00Z",
+  "epic": {
+   "id": 510,
+   "iid": 10,
+   "group_id": 3,
+   "title": "Better ranking"
+  },
+  "epic_iid": 10,
+  "references": {
+   "short": "#11",
+   "full": "acme/search#11"
+  },
+  "web_url": "https://gitlab.example.com/acme/search/-/issues/11"
+ },
+ "GET projects/acme%2Fsearch/issues/12": {
+  "id": 1012,
+  "iid": 12,
+  "project_id": 7,
+  "title": "Rank results by open rate",
+  "description": "Blend.",
+  "state": "opened",
+  "labels": [],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "epic": {
+   "id": 510,
+   "iid": 10,
+   "group_id": 3,
+   "title": "Better ranking"
+  },
+  "epic_iid": 10,
+  "references": {
+   "short": "#12",
+   "full": "acme/search#12"
+  },
+  "web_url": "https://gitlab.example.com/acme/search/-/issues/12"
+ },
+ "GET projects/acme%2Fsearch/issues/13": {
+  "id": 1013,
+  "iid": 13,
+  "project_id": 7,
+  "title": "Compare old and new ranking on real queries",
+  "description": "",
+  "state": "opened",
+  "labels": [
+   "status::blocked"
+  ],
+  "updated_at": "2026-11-15T10:00:00Z",
+  "epic": {
+   "id": 510,
+   "iid": 10,
+   "group_id": 3,
+   "title": "Better ranking"
+  },
+  "epic_iid": 10,
+  "references": {
+   "short": "#13",
+   "full": "acme/search#13"
+  },
+  "web_url": "https://gitlab.example.com/acme/search/-/issues/13"
+ },
+ "GET projects/acme%2Fsearch/issues/20": {
+  "id": 1020,
+  "iid": 20,
+  "project_id": 7,
+  "title": "Design the results page",
+  "description": "Layout notes.\n\n<!-- roadmap:start -->\n### Gates\n- [x] D: Design agreed with the program lead before building (https://example.com/design-notes)\n- [ ] U: The program lead's explicit approval\n<!-- roadmap:end -->",
+  "state": "opened",
+  "labels": [],
+  "updated_at": "2026-10-01T10:00:00Z",
+  "epic": null,
+  "epic_iid": null,
+  "references": {
+   "short": "#20",
+   "full": "acme/search#20"
+  },
+  "web_url": "https://gitlab.example.com/acme/search/-/issues/20"
+ },
+ "GET projects/acme%2Fsearch/issues/11/related_merge_requests": [
+  {
+   "id": 4030,
+   "iid": 30,
+   "project_id": 7,
+   "title": "Record result opens",
+   "description": "",
+   "state": "merged",
+   "draft": false,
+   "updated_at": "2026-11-16T12:00:00Z",
+   "references": {
+    "full": "acme/search!30"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/merge_requests/30"
+  }
+ ],
+ "GET projects/acme%2Fsearch/issues/12/related_merge_requests": [
+  {
+   "id": 4031,
+   "iid": 31,
+   "project_id": 7,
+   "title": "Rank by open rate",
+   "description": "Closes #12",
+   "state": "opened",
+   "draft": false,
+   "updated_at": "2026-11-16T12:00:00Z",
+   "references": {
+    "full": "acme/search!31"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/merge_requests/31"
+  }
+ ],
+ "GET projects/acme%2Fsearch/issues/13/related_merge_requests": [],
+ "GET projects/acme%2Fsearch/issues/20/related_merge_requests": [],
+ "GET projects/acme%2Fsearch/merge_requests/31": {
+  "id": 4031,
+  "iid": 31,
+  "project_id": 7,
+  "title": "Rank by open rate",
+  "description": "Closes #12",
+  "state": "opened",
+  "draft": false,
+  "updated_at": "2026-11-16T12:00:00Z",
+  "references": {
+   "full": "acme/search!31"
+  },
+  "web_url": "https://gitlab.example.com/acme/search/-/merge_requests/31",
+  "head_pipeline": {
+   "status": "success",
+   "web_url": "https://gitlab.example.com/acme/search/-/pipelines/77"
+  }
+ },
+ "GET projects/acme%2Fsearch/merge_requests?state=opened": [
+  {
+   "id": 4031,
+   "iid": 31,
+   "project_id": 7,
+   "title": "Rank by open rate",
+   "description": "Closes #12",
+   "state": "opened",
+   "draft": false,
+   "updated_at": "2026-11-16T12:00:00Z",
+   "references": {
+    "full": "acme/search!31"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/merge_requests/31"
+  },
+  {
+   "id": 4040,
+   "iid": 40,
+   "project_id": 7,
+   "title": "Refactor logging",
+   "description": "Tidy up.",
+   "state": "opened",
+   "draft": false,
+   "updated_at": "2026-11-16T12:00:00Z",
+   "references": {
+    "full": "acme/search!40"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/merge_requests/40"
+  },
+  {
+   "id": 4041,
+   "iid": 41,
+   "project_id": 7,
+   "title": "page-build: scaffold the results page",
+   "description": "Part of the roadmap.",
+   "state": "opened",
+   "draft": true,
+   "updated_at": "2026-11-16T12:00:00Z",
+   "references": {
+    "full": "acme/search!41"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/merge_requests/41"
+  }
+ ],
+ "GET groups/acme/epics/10/issues": [
+  {
+   "id": 1011,
+   "iid": 11,
+   "project_id": 7,
+   "title": "Record which results people open",
+   "description": "",
+   "state": "closed",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "epic": {
+    "id": 510,
+    "iid": 10,
+    "group_id": 3,
+    "title": "Better ranking"
+   },
+   "epic_iid": 10,
+   "references": {
+    "short": "#11",
+    "full": "acme/search#11"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/issues/11"
+  },
+  {
+   "id": 1012,
+   "iid": 12,
+   "project_id": 7,
+   "title": "Rank results by open rate",
+   "description": "",
+   "state": "opened",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "epic": {
+    "id": 510,
+    "iid": 10,
+    "group_id": 3,
+    "title": "Better ranking"
+   },
+   "epic_iid": 10,
+   "references": {
+    "short": "#12",
+    "full": "acme/search#12"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/issues/12"
+  },
+  {
+   "id": 1013,
+   "iid": 13,
+   "project_id": 7,
+   "title": "Compare old and new ranking on real queries",
+   "description": "",
+   "state": "opened",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "epic": {
+    "id": 510,
+    "iid": 10,
+    "group_id": 3,
+    "title": "Better ranking"
+   },
+   "epic_iid": 10,
+   "references": {
+    "short": "#13",
+    "full": "acme/search#13"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/issues/13"
+  },
+  {
+   "id": 1099,
+   "iid": 99,
+   "project_id": 7,
+   "title": "Tune synonyms",
+   "description": "",
+   "state": "opened",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "epic": {
+    "id": 510,
+    "iid": 10,
+    "group_id": 3,
+    "title": "Better ranking"
+   },
+   "epic_iid": 10,
+   "references": {
+    "short": "#99",
+    "full": "acme/search#99"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/issues/99"
+  },
+  {
+   "id": 1098,
+   "iid": 98,
+   "project_id": 7,
+   "title": "Old closed experiment",
+   "description": "",
+   "state": "closed",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "epic": {
+    "id": 510,
+    "iid": 10,
+    "group_id": 3,
+    "title": "Better ranking"
+   },
+   "epic_iid": 10,
+   "references": {
+    "short": "#98",
+    "full": "acme/search#98"
+   },
+   "web_url": "https://gitlab.example.com/acme/search/-/issues/98"
+  }
+ ]
+}
