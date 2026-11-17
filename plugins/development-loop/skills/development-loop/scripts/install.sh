@@ -59,8 +59,9 @@ read -r -d '' BLOCK <<'BLOCK_EOF' || true
   plus config/deploy ownership. Audit each slice at finish; track deferrals.
 - For program work (several issues, workers or sessions toward one goal), invoke
   `roadmap` first: the roadmap must be agreed before any worker starts, workers
-  start only when their issue's dependencies are Done, and each finished issue
-  updates and re-renders the roadmap with a short update.
+  start only when their issue's dependencies are Done, orchestrators run `roadmap`
+  sync at every update, and each finished issue updates and re-renders the
+  roadmap with a short update.
 - Resume an already approved design or plan without seeking the same approval again.
   A typo or doc/config edit with no behavior change can skip the design/plan loop.
 BLOCK_EOF

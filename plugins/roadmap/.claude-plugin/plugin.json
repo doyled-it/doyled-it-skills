@@ -1,8 +1,8 @@
 {
   "name": "roadmap",
-  "description": "Keep one roadmap agreed with the program lead and work only from it: roadmap.json as the source of truth, a one-page HTML roadmap, publish to GitLab, GitHub or Forgejo (dry run by default, never closes or deletes), and a read-only sync that reports drift across the forge and Orca. Start with the roadmap skill.",
+  "description": "Keep one roadmap agreed with the program lead and work only from it: roadmap.json as the source of truth, a one-page HTML roadmap, publish to GitLab, GitHub or Forgejo (dry run by default, never deletes, closes only its own drift issue), a sync that reports drift across the forge and Orca, a merge request check and scheduled drift issue for CI, and Claude Code hooks that stop a turn leaving drift. Start with the roadmap skill.",
   "version": "1.0.0",
   "author": { "name": "doyled-it" },
   "license": "AGPL-3.0-only",
-  "keywords": ["roadmap", "program", "orchestration", "orca", "epics", "issues", "gates", "gitlab", "github", "forgejo", "codeberg", "mermaid", "drift"]
+  "keywords": ["roadmap", "program", "orchestration", "orca", "epics", "issues", "gates", "gitlab", "github", "forgejo", "codeberg", "mermaid", "drift", "hooks", "ci"]
 }

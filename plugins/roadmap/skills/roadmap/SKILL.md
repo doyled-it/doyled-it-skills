@@ -122,6 +122,9 @@ Forge choice, the per-forge mapping and every flag:
 
 ### 3. Issue done
 
+Orchestrators run `sync` at every update: read-only first, then `--write` and
+`render` when it shows changes, so the update matches the forge.
+
 1. Every gate passed, with evidence (a link) for each.
 2. Update `roadmap.json` (status, gates, a one-line timeline entry), or run
    `sync --write` to pull status and gate ticks from the forge.
@@ -144,11 +147,21 @@ and name the issues in progress and ready to start.
 
 ## Short updates
 
-Plain language a program lead who does not know the code can follow. Name work
+Run `sync` before each one. Plain language a program lead who does not know the
+code can follow. Name work
 by what it does and give its short name and link once. Example:
 
 > `checked-citations` (acme/search#412) is Done: review passed (R), merged and
 > released (M). `branch-citations` is now ready to start. No divergence.
+
+## Enforcement
+
+The forge checks every merge request names an issue on the agreed roadmap
+(`check-mr` in CI, with merge request templates) and a scheduled pipeline keeps
+one "Roadmap drift" issue current. In Claude Code, the plugin's hooks run a
+read-only sync after a merge or close and block the end of a turn that leaves
+drift on work the session touched. Setup, and what Codex supports:
+[references/enforcement.md](references/enforcement.md).
 
 ## Red flags
 

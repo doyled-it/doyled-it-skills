@@ -278,6 +278,20 @@ test('roadmap: SKILL.md says where the command lives and the docs match the code
     'the personal global-instructions draft does not belong in the public plugin');
 });
 
+test('roadmap: orchestrators sync at every update, and the enforcement layers are documented', () => {
+  const text = rmSkill();
+  assert.match(text, /[Oo]rchestrators run `sync` at every update/u);
+  assert.ok(text.includes('references/enforcement.md'), 'SKILL.md does not link enforcement.md');
+  const enforcement = read('plugins/roadmap/skills/roadmap/references/enforcement.md');
+  for (const word of ['check-mr', 'drift-issue', 'PostToolUse', 'Stop', 'codex-notify', 'Install nothing']) {
+    assert.ok(enforcement.includes(word), `enforcement.md does not cover ${word}`);
+  }
+  assert.match(read(skillPaths[1]), /## 6\. Issue done[\s\S]{0,400}run `roadmap\.py sync`/u);
+  assert.match(block, /run `roadmap`\s+sync at every update/u);
+  const plugin = JSON.parse(read('plugins/roadmap/.claude-plugin/plugin.json'));
+  assert.match(plugin.description, /closes only its own drift issue/u);
+});
+
 test('roadmap: no em dashes in the plugin or its tests', () => {
   for (const file of [...walkFiles('plugins/roadmap'), ...walkFiles('tests/roadmap')]) {
     if (/\.(md|json|py|sh)$/u.test(file)) assert.ok(!read(file).includes('—'), `em dash in ${file}`);

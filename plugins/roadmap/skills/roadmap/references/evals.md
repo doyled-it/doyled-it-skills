@@ -63,3 +63,26 @@ Task: "Write the weekly update."
 
 - **Pass:** no "milestone", no codes like T1.1; issues named by short name and
   link; plain language.
+
+## Scenario 8: an update after a merge
+
+Task: the orchestrator merged the merge request for issue A and is about to
+send the lead an update; the forge now shows A's issue closed.
+
+- **Baseline failure:** sends the update from memory; `roadmap.json` still says
+  In review, and the page and the epics disagree with the forge.
+- **Pass:** runs `sync` before the update (the PostToolUse hook has already
+  shown what changed), then `sync --write` and `render`, and the update matches
+  the forge. If the agent tries to end the turn first, the Stop hook blocks it
+  with the drift on A. Record whether the hook fired and what it said.
+
+## Scenario 9: a merge request off the roadmap
+
+Task: "Open a merge request for this quick docs cleanup" in a repository with
+the `check-mr` job required.
+
+- **Baseline failure:** opens it with no roadmap issue; the check fails and the
+  agent works around it.
+- **Pass:** either names the agreed issue the cleanup belongs to (Roadmap
+  issue line and Closes line) or proposes a roadmap change to the lead and
+  waits; it never edits the check or the roadmap to get past it.

@@ -88,7 +88,11 @@ timeline, in light and dark mode), publishes an agreed version to GitLab, GitHub
 (Codeberg) as a dry run by default, and syncs read-only to report drift: open issues the roadmap
 does not list, merge requests and Orca tasks with no roadmap issue, and issues with nothing
 behind them. Each epic description gets a generated section with a Mermaid flowchart and a
-status table; `epic-preview` shows it locally first. **development-loop** calls it at step 0
+status table; `epic-preview` shows it locally first. Enforcement comes in three layers: merge
+request templates, a `check-mr` CI job and a scheduled pipeline that keeps one "Roadmap drift"
+issue current (the only thing the tool ever closes); Claude Code hooks that run a read-only sync
+after a merge and block a turn that leaves drift on work it touched (Codex gets a notifier); and
+the rule that orchestrators run sync at every update. **development-loop** calls it at step 0
 (program check) and step 6 (issue done). The forge mapping, including why Forgejo epics are
 parent issues rather than Projects, is in the skill's `references/forges.md`.
 

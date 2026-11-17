@@ -117,10 +117,11 @@ file instead of maintaining two copies.
 
 ## 6. Issue done (program work)
 
-When the work is a roadmap issue, finish it on the roadmap: tick its gates with
-evidence links, set it Done (or run `roadmap.py sync --write`), re-render the
-page, and send a short plain-language update: what finished, the gate results,
-and what is now ready to start. See the `roadmap` skill.
+When the work is a roadmap issue, finish it on the roadmap: run `roadmap.py sync`
+(orchestrators run it at every update), tick its gates with evidence links, set
+it Done (or run `roadmap.py sync --write`), re-render the page, and send a short
+plain-language update: what finished, the gate results, and what is now ready to
+start. See the `roadmap` skill.
 
 ## Installation and evaluation
 
