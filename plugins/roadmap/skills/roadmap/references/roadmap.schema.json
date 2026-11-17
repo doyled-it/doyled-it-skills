@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/doyled-it/claude-skills/plugins/roadmap/roadmap.schema.json",
+  "title": "Roadmap",
+  "description": "The agreed plan for a program, on one page. roadmap.json is the source of truth; the forge tracks the work for the team and Orca runs it. `roadmap validate` also checks what a schema cannot: dependency cycles, dangling dependencies, and the glossary.",
+  "type": "object",
+  "required": ["title", "version", "date", "agreed", "goal", "rule", "gates", "epics", "issues"],
+  "properties": {
+    "title": {"type": "string", "description": "Page title, for example \"Search service roadmap\"."},
+    "version": {"type": "string", "description": "Roadmap version, for example \"Version 3\". Bump it when the agreed plan changes."},
+    "date": {"type": "string", "description": "Date of this version."},
+    "agreed": {"type": "boolean", "description": "True only after the program lead agreed this version. publish refuses a draft."},
+    "agreed_by": {"type": "string", "description": "Who agreed it, shown on the page."},
+    "goal": {"type": "string", "description": "What the program delivers, in one or two plain sentences."},
+    "rule": {"type": "string", "description": "The working rule: work only from this roadmap; diverge only with approval or a stated good reason."},
+    "forge": {
+      "type": "object",
+      "description": "Where the team tracks the work. Optional: without it the git remote decides.",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["gitlab", "github"]},
+        "host": {"type": "string", "description": "For example gitlab.example.com or github.com."},
+        "project": {"type": "string", "description": "Default project for new issues: group/project on GitLab, owner/repo on GitHub."},
+        "group": {"type": "string", "description": "GitLab group that holds the epics."},
+        "projects": {"type": "array", "items": {"type": "string"}, "description": "Extra projects whose open merge requests sync checks for drift."},
+        "status_labels": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Optional label per status, for example {\"blocked\": \"status::blocked\"}."},
+        "gate_rules": {"type": "object", "additionalProperties": {"enum": ["mr_merged", "mr_approved_green", "checklist"]}, "description": "How sync ticks a gate from forge evidence. Default: M ticks when a linked merge request is merged; every gate ticks from the issue checklist."}
+      }
+    },
+    "orca": {
+      "type": "object",
+      "properties": {"run": {"type": "string", "description": "Orca run whose tasks sync checks."}}
+    },
+    "gates": {
+      "type": "object",
+      "description": "Gate letter to what it checks. Projects may define their own set.",
+      "additionalProperties": {"type": "string"},
+      "propertyNames": {"pattern": "^[A-Z]$"}
+    },
+    "iterations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {"name": {"type": "string"}, "start": {"type": "string"}, "end": {"type": "string"}}
+      }
+    },
+    "epics": {"type": "array", "items": {"$ref": "#/$defs/epic"}},
+    "issues": {"type": "array", "items": {"$ref": "#/$defs/issue"}},
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "text"],
+        "properties": {"date": {"type": "string"}, "text": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "slug": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$", "description": "Short readable name: lowercase words joined by hyphens. Never a code like A1 or T1.1."},
+    "epic": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"$ref": "#/$defs/slug"},
+        "name": {"type": "string"},
+        "note": {"type": "string"},
+        "parent": {"$ref": "#/$defs/slug", "description": "Parent epic, for an issue that grew into a child epic."},
+        "ref": {"type": "string", "description": "Forge reference once published: group&12 on GitLab, owner/repo#12 on GitHub."},
+        "url": {"type": "string"}
+      }
+    },
+    "gate": {
+      "oneOf": [
+        {"type": "string", "pattern": "^[A-Z]$"},
+        {
+          "type": "object",
+          "required": ["gate"],
+          "properties": {
+            "gate": {"type": "string", "pattern": "^[A-Z]$"},
+            "passed": {"type": "boolean"},
+            "evidence": {"type": "string", "description": "Link that shows the gate passed."}
+          }
+        }
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "required": ["id", "title", "epic", "status"],
+      "properties": {
+        "id": {"$ref": "#/$defs/slug"},
+        "title": {"type": "string", "description": "What the issue delivers, in plain words."},
+        "detail": {"type": "string"},
+        "epic": {"$ref": "#/$defs/slug"},
+        "status": {"enum": ["to_do", "in_progress", "in_review", "blocked", "done"]},
+        "depends_on": {"type": "array", "items": {"$ref": "#/$defs/slug"}, "description": "Issues that must be Done first (the forge's \"blocked by\")."},
+        "gates": {"type": "array", "items": {"$ref": "#/$defs/gate"}},
+        "project": {"type": "string", "description": "Forge project for this issue when it differs from forge.project."},
+        "ref": {"type": "string", "description": "Forge reference once published, for example group/project#12."},
+        "url": {"type": "string"},
+        "iteration": {"type": "string"},
+        "estimate_days": {"type": "number", "maximum": 10, "description": "Working days. More than ten means it becomes a child epic."},
+        "links": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "object", "required": ["url"], "properties": {"label": {"type": "string"}, "url": {"type": "string"}}}
+            ]
+          }
+        }
+      }
+    }
+  }
+}
