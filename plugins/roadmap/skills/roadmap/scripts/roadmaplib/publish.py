@@ -48,7 +48,8 @@ class Report:
         lines = [head, f"Forge: {self.forge}", ""]
         sections = (("Epics", ("create-epic", "link-epic", "update-epic")),
                     ("Issues", ("create-issue", "link-issue", "update-issue")),
-                    ("Links", ("add-to-epic", "add-blocked-by", "pin-epic")))
+                    ("Links", ("add-to-epic", "add-blocked-by", "pin-epic")),
+                    ("Needs a hand fix (nothing was written to these)", ("hand-fix",)))
         for section, kinds in sections:
             rows = [a for a in self.actions if a.kind in kinds]
             if not rows:
@@ -153,7 +154,11 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
         issues[iid] = fi
 
         if not fi.get("new") and iid not in fresh:
-            body = blocks.issue_body(data, it, fi["body"], epic_name)
+            try:
+                body = blocks.issue_body(data, it, fi["body"], epic_name)
+            except blocks.MarkerError as exc:
+                report.add("hand-fix", iid, f'{fi["ref"]}: {exc}')
+                body = fi["body"]
             if body != fi["body"]:
                 report.add("update-issue", iid, f'gate checklist in {fi["ref"]}', body=body)
                 if apply:
@@ -199,7 +204,11 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
     # Generated section in each epic (needs the issue links written back above).
     for ep in data["epics"]:
         e = epics[ep["id"]]
-        body = blocks.epic_body(out, ep["id"], e.get("body") or ep.get("note", ""), task_list=not native_epics)
+        try:
+            body = blocks.epic_body(out, ep["id"], e.get("body") or ep.get("note", ""), task_list=not native_epics)
+        except blocks.MarkerError as exc:
+            report.add("hand-fix", ep["id"], f'{e.get("ref")}: {exc}')
+            continue
         if body != (e.get("body") or ""):
             report.add("update-epic", ep["id"],
                        f"roadmap section (flowchart and status table) in {e.get('ref') or e.get('placeholder')}",

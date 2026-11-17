@@ -203,6 +203,10 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
                 it = dict(it, status=new)
 
         # Gates.
+        try:
+            blocks.find_block(fi["body"], blocks.ISSUE_START, blocks.ISSUE_END)
+        except blocks.MarkerError as exc:
+            report.drift.append(Drift("marker-problem", fi["ref"], f"{exc}. Its gate checklist was not read"))
         ticks = blocks.ticked_gates(fi["body"])
         merged = [m for m in mrs if m["state"] == "merged"]
         new_gates = []
@@ -258,7 +262,12 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
                                           f'open in epic "{ep["name"]}" but not on the roadmap: {fi["title"]}'))
         if epic is None:
             continue
-        body = blocks.epic_body(out, ep["id"], epic.get("body") or "", task_list=not native)
+        try:
+            body = blocks.epic_body(out, ep["id"], epic.get("body") or "", task_list=not native)
+        except blocks.MarkerError as exc:
+            report.drift.append(Drift("marker-problem", ep["ref"], f"{exc}. Its roadmap section was not "
+                                      "checked or written"))
+            continue
         if body == (epic.get("body") or ""):
             continue
         if update_epics:

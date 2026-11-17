@@ -30,14 +30,83 @@ MERMAID_STYLE = {
 }
 
 
+class MarkerError(Exception):
+    """A description's markers are not one well-formed pair; nothing is written."""
+
+
+MARKERS = (ISSUE_START, ISSUE_END, EPIC_START, EPIC_END)
+# Anything that looks like a roadmap marker, however it was edited.
+LOOSE_MARKER = re.compile(r"<!--\s*roadmap\s*:", re.IGNORECASE)
+
+
+def _real_markers(body: str) -> list[tuple[str, int, int]]:
+    """Each marker line as (marker, start offset, end offset without the newline).
+
+    A marker counts only when it is alone on its line. Marker text quoted in
+    inline code is prose and ignored. Anything else that looks like a marker
+    (edited, run into other text, unclosed) raises MarkerError.
+    """
+    found, offset = [], 0
+    for n, line in enumerate(body.splitlines(keepends=True), 1):
+        text = line.rstrip("\r\n")
+        if text.strip() in MARKERS:
+            found.append((text.strip(), offset, offset + len(text)))
+        else:
+            for m in LOOSE_MARKER.finditer(text):
+                if text[:m.start()].count("`") % 2 == 0:
+                    raise MarkerError(f'line {n} looks like a roadmap marker but is not exactly one on its own '
+                                      f'line ("{text.strip()[:60]}"); fix it by hand')
+        offset += len(line)
+    return found
+
+
+def find_block(body: str, start: str, end: str) -> tuple[int, int] | None:
+    """Offsets of the one well-formed block, None when there is none.
+
+    Raises MarkerError when the markers are missing on one side, duplicated,
+    out of order, or edited: the description then needs a hand fix.
+    """
+    found = _real_markers(body or "")
+    starts = [f for f in found if f[0] == start]
+    ends = [f for f in found if f[0] == end]
+    if not starts and not ends:
+        return None
+    if len(starts) == 1 and len(ends) == 1:
+        if starts[0][1] < ends[0][1]:
+            return starts[0][1], ends[0][2]
+        raise MarkerError("the end marker comes before the start marker; fix the description by hand")
+    raise MarkerError(f"the description has {len(starts)} start and {len(ends)} end markers where one of each "
+                      "is expected; fix it by hand")
+
+
+def block_content(body: str, start: str, end: str) -> str | None:
+    """Text between the one well-formed pair, or None when there is none or it is broken."""
+    try:
+        span = find_block(body, start, end)
+    except MarkerError:
+        return None
+    if span is None:
+        return None
+    return body[span[0]:span[1]].split("\n", 1)[1].rsplit("\n", 1)[0]
+
+
 def replace_block(body: str, start: str, end: str, content: str) -> str:
-    """Put content between the markers, appending the block if it is missing."""
+    """Put content between the markers, appending the block if there is none.
+
+    Text outside the one well-formed pair is kept byte for byte. Broken markers
+    raise MarkerError and nothing changes.
+    """
+    if LOOSE_MARKER.search(content):
+        raise ValueError("generated content must not contain marker text")
     block = f"{start}\n{content.strip()}\n{end}"
     body = body or ""
-    pattern = re.compile(re.escape(start) + r".*?" + re.escape(end), re.DOTALL)
-    if pattern.search(body):
-        return pattern.sub(lambda _m: block, body, count=1)
-    return (body.rstrip() + "\n\n" + block) if body.strip() else block
+    span = find_block(body, start, end)
+    if span:
+        return body[:span[0]] + block + body[span[1]:]
+    if not body.strip():
+        return block
+    sep = "" if body.endswith("\n\n") else "\n" if body.endswith("\n") else "\n\n"
+    return body + sep + block
 
 
 def ticked_gates(body: str) -> dict[str, str | None]:
