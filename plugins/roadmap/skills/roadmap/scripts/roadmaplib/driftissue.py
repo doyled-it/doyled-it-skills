@@ -1,12 +1,16 @@
 """drift-issue: keep one "Roadmap drift" issue on the forge in step with sync's drift report.
 
 Created once when there is drift, updated in place (only the text between its
-own markers), and closed when drift is zero. Only an open issue with that title
-and marker block, opened by the token's own user, with no text outside the
-block but the tool's intro, counts: anyone (or another workflow under the same
-token's user) can copy the title and the markers around text of their own. It is the only issue the tool ever closes, and the close
-re-reads the issue and checks its title, marker block and author first. When the sync report is incomplete (a forge call failed), nothing is
-written: an incomplete report must not close the issue or rewrite it.
+own markers), and closed when drift is zero. The issue is found by its title,
+its marker block and its author, the token's own user: anyone can copy the
+title and the markers, but not the author. Text outside the block is kept as it
+is and does not matter, so a person's note there, or an intro worded by an
+older release, never leads to a second issue. When the token's user has several
+such issues, the one holding only the tool's text is kept current, else the
+oldest. It is the only issue the tool ever closes, and the close re-reads the
+issue and checks its title, marker block and author first. When the sync report
+is incomplete (a forge call failed), nothing is written: an incomplete report
+must not close the issue or rewrite it.
 """
 
 from __future__ import annotations
@@ -55,8 +59,15 @@ def section(report, today: str) -> str:
 
 
 def _mine(issues: list[dict], me: str | None) -> list[dict]:
-    """Open drift issues the token's user opened. Anyone can copy the title and markers."""
-    return [i for i in issues if forge.is_drift_issue(i, me)]
+    """Open drift issues the token's user opened: the tool's own text first, then the oldest.
+
+    A copy opened later under the same user, with text of its own, never
+    displaces the issue the tool keeps.
+    """
+    def order(i):
+        n = i.get("number")
+        return (not forge.only_tool_text(i.get("body") or ""), n if isinstance(n, int) else float("inf"))
+    return sorted((i for i in issues if forge.is_drift_issue(i, me)), key=order)
 
 
 def _me(fg) -> str | None:
@@ -83,14 +94,13 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
                             "trusted; with --apply this stops")
     issues = fg.all_issues(project)
     open_ones = _mine(issues, me)
-    for other in issues:
-        if forge.drift_lookalike(other) and other not in open_ones and me and other.get("author") == me:
-            result.notes.append(f'{other["ref"]} has the "{TITLE}" title and markers but text this tool did not '
-                                "write, so it is left alone; close it by hand if it is an old copy")
     if len(open_ones) > 1:
         result.notes.append(f'{len(open_ones)} open "{TITLE}" issues carry the marker; only '
-                            f'{open_ones[0]["ref"]} is kept current')
+                            f'{open_ones[0]["ref"]} is kept current; close the others by hand')
     current = open_ones[0] if open_ones else None
+    if current and not forge.only_tool_text(current.get("body") or ""):
+        result.notes.append(f"{current['ref']} has text outside its marker block that this tool did not write; "
+                            "it is kept as it is, and only the text between the markers changes")
     drift = counted(report)
     if not drift:
         if current:

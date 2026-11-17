@@ -349,8 +349,8 @@ def drift_lookalike(issue: dict) -> bool:
             and blocks.block_content(issue.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is not None)
 
 
-def _only_tool_text(body: str) -> bool:
-    """True when nothing outside the marker block differs from what the tool writes."""
+def only_tool_text(body: str) -> bool:
+    """True when nothing outside the marker block differs from what the tool writes today."""
     body = (body or "").replace("\r\n", "\n")
     try:
         emptied = blocks.replace_block(body, blocks.DRIFT_START, blocks.DRIFT_END, "")
@@ -360,14 +360,13 @@ def _only_tool_text(body: str) -> bool:
 
 
 def is_drift_issue(issue: dict, author: str | None) -> bool:
-    """The tool's own open drift issue.
+    """The tool's own open drift issue: its title, its marker block, opened by the token's user.
 
-    Its title, its marker block, opened by the token's user, and no text outside
-    the block but the tool's own intro. Anyone, or another workflow sharing the
-    token's user, can copy the title and the markers around text of their own.
+    Anyone can copy the title and the markers, so the author decides. Text
+    outside the block (a person's note, or an intro worded by an older release)
+    does not: the tool writes only between the markers and keeps the rest.
     """
-    return (drift_lookalike(issue) and bool(author) and issue.get("author") == author
-            and _only_tool_text(issue.get("body") or ""))
+    return drift_lookalike(issue) and bool(author) and issue.get("author") == author
 
 
 def _check_drift_issue(issue: dict, author: str | None) -> dict:

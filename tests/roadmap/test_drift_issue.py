@@ -186,23 +186,54 @@ class OnlyItsOwnIssue(unittest.TestCase):
                 self.assertEqual(len(drift_issues(fake)), 1)
 
 
-class AdoptsOnlyItsOwnIssue(unittest.TestCase):
-    """An issue by the same user with the title and markers is adopted only if it holds the tool's text alone."""
+class FoundByItsMarkers(unittest.TestCase):
+    """The drift issue is the token user's open issue with its title and marker block, whatever text is outside.
 
-    def test_text_the_tool_did_not_write_is_not_adopted(self):
-        fake = fresh_forge()
+    Hand text outside the block never makes a second issue, and a later change to
+    the intro wording never orphans the issues opened before it.
+    """
+
+    def test_hand_text_outside_the_block_does_not_make_a_second_issue(self):
         own = driftissue.skeleton("- **old** item: gone")
-        for body in ("Phishing link here.\n\n" + own, own + "\n\nPhishing link here.",
+        for body in ("Discussed on Monday.\n\n" + own, own + "\n\nSee the thread below.",
                      own.replace(driftissue.INTRO, "Something else entirely.")):
             with self.subTest(body=body[:40]):
                 fake = fresh_forge()
                 fake.add_issue(REPO, 50, "Roadmap drift", body)
                 result = run(drifting(), fake)
-                self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
-                self.assertEqual(fake.issues[(REPO, 50)]["body"], body)
-                self.assertTrue(any(f"{REPO}#50" in n for n in result.notes), result.notes)
+                self.assertEqual([a.kind for a in result.actions], ["update-drift-issue"])
+                self.assertEqual(len(drift_issues(fake)), 1)
+                kept = fake.issues[(REPO, 50)]["body"]
+                outside = body.split(blocks.DRIFT_START)[0] + body.split(blocks.DRIFT_END)[1]
+                self.assertEqual(kept.split(blocks.DRIFT_START)[0] + kept.split(blocks.DRIFT_END)[1], outside)
+                self.assertIn("not-published", kept)
+                self.assertTrue(any(f"{REPO}#50" in n and "outside" in n for n in result.notes), result.notes)
                 run(quiet(), fake)
-                self.assertEqual(fake.issues[(REPO, 50)]["state"], "open")
+                self.assertEqual(fake.issues[(REPO, 50)]["state"], "closed")
+                self.assertEqual(len(drift_issues(fake)), 1)
+
+    def test_a_new_intro_wording_still_finds_the_old_issue(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        with mock.patch.object(forge, "DRIFT_INTRO", "The intro, worded another way in a later release."):
+            data = drifting()
+            data["issues"] = [i for i in data["issues"] if i["id"] != "weekly-release"]
+            result = run(data, fake)
+            self.assertEqual([a.kind for a in result.actions], ["update-drift-issue"])
+            run(quiet(), fake)
+        self.assertEqual([d["state"] for d in drift_issues(fake)], ["closed"])
+
+    def test_the_tools_own_text_is_kept_current_before_a_copy(self):
+        """Two of the user's issues carry the markers: the one holding only the tool's text wins, in any order."""
+        own = driftissue.skeleton("- **old** item: gone")
+        for numbers in ((50, 51), (51, 50)):
+            with self.subTest(numbers=numbers):
+                fake = fresh_forge()
+                fake.add_issue(REPO, numbers[0], "Roadmap drift", "Copied by another workflow.\n\n" + own)
+                fake.add_issue(REPO, numbers[1], "Roadmap drift", own)
+                result = run(drifting(), fake)
+                self.assertEqual([a.detail.split(",")[0] for a in result.actions], [f"{REPO}#{numbers[1]}"])
+                self.assertEqual(fake.issues[(REPO, numbers[0])]["body"], "Copied by another workflow.\n\n" + own)
 
     def test_the_tools_own_text_is_adopted(self):
         fake = fresh_forge()
@@ -223,7 +254,7 @@ class AdoptsOnlyItsOwnIssue(unittest.TestCase):
 
 class HandTextOnGitLab(unittest.TestCase):
     def test_hand_text_with_a_live_command_is_never_written(self):
-        """Hand text outside the markers means the issue is not the tool's own: it is left alone."""
+        """The issue is still the tool's own, but GitLab would run the hand text's command: no write, no copy."""
         fake = fresh_forge()
         run(drifting(), fake)
         mine = drift_issues(fake)[0]
@@ -236,7 +267,9 @@ class HandTextOnGitLab(unittest.TestCase):
         result = driftissue.run(data, fg, sync.sync(data, fg, orca_tasks=None, now=NOW), apply=True, today=NOW)
         self.assertEqual(mine["body"], before)
         self.assertNotIn(("PATCH", f"repos/{REPO}/issues/{mine['number']}"), [w[:2] for w in fake.writes])
-        self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
+        self.assertEqual(result.actions, [])
+        self.assertEqual(len(drift_issues(fake)), 1)
+        self.assertTrue(any("not updated" in n for n in result.notes), result.notes)
 
 
 class CloseIsNarrow(unittest.TestCase):

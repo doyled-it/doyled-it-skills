@@ -69,11 +69,14 @@ generated sections and statuses), then `drift-issue --no-orca --apply`, then
 there is drift, and closes it when drift is zero: the only thing the tool ever
 closes. Every kind of drift counts, because each is something the lead, the
 team or an agent can clear (the table of kinds in [commands.md](commands.md)
-says who). Only an issue opened by the token's own user, holding nothing
-outside its marker block but the tool's own intro, is kept current or closed.
-A copy with the same title and markers, opened by someone else or holding other
-text (another workflow can open issues under the same bot user), is left alone
-and named in a note. `--apply` stops, and creates nothing, if the forge will
+says who). The issue is found by its title, its marker block and its author:
+only one opened by the token's own user is kept current or closed, and a copy
+someone else opened is left alone. Text outside the marker block does not
+matter: a note a person adds there is kept, and so is an intro worded by an
+older release, and neither leads to a second issue. When the token's user has
+several such issues (another workflow can open issues under the same bot
+user), the one holding only the tool's text is kept current, else the oldest,
+and a note names the count. `--apply` stops, and creates nothing, if the forge will
 not say whose token it is. The one exception is the GitHub Actions workflow
 token: GitHub answers its `GET /user` with 403 "Resource not accessible by
 integration", and its issues are by `github-actions[bot]`; a rate limit, a
