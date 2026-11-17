@@ -39,6 +39,35 @@ class WellFormedPair(unittest.TestCase):
     def test_empty_description_gets_just_the_block(self):
         self.assertTrue(write("").startswith(S))
 
+    def test_markers_inside_code_blocks_are_examples_not_markers(self):
+        for body in (f"hand\n```\n{S}\n```\nHAND2\n```\n{E}\n```\ntail\n",
+                     f"Example:\n```markdown\n{S}\nold\n{E}\n```\nend\n",
+                     f"Example:\n~~~\n{S}\nold\n{E}\n~~~\nend\n",
+                     f"Example:\n\n    {S}\n    old\n    {E}\n\nend\n",
+                     f"Edited in a fence:\n````\n<!-- roadmap:start\n```\n````\nend\n"):
+            with self.subTest(body=body):
+                new = write(body)
+                self.assertTrue(new.startswith(body), new)
+                self.assertEqual(blocks.find_block(new, S, E)[1], len(new))
+                self.assertEqual(write(new), new)
+
+    def test_a_real_block_after_a_quoted_example_is_replaced(self):
+        body = f"Example:\n```\n{S}\nexample\n{E}\n```\n\n{S}\nstale\n{E}\ntail\n"
+        new = write(body)
+        self.assertTrue(new.startswith(f"Example:\n```\n{S}\nexample\n{E}\n```\n\n{S}\n"))
+        self.assertNotIn("stale", new)
+        self.assertTrue(new.endswith(f"{E}\ntail\n"))
+
+    def test_a_code_block_that_never_closes_is_a_hand_fix(self):
+        """Appending after it would put the section inside the code block, and again on every run."""
+        for body in ("Notes.\n```\nnever closed\n", f"Notes.\n```\n{S}\nx\n{E}\n"):
+            with self.subTest(body=body), self.assertRaises(blocks.MarkerError):
+                write(body)
+
+    def test_ticks_in_a_quoted_example_do_not_count(self):
+        body = f"```\n{IS}\n- [x] R: review (https://e.example/r)\n{IE}\n```\n"
+        self.assertEqual(blocks.ticked_gates(body), {})
+
     def test_markers_quoted_in_prose_are_not_markers(self):
         body = f"Write between `{S}` and `{E}` only.\n"
         new = write(body)

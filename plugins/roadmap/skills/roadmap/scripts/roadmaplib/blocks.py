@@ -105,17 +105,32 @@ MARKERS = (ISSUE_START, ISSUE_END, EPIC_START, EPIC_END, DRIFT_START, DRIFT_END)
 LOOSE_MARKER = re.compile(r"<!--\s*roadmap\s*:", re.IGNORECASE)
 
 
-def _real_markers(body: str) -> list[tuple[str, int, int]]:
-    """Each marker line as (marker, start offset, end offset without the newline).
+FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+INDENTED = re.compile(r"^(?: {4}| {0,3}\t)")
 
-    A marker counts only when it is alone on its line. Marker text quoted in
-    inline code is prose and ignored. Anything else that looks like a marker
-    (edited, run into other text, unclosed) raises MarkerError.
+
+def _scan(body: str) -> tuple[list[tuple[str, int, int]], bool]:
+    """Each marker line as (marker, start offset, end offset without the newline), and
+    whether the description ends inside a code block that never closes.
+
+    A marker counts only when it is alone on its line (up to three spaces of
+    indent) and outside fenced and indented code: a marker quoted in a code
+    block, or in inline code, is an example. Anything else that looks like a
+    marker (edited, run into other text, unclosed) raises MarkerError.
     """
-    found, offset = [], 0
+    found, offset, fence, fence_line = [], 0, None, 0
     for n, line in enumerate(body.splitlines(keepends=True), 1):
         text = line.rstrip("\r\n")
-        if text.strip() in MARKERS:
+        if fence:
+            close = FENCE_OPEN.match(text)
+            if close and close.group(1)[0] == fence[0] and len(close.group(1)) >= len(fence) \
+                    and not close.group(2).strip():
+                fence = None
+        elif (m := FENCE_OPEN.match(text)) and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+            fence, fence_line = m.group(1), n
+        elif INDENTED.match(text):
+            pass   # indented code
+        elif text.strip() in MARKERS:
             found.append((text.strip(), offset, offset + len(text)))
         else:
             for m in LOOSE_MARKER.finditer(text):
@@ -123,7 +138,14 @@ def _real_markers(body: str) -> list[tuple[str, int, int]]:
                     raise MarkerError(f'line {n} looks like a roadmap marker but is not exactly one on its own '
                                       f'line ("{text.strip()[:60]}"); fix it by hand')
         offset += len(line)
-    return found
+    if fence and LOOSE_MARKER.search("".join(body.splitlines(keepends=True)[fence_line:])):
+        raise MarkerError(f"the code block opened on line {fence_line} never closes and holds roadmap markers; "
+                          "close it by hand")
+    return found, fence is not None
+
+
+def _real_markers(body: str) -> list[tuple[str, int, int]]:
+    return _scan(body)[0]
 
 
 def find_block(body: str, start: str, end: str) -> tuple[int, int] | None:
@@ -169,6 +191,9 @@ def replace_block(body: str, start: str, end: str, content: str) -> str:
     span = find_block(body, start, end)
     if span:
         return body[:span[0]] + block + body[span[1]:]
+    if _scan(body)[1]:
+        raise MarkerError("the description ends inside a code block that never closes, so a new section would "
+                          "land inside it; close the code block by hand")
     if not body.strip():
         return block
     sep = "" if body.endswith("\n\n") else "\n" if body.endswith("\n") else "\n\n"

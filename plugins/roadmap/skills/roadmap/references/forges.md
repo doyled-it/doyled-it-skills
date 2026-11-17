@@ -111,10 +111,12 @@ A tick is never removed by `publish` or `sync`.
 ## Generated sections
 
 Two sections are written between hidden HTML comment markers; text outside them
-is never changed. A marker counts only when it stands alone on its line (marker
-text quoted in inline code is prose). When a description has a start marker
-without an end marker, two blocks, an end marker before the start, or a marker
-edited by hand, nothing is written to it: `publish` lists it under "Needs a hand
+is never changed. A marker counts only when it stands alone on its line and
+outside code: marker text quoted in inline code, a fenced code block (three
+backticks or tildes) or an indented code block is an example, never a marker.
+When a description has a start marker without an end marker, two blocks, an end
+marker before the start, a marker edited by hand, or a code block that never
+closes (a new section would land inside it), nothing is written to it: `publish` lists it under "Needs a hand
 fix" and `sync` reports `marker-problem` drift. Fix the markers on the forge,
 then run the command again.
 
