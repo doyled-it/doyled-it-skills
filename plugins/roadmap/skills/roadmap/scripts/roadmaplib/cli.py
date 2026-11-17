@@ -118,6 +118,28 @@ def cmd_sync(args) -> int:
     return 0
 
 
+def cmd_check_mr(args) -> int:
+    from . import checkmr
+
+    data = _load(args.roadmap)
+    try:
+        if args.from_ci:
+            title, body, project = checkmr.from_ci()
+        else:
+            body = args.body or ""
+            if args.body_file:
+                body = Path(args.body_file).read_text()
+            title, project = args.title or "", args.project or (data.get("forge") or {}).get("project")
+    except (ValueError, OSError) as exc:
+        print(f"error: {exc}")
+        return 2
+    result = checkmr.check(data, title, body, project)
+    print(("OK: " if result.ok else "FAIL: ") + result.message)
+    for w in result.warnings:
+        print(f"warning: {w}")
+    return 0 if result.ok else 1
+
+
 def _iso_date(value: str) -> str:
     from . import sync
 
@@ -161,6 +183,16 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("--apply", action="store_true", help="make the changes; without it nothing is written")
     _forge_args(pb)
     pb.set_defaults(func=cmd_publish)
+
+    c = sub.add_parser("check-mr", help="fail a merge request that names no issue on the agreed roadmap")
+    c.add_argument("roadmap")
+    c.add_argument("--from-ci", action="store_true",
+                   help="read the merge request from GitLab CI, GitHub Actions or Forgejo Actions")
+    c.add_argument("--title", help="merge request title")
+    c.add_argument("--body", help="merge request description")
+    c.add_argument("--body-file", help="read the description from this file")
+    c.add_argument("--project", help='project for "#12" references (default: forge.project)')
+    c.set_defaults(func=cmd_check_mr)
 
     s = sub.add_parser("sync", help="read status, merge requests, pipelines and Orca tasks; report drift")
     s.add_argument("roadmap")

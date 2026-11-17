@@ -22,4 +22,4 @@ fi
 
 export PYTHONDONTWRITEBYTECODE=1
 echo "roadmap: command tests with $("$PY" --version)"
-"$PY" -m unittest -q test_validate test_render test_epic_block test_markers test_forge_text test_urls test_gates test_http test_apply test_publish test_sync test_sync_errors test_validate_robust test_a11y_members test_hygiene test_forgejo
+"$PY" -m unittest -q test_validate test_render test_epic_block test_markers test_forge_text test_urls test_gates test_http test_apply test_publish test_sync test_sync_errors test_validate_robust test_a11y_members test_hygiene test_check_mr test_forgejo

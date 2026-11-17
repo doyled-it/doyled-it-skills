@@ -1,0 +1,18 @@
+# Fails a pull request that names no issue on the agreed roadmap. Copy to
+# .github/workflows/ and copy the roadmap command to tools/roadmap/. See the
+# roadmap skill's references/enforcement.md.
+name: Roadmap check
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+permissions:
+  contents: read
+jobs:
+  roadmap-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 tools/roadmap/roadmap.py check-mr roadmap.json --from-ci

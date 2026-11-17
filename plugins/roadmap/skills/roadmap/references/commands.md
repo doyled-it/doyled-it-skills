@@ -76,6 +76,24 @@ groups the changes into epics, issues and links and ends with a count.
   error, the forge links of what was created are saved into `roadmap.json`, and
   the command exits 2. Run it again once the cause is fixed.
 
+## check-mr
+
+```bash
+roadmap.py check-mr roadmap.json --from-ci                 # in a merge request pipeline
+roadmap.py check-mr roadmap.json --title T --body-file F   # by hand
+```
+
+Exits 1 when the merge request names no issue on the agreed roadmap (or the
+roadmap is a draft), 0 when it does, and 2 when it cannot read the merge
+request. A merge request names an issue with its short name, its forge
+reference (`#12` counts in the same project), or its URL; the templates put
+these on a `Roadmap issue:` line and a `Closes #N` line. It warns, without
+failing, when the issue's dependencies are not Done or the issue is already
+Done. `--from-ci` reads GitLab CI (`CI_MERGE_REQUEST_TITLE`,
+`CI_MERGE_REQUEST_DESCRIPTION`) or the pull request event of GitHub and
+Forgejo Actions. No forge call is made. Setup:
+[enforcement.md](enforcement.md).
+
 ## sync
 
 ```bash

@@ -1,0 +1,39 @@
+# Roadmap jobs for GitLab CI. Copy into .gitlab-ci.yml (or include it) and copy
+# the roadmap command (scripts/roadmap.py and scripts/roadmaplib/ from the
+# roadmap skill) to tools/roadmap/ in the repository. See the skill's
+# references/enforcement.md.
+
+variables:
+  ROADMAP_TOOL: tools/roadmap/roadmap.py
+
+# Fails a merge request that names no issue on the agreed roadmap.
+roadmap-check:
+  stage: test
+  image: python:3.12-slim
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - python3 "$ROADMAP_TOOL" check-mr roadmap.json --from-ci
+
+# Scheduled: sync the roadmap, rewrite the epics' generated sections, and keep
+# one "Roadmap drift" issue current. Create a pipeline schedule with the
+# variable ROADMAP_SYNC=1, and a masked project access token with api scope in
+# ROADMAP_BOT_TOKEN.
+roadmap-sync:
+  stage: test
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ROADMAP_SYNC == "1"
+  variables:
+    GITLAB_HOST: $CI_SERVER_HOST
+    GITLAB_TOKEN: $ROADMAP_BOT_TOKEN
+  script:
+    - apk add --no-cache python3
+    - python3 "$ROADMAP_TOOL" sync roadmap.json --no-orca --write --update-epics
+    - python3 "$ROADMAP_TOOL" drift-issue roadmap.json --no-orca --apply
+    - python3 "$ROADMAP_TOOL" render roadmap.json
+  artifacts:
+    when: always
+    paths:
+      - roadmap.json
+      - roadmap.html

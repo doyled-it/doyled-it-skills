@@ -1,0 +1,15 @@
+# Fails a pull request that names no issue on the agreed roadmap. Copy to
+# .forgejo/workflows/ and copy the roadmap command to tools/roadmap/. See the
+# roadmap skill's references/enforcement.md. The node image carries python3.
+name: Roadmap check
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+jobs:
+  roadmap-check:
+    runs-on: docker
+    container:
+      image: node:20-bookworm
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - run: python3 tools/roadmap/roadmap.py check-mr roadmap.json --from-ci
