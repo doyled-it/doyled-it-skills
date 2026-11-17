@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -116,6 +117,30 @@ class Drift(unittest.TestCase):
     def test_issue_with_no_recent_activity(self):
         found = [d.target for d in drift(self.report, "no-recent-activity")]
         self.assertEqual(found, ["page-design"])
+
+    def test_untouched_backlog_is_not_stale(self):
+        """No activity is normal for work not started; only active work goes stale."""
+        for status, stale in (("to_do", False), ("blocked", False), ("in_progress", True), ("in_review", True)):
+            with self.subTest(status=status):
+                data = sync_roadmap()
+                issue(data, "page-design")["status"] = status
+                found = [d.target for d in drift(run_sync(data), "no-recent-activity")]
+                self.assertEqual(found, ["page-design"] if stale else [])
+
+    def test_done_work_with_no_forge_issue_is_not_drift(self):
+        """publish skips it on purpose, so it must not keep drift open forever."""
+        data = sync_roadmap()
+        issue(data, "weekly-release")["status"] = "done"
+        self.assertNotIn("weekly-release", {d.target for d in drift(run_sync(data), "not-published")})
+
+    def test_every_drift_kind_says_who_clears_it(self):
+        source = Path(sync.__file__).read_text()
+        kinds = set(re.findall(r'Drift\(\s*"([a-z-]+)"', source))
+        self.assertTrue(kinds)
+        self.assertEqual(kinds, set(sync.DRIFT_OWNER))
+        self.assertLessEqual(sync.AGENT_DRIFT, kinds)
+        self.assertNotIn("no-recent-activity", sync.AGENT_DRIFT)
+        self.assertNotIn("lead-gate-ticked-on-forge", sync.AGENT_DRIFT)
 
     def test_report_text_names_each_section(self):
         text = self.report.text()

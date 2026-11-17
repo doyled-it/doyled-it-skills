@@ -39,9 +39,16 @@ class Result:
         return "\n".join(lines)
 
 
+def counted(report) -> list:
+    """The drift the issue tracks: every kind someone can clear (sync.DRIFT_OWNER)."""
+    from . import sync
+
+    return [d for d in report.drift if d.kind in sync.DRIFT_OWNER]
+
+
 def section(report, today: str) -> str:
     lines = [f"Drift found by `roadmap sync` on {blocks.md_inline(today)}:", ""]
-    lines += [f"- **{d.kind}** {blocks.md_inline(d.target)}: {blocks.md_inline(d.message)}" for d in report.drift]
+    lines += [f"- **{d.kind}** {blocks.md_inline(d.target)}: {blocks.md_inline(d.message)}" for d in counted(report)]
     return "\n".join(lines)
 
 
@@ -63,7 +70,8 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
         result.notes.append(f'{len(open_ones)} open "{TITLE}" issues carry the marker; only '
                             f'{open_ones[0]["ref"]} is kept current')
     current = open_ones[0] if open_ones else None
-    if not report.drift:
+    drift = counted(report)
+    if not drift:
         if current:
             result.actions.append(Action("close-drift-issue", f"{current['ref']}: no drift left"))
             if apply:
@@ -72,7 +80,7 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
     content = section(report, today)
     if current is None:
         body = blocks.replace_block(blocks.md_block(INTRO), blocks.DRIFT_START, blocks.DRIFT_END, content)
-        result.actions.append(Action("create-drift-issue", f'"{TITLE}" in {project}, {len(report.drift)} items'))
+        result.actions.append(Action("create-drift-issue", f'"{TITLE}" in {project}, {len(drift)} items'))
         if apply:
             fg.create_issue(project, TITLE, body, None)
         return result
@@ -82,7 +90,7 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
     if hold and _without_date(body) != _without_date(old):
         result.notes.append(f"{current['ref']} was not updated: {hold}")
     elif _without_date(body) != _without_date(old):
-        result.actions.append(Action("update-drift-issue", f"{current['ref']}, {len(report.drift)} items"))
+        result.actions.append(Action("update-drift-issue", f"{current['ref']}, {len(drift)} items"))
         if apply:
             fg.update_issue_body(current, body)
     return result

@@ -82,6 +82,15 @@ class OneDriftIssue(unittest.TestCase):
         self.assertEqual(drift_issues(fake)[0]["state"], "closed")
         self.assertEqual(fake.issues[(REPO, 12)]["state"], "open")
 
+    def test_an_untouched_backlog_does_not_keep_the_issue_open(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        fake.issues[(REPO, 12)]["updated_at"] = "2025-01-01T00:00:00Z"
+        data = quiet()
+        data["issues"].append(dict(issue(example(), "ranking-model"), status="to_do"))
+        result = run(data, fake)
+        self.assertEqual([a.kind for a in result.actions], ["close-drift-issue"])
+
     def test_nothing_when_there_is_no_drift_and_no_issue(self):
         fake = fresh_forge()
         self.assertEqual(run(quiet(), fake).actions, [])

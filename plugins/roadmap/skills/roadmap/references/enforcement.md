@@ -49,7 +49,11 @@ A scheduled pipeline runs `sync --no-orca --write --update-epics` (the epics'
 generated sections and statuses), then `drift-issue --no-orca --apply`, then
 `render`. It keeps one issue titled "Roadmap drift" open and current while
 there is drift, and closes it when drift is zero: the only thing the tool ever
-closes. The synced `roadmap.json` and page are job artifacts; the lead reviews
+closes. Every kind of drift counts, because each is something the lead, the
+team or an agent can clear (the table of kinds in [commands.md](commands.md)
+says who). Work that has not started is not drift: a To do or Blocked issue
+never goes stale, and a Done issue that publish skipped is not "not
+published", so an untouched backlog does not keep the issue open. The synced `roadmap.json` and page are job artifacts; the lead reviews
 and commits them, since the pipeline never pushes.
 
 | Forge | Template | Needs |
@@ -74,10 +78,17 @@ The roadmap plugin registers two hooks (`hooks/hooks.json`, script
   `sync --only` for the roadmap issues the command names (or, when it names
   none, the issues In progress or In review) and tells the agent what changed.
 - **Stop**: at the end of a turn it finds the roadmap issues the session's
-  transcript names and runs `sync --only` for them. When roadmap.json is behind
-  the forge for one of them (a status or gate the forge now shows), or sync
-  reports drift on one (done-but-open, nothing-behind, started-early and
-  similar), it blocks the turn with a short message saying what to fix.
+  transcript names and runs `sync --only` for them. It blocks the turn only for
+  an issue the session changed (one named in a git commit, push or merge, or a
+  merge request or issue command it ran) and only for drift the agent can fix:
+  roadmap.json behind the forge (a status or gate the forge now shows),
+  `done-but-open`, `missing-on-forge` and `marker-problem`. Drift on an issue
+  the session only named (by reading roadmap.json, running `validate`, or
+  asking about it), and drift that needs the lead or the team
+  (`lead-gate-ticked-on-forge`, `no-recent-activity`), is shown as a one-line
+  note and never blocks. (`--only` skips Orca, epics and open merge requests,
+  so `nothing-behind`, `started-early`, `unlisted-epic-issue` and
+  `unlinked-merge-request` come only from a full `sync` or the drift issue.)
 
 Both look for `ROADMAP_FILE`, else `roadmap.json` in the working directory or
 at the git root, and do nothing without one. They never write, never block

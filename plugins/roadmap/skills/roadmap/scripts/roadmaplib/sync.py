@@ -7,7 +7,7 @@ requests and their pipelines, ticks gates that have evidence, and reports
 drift: open issues in an epic that the roadmap does not list, merge requests
 and Orca tasks with no roadmap issue, Orca tasks started before their issue's
 dependencies were Done, and roadmap issues with nothing behind them or no
-recent activity. With --write it saves the new status and gate ticks into
+recent activity (active work only). With --write it saves the new status and gate ticks into
 roadmap.json; it never writes to the forge or Orca.
 """
 
@@ -23,6 +23,28 @@ from . import blocks, forge, model, orca, render, validate
 BLOCKED_LABELS = {"blocked", "status::blocked", "status: blocked", "workflow::blocked"}
 PROGRESS_LABELS = {"in progress", "doing", "status::in progress", "status::doing", "workflow::in progress",
                    "status: in progress"}
+
+
+# Who clears each kind of drift. Every kind is something a person or an agent
+# can act on, so the scheduled drift issue counts them all; work that simply has
+# not started is not drift (no staleness for To do or Blocked, and nothing for a
+# Done issue that publish skipped). The agent hooks block a turn only on
+# "agent" kinds, for issues that turn changed.
+DRIFT_OWNER = {
+    "done-but-open": "agent",           # close the issue, or correct the status
+    "missing-on-forge": "agent",        # fix the ref
+    "marker-problem": "agent",          # repair the markers by hand
+    "quick-action": "agent",            # remove the command line by hand
+    "nothing-behind": "agent",          # open the merge request, or correct the status
+    "not-published": "lead",            # publish the agreed roadmap
+    "lead-gate-ticked-on-forge": "lead",  # record the approval in roadmap.json, or untick it
+    "unlisted-epic-issue": "lead",      # add it to the roadmap, or move it out of the epic
+    "unlinked-merge-request": "team",   # name its roadmap issue
+    "unlinked-orca-task": "team",       # rename the task after its roadmap issue
+    "started-early": "team",            # finish the dependencies first
+    "no-recent-activity": "team",       # pick active work back up, or change its status
+}
+AGENT_DRIFT = frozenset(k for k, who in DRIFT_OWNER.items() if who == "agent")
 
 
 class SyncRefused(Exception):
@@ -259,8 +281,9 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         if only is not None and iid not in only:
             continue
         if not it.get("ref"):
-            report.drift.append(Drift("not-published", iid, "has nothing behind it on the forge yet; "
-                                      "publish the agreed roadmap or link the existing issue"))
+            if it["status"] != "done":   # publish skips finished work with no forge issue on purpose
+                report.drift.append(Drift("not-published", iid, "has nothing behind it on the forge yet; "
+                                          "publish the agreed roadmap or link the existing issue"))
             continue
         try:
             fi = fg.get_issue(it["ref"])
@@ -336,8 +359,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         if new_gates != it["gates"]:
             raw_items[iid]["gates"] = new_gates
 
-        # Activity.
-        if it["status"] != "done":
+        # Activity: only work that has started can go stale.
+        if it["status"] in model.ACTIVE:
             times = [_parse_time(fi.get("updated_at"))] + [_parse_time(m.get("updated_at")) for m in mrs]
             latest = max((t for t in times if t), default=None)
             if latest and latest < stale_before:

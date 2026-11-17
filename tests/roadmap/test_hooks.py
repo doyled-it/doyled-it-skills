@@ -35,9 +35,15 @@ class Hook(unittest.TestCase):
         path.write_text(json.dumps(data or sync_roadmap()))
         return path
 
-    def transcript(self, text):
+    def transcript(self, text, commands=()):
+        """A transcript with the user's text and the Bash commands the agent ran."""
+        lines = [{"type": "user", "message": {"content": text}}]
+        for n, command in enumerate(commands):
+            lines.append({"type": "assistant", "message": {"content": [
+                {"type": "text", "text": "Running it."},
+                {"type": "tool_use", "id": f"t{n}", "name": "Bash", "input": {"command": command}}]}})
         path = self.dir / "transcript.jsonl"
-        path.write_text(json.dumps({"type": "user", "message": {"content": text}}) + "\n")
+        path.write_text("".join(json.dumps(x) + "\n" for x in lines))
         return path
 
     def run_hook(self, mode, payload, recorded="gitlab_sync.json", extra_env=None, argv=()):
@@ -49,9 +55,9 @@ class Hook(unittest.TestCase):
         return subprocess.run([sys.executable, str(HOOK), mode, *argv], input=json.dumps(payload), text=True,
                               capture_output=True, env=env, cwd=self.dir, timeout=60)
 
-    def stop(self, text, active=False, **kw):
+    def stop(self, text, active=False, commands=(), **kw):
         return self.run_hook("stop", {"hook_event_name": "Stop", "cwd": str(self.dir), "stop_hook_active": active,
-                                      "transcript_path": str(self.transcript(text))}, **kw)
+                                      "transcript_path": str(self.transcript(text, commands))}, **kw)
 
 
 class StopHook(Hook):
@@ -60,23 +66,47 @@ class StopHook(Hook):
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertEqual(res.stdout.strip(), "")
 
-    def test_drift_on_work_this_session_touched_blocks_the_turn(self):
+    def test_drift_on_work_this_session_changed_blocks_the_turn(self):
         data = sync_roadmap()
         issue(data, "page-design")["status"] = "done"     # #20 is still open on the forge
         self.roadmap(data)
-        res = self.stop("Finished page-design and sent the update.")
+        res = self.stop("Finish the results page design.",
+                        commands=['git commit -m "feat: results page layout (page-design)"'])
         self.assertEqual(res.returncode, 0, res.stderr)
         out = json.loads(res.stdout)
         self.assertEqual(out["decision"], "block")
-        self.assertIn("page-design", out["reason"])
+        self.assertIn("done-but-open", out["reason"])
         self.assertLess(len(out["reason"]), 900)
 
-    def test_a_roadmap_behind_the_forge_blocks_the_turn(self):
+    def test_a_roadmap_behind_the_forge_blocks_a_turn_that_changed_the_issue(self):
         self.roadmap()
-        res = self.stop("Merged the change for ranking-model.")
+        res = self.stop("Merge it.", commands=["glab mr merge 31 --squash  # ranking-model"])
         out = json.loads(res.stdout)
         self.assertEqual(out["decision"], "block")
         self.assertIn("--write", out["reason"])
+
+    def test_an_issue_only_mentioned_never_blocks(self):
+        """Reading roadmap.json or asking about an issue names it; that is not work on it."""
+        data = sync_roadmap()
+        issue(data, "page-design")["status"] = "done"
+        self.roadmap(data)
+        res = self.stop("What does page-design depend on? Just asking, no work. Also ranking-model?",
+                        commands=["cat roadmap.json", "python3 tools/roadmap/roadmap.py validate roadmap.json"])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        out = json.loads(res.stdout or "{}")
+        self.assertNotIn("decision", out)
+        self.assertIn("page-design", out.get("systemMessage", ""))
+
+    def test_drift_only_the_lead_or_time_can_clear_never_blocks(self):
+        """A stale backlog item and a lead gate ticked on the forge need the lead, not the agent."""
+        data = sync_roadmap()
+        issue(data, "page-design")["status"] = "to_do"    # #20: D ticked on the forge, no activity for weeks
+        self.roadmap(data)
+        res = self.stop("Started on it.", commands=['git commit -m "chore: page-design sketch"'])
+        out = json.loads(res.stdout or "{}")
+        self.assertNotIn("decision", out)
+        self.assertIn("lead-gate-ticked-on-forge", out.get("systemMessage", ""))
+        self.assertNotIn("no-recent-activity", out.get("systemMessage", ""))
 
     def test_work_not_on_the_roadmap_is_not_checked(self):
         self.roadmap()
@@ -85,7 +115,7 @@ class StopHook(Hook):
 
     def test_it_never_blocks_twice_in_a_row(self):
         self.roadmap()
-        res = self.stop("Merged the change for ranking-model.", active=True)
+        res = self.stop("Merge it.", active=True, commands=["glab mr merge 31  # ranking-model"])
         self.assertEqual(res.stdout.strip(), "")
 
     def test_network_errors_fail_open_with_a_warning(self):

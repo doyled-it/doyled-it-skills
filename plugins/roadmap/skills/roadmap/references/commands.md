@@ -143,20 +143,24 @@ other queued tasks are waiting.
 
 Drift kinds:
 
-| Kind | Meaning |
-| --- | --- |
-| `not-published` | A roadmap issue with nothing behind it on the forge. |
-| `missing-on-forge` | The roadmap names a forge issue that cannot be read. |
-| `no-recent-activity` | No forge activity on an unfinished issue for `--stale-days`. |
-| `nothing-behind` | In progress or in review, with no merge request and no Orca task. |
-| `done-but-open` | Done on the roadmap, open on the forge. |
-| `lead-gate-ticked-on-forge` | A lead gate (D or U) is ticked on the forge but not recorded in `roadmap.json`; it was not ticked. |
-| `marker-problem` | A description's generated-section markers are broken; nothing was read from or written to that section. Fix it by hand. |
-| `quick-action` | GitLab only: an epic's hand-written text has a line GitLab would run as a command (`/close`); the roadmap section was not written. Remove the line or put it in a code block. |
-| `unlisted-epic-issue` | An open issue in a roadmap epic that the roadmap does not list. |
-| `unlinked-merge-request` | An open merge request that no roadmap issue accounts for. |
-| `unlinked-orca-task` | An active Orca task whose title does not start with a roadmap issue's short name or link. |
-| `started-early` | A running Orca task for an issue whose dependencies are not Done. |
+| Kind | Meaning | Who clears it |
+| --- | --- | --- |
+| `not-published` | A roadmap issue that is not Done, with nothing behind it on the forge. | the lead: publish |
+| `missing-on-forge` | The roadmap names a forge issue that cannot be read. | the agent: fix the ref |
+| `no-recent-activity` | No forge activity for `--stale-days` on an issue In progress or In review (To do and Blocked never go stale). | the team |
+| `nothing-behind` | In progress or in review, with no merge request and no Orca task. | the agent |
+| `done-but-open` | Done on the roadmap, open on the forge. | the agent |
+| `lead-gate-ticked-on-forge` | A lead gate (D or U) is ticked on the forge but not recorded in `roadmap.json`; it was not ticked. | the lead |
+| `marker-problem` | A description's generated-section markers are broken; nothing was read from or written to that section. Fix it by hand. | the agent |
+| `quick-action` | GitLab only: an epic's hand-written text has a line GitLab would run as a command (`/close`); the roadmap section was not written. Remove the line or put it in a code block. | the agent |
+| `unlisted-epic-issue` | An open issue in a roadmap epic that the roadmap does not list. | the lead |
+| `unlinked-merge-request` | An open merge request that no roadmap issue accounts for. | the team |
+| `unlinked-orca-task` | An active Orca task whose title does not start with a roadmap issue's short name or link. | the team |
+| `started-early` | A running Orca task for an issue whose dependencies are not Done. | the team |
+
+The agent hooks block a turn only on the agent's kinds, and only for issues
+that turn changed (see [enforcement.md](enforcement.md)); the drift issue
+counts every kind.
 
 A merge request counts as accounted for when the forge links it to a roadmap
 issue, when it mentions a roadmap issue's reference or short name, or when the
