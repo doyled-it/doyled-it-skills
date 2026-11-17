@@ -334,10 +334,16 @@ class HttpTransport:
         return self._request(method, path, body)
 
 
-def _check_drift_issue(issue: dict) -> dict:
+def is_drift_issue(issue: dict, author: str | None) -> bool:
+    """The tool's own open drift issue: its title, its marker block, and opened by the token's user."""
+    return (issue.get("state") == "open" and blocks.one_line(issue.get("title")) == DRIFT_TITLE
+            and blocks.block_content(issue.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is not None
+            and bool(author) and issue.get("author") == author)
+
+
+def _check_drift_issue(issue: dict, author: str | None) -> dict:
     """The issue, re-read from the forge, only if it is the tool's own open drift issue."""
-    if (issue.get("state") != "open" or blocks.one_line(issue.get("title")) != DRIFT_TITLE
-            or blocks.block_content(issue.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is None):
+    if not is_drift_issue(issue, author):
         raise ForgeError(f'refusing to close {issue.get("ref")}: it is not the open "{DRIFT_TITLE}" issue '
                          "this tool keeps")
     return issue
@@ -401,7 +407,11 @@ class GitLab:
                 "state": "closed" if d.get("state") == "closed" else "open", "body": d.get("description") or "",
                 "labels": list(d.get("labels") or []), "updated_at": d.get("updated_at"),
                 "epic_number": (d.get("epic") or {}).get("iid") or d.get("epic_iid"),
-                "epic_id": (d.get("epic") or {}).get("id")}
+                "epic_id": (d.get("epic") or {}).get("id"), "author": (d.get("author") or {}).get("username")}
+
+    def current_user(self) -> str | None:
+        """The user the token or login belongs to."""
+        return (self.t.get("user") or {}).get("username")
 
     def get_issue(self, ref: str) -> dict:
         project, n = split_issue_ref(ref)
@@ -430,8 +440,8 @@ class GitLab:
     def in_epic(self, issue: dict, epic: dict) -> bool:
         return bool(epic.get("number")) and issue.get("epic_number") == epic["number"]
 
-    def close_drift_issue(self, issue: dict) -> None:
-        fresh = _check_drift_issue(self.get_issue(issue["ref"]))
+    def close_drift_issue(self, issue: dict, author: str | None) -> None:
+        fresh = _check_drift_issue(self.get_issue(issue["ref"]), author)
         self.t.send("PUT", f"projects/{enc(fresh['project'])}/issues/{fresh['number']}", {"state_event": "close"},
                     allow_close=True)
 
@@ -536,7 +546,11 @@ class GitHub:
                 "state": "closed" if d.get("state") == "closed" else "open", "body": d.get("body") or "",
                 "labels": [lb["name"] if isinstance(lb, dict) else lb for lb in d.get("labels") or []],
                 "updated_at": d.get("updated_at"), "epic_number": None,
-                "is_pull_request": "pull_request" in d}
+                "is_pull_request": "pull_request" in d, "author": (d.get("user") or {}).get("login")}
+
+    def current_user(self) -> str | None:
+        """The user the token or login belongs to."""
+        return (self.t.get("user") or {}).get("login")
 
     def get_issue(self, ref: str) -> dict:
         project, n = split_issue_ref(ref)
@@ -566,8 +580,8 @@ class GitHub:
             return False
         return issue.get("id") in {i["id"] for i in self.epic_issues(epic)}
 
-    def close_drift_issue(self, issue: dict) -> None:
-        fresh = _check_drift_issue(self.get_issue(issue["ref"]))
+    def close_drift_issue(self, issue: dict, author: str | None) -> None:
+        fresh = _check_drift_issue(self.get_issue(issue["ref"]), author)
         self.t.send("PATCH", f"repos/{fresh['project']}/issues/{fresh['number']}", {"state": "closed"},
                     allow_close=True)
 
@@ -752,6 +766,8 @@ class Forgejo(GitHub):
             if not src.get("number") or src.get("pull_request"):
                 continue
             issue = self._issue(src, project)
+            if issue["project"] != project:
+                continue   # a mention from another repository, which anyone can make
             if issue["ref"] not in seen:
                 seen.add(issue["ref"])
                 out.append(issue)

@@ -23,11 +23,14 @@ class FakeGitHub:
         self.fail_on_write = fail_on_write
         self.guard = forge.WriteGuard(commands=False)
         self._next_id = 9000
+        self.me: str | None = "roadmap-bot"   # the token's user; None: the forge will not say
 
     # state helpers
-    def add_issue(self, repo: str, number: int, title: str, body: str = "", state: str = "open") -> dict:
+    def add_issue(self, repo: str, number: int, title: str, body: str = "", state: str = "open",
+                  author: str | None = None) -> dict:
         self._next_id += 1
         d = {"id": self._next_id, "number": number, "title": title, "body": body, "state": state, "labels": [],
+             "user": {"login": author or self.me or "someone"},
              "updated_at": "2026-11-16T10:00:00Z", "html_url": f"https://github.com/{repo}/issues/{number}",
              "repository_url": f"https://api.github.com/repos/{repo}"}
         self.issues[(repo, number)] = d
@@ -42,6 +45,10 @@ class FakeGitHub:
     # transport interface
     def get(self, path: str):
         path, _, query = path.partition("?")
+        if path == "user":
+            if self.me is None:
+                raise forge.ForgeError("GET user failed: HTTP 401")
+            return {"login": self.me}
         m = re.fullmatch(r"repos/([^/]+/[^/]+)/issues", path)
         if m:
             state = dict(p.split("=") for p in query.split("&") if p).get("state", "open")

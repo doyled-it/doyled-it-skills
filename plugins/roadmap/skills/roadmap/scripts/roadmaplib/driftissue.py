@@ -1,9 +1,10 @@
 """drift-issue: keep one "Roadmap drift" issue on the forge in step with sync's drift report.
 
 Created once when there is drift, updated in place (only the text between its
-own markers), and closed when drift is zero. It is the only issue the tool ever
-closes, and the close re-reads the issue and checks its title and marker block
-first. When the sync report is incomplete (a forge call failed), nothing is
+own markers), and closed when drift is zero. Only an open issue with that title
+and marker block that the token's own user opened counts: anyone can copy the
+title and the markers. It is the only issue the tool ever closes, and the close
+re-reads the issue and checks its title, marker block and author first. When the sync report is incomplete (a forge call failed), nothing is
 written: an incomplete report must not close the issue or rewrite it.
 """
 
@@ -52,9 +53,16 @@ def section(report, today: str) -> str:
     return "\n".join(lines)
 
 
-def _mine(issues: list[dict]) -> list[dict]:
-    return [i for i in issues if i["state"] == "open" and blocks.one_line(i["title"]) == TITLE
-            and blocks.block_content(i.get("body") or "", blocks.DRIFT_START, blocks.DRIFT_END) is not None]
+def _mine(issues: list[dict], me: str | None) -> list[dict]:
+    """Open drift issues the token's user opened. Anyone can copy the title and markers."""
+    return [i for i in issues if forge.is_drift_issue(i, me)]
+
+
+def _me(fg) -> str | None:
+    try:
+        return fg.current_user()
+    except forge.ForgeError:
+        return None
 
 
 def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
@@ -65,7 +73,14 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
     project = fg.project
     if not project:
         raise forge.ForgeError('set forge "project" in roadmap.json: the drift issue lives there')
-    open_ones = _mine(fg.all_issues(project))
+    me = _me(fg)
+    if me is None:
+        if apply:
+            raise forge.ForgeError("could not read which user the token belongs to (GET user), so the drift issue "
+                                   "cannot be told apart from a copy someone else opened; check the token")
+        result.notes.append("could not read which user the token belongs to, so no existing drift issue is "
+                            "trusted; with --apply this stops")
+    open_ones = _mine(fg.all_issues(project), me)
     if len(open_ones) > 1:
         result.notes.append(f'{len(open_ones)} open "{TITLE}" issues carry the marker; only '
                             f'{open_ones[0]["ref"]} is kept current')
@@ -75,7 +90,7 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
         if current:
             result.actions.append(Action("close-drift-issue", f"{current['ref']}: no drift left"))
             if apply:
-                fg.close_drift_issue(current)
+                fg.close_drift_issue(current, me)
         return result
     content = section(report, today)
     if current is None:

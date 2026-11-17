@@ -41,12 +41,16 @@ class ForgejoMembersFromMentions(unittest.TestCase):
                                                 "body": "Part of #10", "state": "open", "labels": [],
                                                 "html_url": "https://codeberg.org/example-org/search-service/issues/77"}},
             {"type": "pull_ref", "ref_issue": {"id": 8031, "number": 31, "title": "pr", "state": "open",
-                                               "pull_request": {"merged": False}}}]
+                                               "pull_request": {"merged": False}}},
+            {"type": "issue_ref", "ref_issue": {"id": 9001, "number": 5, "title": "Spam", "body": "see #10",
+                                                "state": "open", "labels": [],
+                                                "repository": {"full_name": "stranger/elsewhere"}}}]
         fg = forge.Forgejo(NoWrites(responses), host="codeberg.org", project="example-org/search-service")
         report = sync.sync(forgejo_roadmap(), fg, orca_tasks=[], now="2026-11-17")
         found = {d.target for d in report.drift if d.kind == "unlisted-epic-issue"}
         self.assertIn("example-org/search-service#77", found)
         self.assertNotIn("example-org/search-service#31", found)
+        self.assertNotIn("stranger/elsewhere#5", found)
 
 
 if __name__ == "__main__":

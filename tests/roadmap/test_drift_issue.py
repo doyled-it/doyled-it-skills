@@ -116,18 +116,55 @@ class OneDriftIssue(unittest.TestCase):
         self.assertEqual(mine["state"], "open")
 
 
+class OnlyItsOwnIssue(unittest.TestCase):
+    """Anyone can open an issue titled "Roadmap drift" with the markers; only the tool's own counts."""
+
+    def test_a_strangers_drift_issue_is_never_taken_over_or_closed(self):
+        fake = fresh_forge()
+        body = f"Look here.\n{blocks.DRIFT_START}\n- nothing\n{blocks.DRIFT_END}"
+        fake.add_issue(REPO, 40, "Roadmap drift", body, author="stranger")
+        result = run(drifting(), fake)
+        self.assertEqual([a.kind for a in result.actions], ["create-drift-issue"])
+        self.assertEqual(fake.issues[(REPO, 40)]["body"], body)
+        run(quiet(), fake)
+        self.assertEqual(fake.issues[(REPO, 40)]["state"], "open")
+        own = [d for d in drift_issues(fake) if d["user"]["login"] == "roadmap-bot"]
+        self.assertEqual([d["state"] for d in own], ["closed"])
+
+    def test_apply_refuses_when_the_token_user_is_unknown(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        n = len(fake.writes)
+        fake.me = None
+        with self.assertRaises(forge.ForgeError):
+            run(quiet(), fake)
+        self.assertEqual(len(fake.writes), n)
+        dry = run(quiet(), fake, apply=False)
+        self.assertTrue(any("token" in note for note in dry.notes))
+
+    def test_close_rereads_the_author(self):
+        fake = fresh_forge()
+        body = f"{blocks.DRIFT_START}\n- x\n{blocks.DRIFT_END}"
+        fake.add_issue(REPO, 41, "Roadmap drift", body, author="stranger")
+        fg = github(fake)
+        with self.assertRaises(forge.ForgeError):
+            fg.close_drift_issue(fg.get_issue(f"{REPO}#41"), author="roadmap-bot")
+        self.assertEqual(fake.issues[(REPO, 41)]["state"], "open")
+
+
 class CloseIsNarrow(unittest.TestCase):
     def test_close_refuses_any_issue_that_is_not_the_drift_issue(self):
         fake = fresh_forge()
         fg = github(fake)
         with self.assertRaises(forge.ForgeError):
-            fg.close_drift_issue(fg.get_issue(f"{REPO}#12"))
+            fg.close_drift_issue(fg.get_issue(f"{REPO}#12"), "roadmap-bot")
         self.assertEqual(fake.issues[(REPO, 12)]["state"], "open")
 
     def test_gitlab_rereads_the_issue_before_closing(self):
         """The caller's copy may be stale or forged: only the forge's own answer counts."""
-        def gitlab_issue(title, body, state="opened"):
+        def gitlab_issue(title, body, state="opened", author="roadmap-bot"):
             return {"id": 1, "iid": 40, "project_id": 7, "title": title, "description": body, "state": state,
+                    "author": {"username": author},
                     "references": {"full": "acme/search#40"}, "web_url": "https://gitlab.example.com/acme/search/-/issues/40"}
 
         drift_body = f"{blocks.DRIFT_START}\n- x\n{blocks.DRIFT_END}"
@@ -135,7 +172,8 @@ class CloseIsNarrow(unittest.TestCase):
             gitlab_issue("Roadmap drift", drift_body))
         for now in (gitlab_issue("Ship the ranking model", "Real work."),
                     gitlab_issue("Roadmap drift", "Markers removed by a person."),
-                    gitlab_issue("Roadmap drift", drift_body, state="closed")):
+                    gitlab_issue("Roadmap drift", drift_body, state="closed"),
+                    gitlab_issue("Roadmap drift", drift_body, author="stranger")):
             writes = []
 
             class Recording(forge.RecordedTransport):
@@ -144,8 +182,9 @@ class CloseIsNarrow(unittest.TestCase):
 
             fg = forge.GitLab(Recording({"GET projects/acme%2Fsearch/issues/40": now}), "gitlab.example.com",
                               "acme/search", "acme")
-            with self.subTest(title=now["title"], state=now["state"]), self.assertRaises(forge.ForgeError):
-                fg.close_drift_issue(stale)
+            with self.subTest(title=now["title"], state=now["state"], author=now["author"]), \
+                    self.assertRaises(forge.ForgeError):
+                fg.close_drift_issue(stale, "roadmap-bot")
             self.assertEqual(writes, [])
 
     def test_the_guard_allows_only_a_bare_close(self):

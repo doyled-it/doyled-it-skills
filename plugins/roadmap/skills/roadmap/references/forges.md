@@ -158,8 +158,10 @@ GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
 Every write passes a guard that refuses any delete, any close, and any title
 that is not one line. The single exception is `drift-issue`, which may close
 the tool's own "Roadmap drift" issue when drift is zero: that call re-reads the
-issue, checks its title and marker block, and the guard accepts only a bare
-close with no other change.
+issue, checks its title, its marker block and that the token's own user opened
+it (anyone can copy a title and markers), and the guard accepts only a bare
+close with no other change. On Forgejo, an issue that mentions a parent issue
+counts as an epic member only when it is in the parent's repository.
 
 ### Forge commands in written text
 
