@@ -37,6 +37,12 @@ class WrongTypesAreFindings(unittest.TestCase):
         self.check(lambda d: issue(d, "page-build").__setitem__("detail", ["a"]))
         self.check(lambda d: issue(d, "page-build").__setitem__("merge_requests", [5]))
 
+    def test_title_version_date_goal_and_rule_must_be_text(self):
+        for key in ("title", "version", "date", "goal", "rule"):
+            for value in (5, True, None, ["Version 3"], {"text": "x"}):
+                with self.subTest(key=key, value=value):
+                    self.check(lambda d: d.__setitem__(key, value))
+
     def test_iterations_and_timeline_must_be_lists_of_objects(self):
         for key in ("iterations", "timeline"):
             for value in (5, "soon", {"name": "x"}, [5], ["text"]):

@@ -63,6 +63,9 @@ def check(raw: dict) -> list[Finding]:
             err("missing-field", "roadmap", f'missing required field "{key}"')
     if "agreed" in raw and not isinstance(raw["agreed"], bool):
         err("bad-type", "agreed", '"agreed" must be true or false')
+    for key in ("title", "version", "date", "goal", "rule"):
+        if key in raw and not isinstance(raw[key], str):
+            err("bad-type", key, f'"{key}" must be text')
     for key in ("epics", "issues"):
         if key in raw and not isinstance(raw[key], list):
             err("bad-type", key, f'"{key}" must be a list')
