@@ -113,7 +113,9 @@ With `--from-ci` the agreed roadmap is read from that base commit, not from the
 merge request: a merge request that adds an issue to `roadmap.json`, or sets
 `"agreed": true`, and changes other files is judged against the roadmap as it
 was before it. A base with no `roadmap.json` fails such a merge request, and a
-base commit git cannot find (a shallow clone) exits 2.
+base commit git cannot find (a shallow clone) exits 2. So does a pipeline in
+which the forge gives no base commit at all: the only roadmap left would be the
+merge request's own copy, which the check never trusts.
 
 ## drift-issue
 

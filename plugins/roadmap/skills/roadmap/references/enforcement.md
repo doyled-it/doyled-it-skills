@@ -55,6 +55,8 @@ Any other file in the same merge request needs a roadmap issue as usual, and a
 renamed file counts as changed under both names.
 
 The roadmap the check trusts is the one at the merge request's base commit.
+When the forge gives no base commit, or git cannot find it, the check stops
+with exit 2 rather than trust the merge request's own copy.
 A merge request cannot add its own issue to `roadmap.json`, or agree a draft,
 and name it in the same change: the issue must be on the agreed roadmap before
 the work's merge request is opened.

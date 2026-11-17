@@ -67,16 +67,26 @@ class Names(unittest.TestCase):
 
 class FromCI(unittest.TestCase):
     def run_cli(self, env, roadmap=None):
+        """check-mr --from-ci in a scratch repository whose one commit, the base, holds the roadmap."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "roadmap.json"
             path.write_text(json.dumps(roadmap or example()))
+            for args in (["init", "-q"], ["add", "roadmap.json"],
+                         ["-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "base"]):
+                subprocess.run(["git", "-C", tmp, *args], capture_output=True, check=True)
+            base = subprocess.run(["git", "-C", tmp, "rev-parse", "HEAD"], capture_output=True, text=True,
+                                  check=True).stdout.strip()
             full_env = {k: v for k, v in os.environ.items() if not k.startswith(("CI_", "GITLAB", "GITHUB", "FORGEJO",
                                                                                   "GITEA"))}
             full_env.update({k: v.replace("{tmp}", tmp) for k, v in env.items()})
+            if "GITLAB_CI" in env:
+                full_env.setdefault("CI_MERGE_REQUEST_DIFF_BASE_SHA", base)
             if "event" in env:
-                Path(tmp, "event.json").write_text(env["event"])
-            return subprocess.run([sys.executable, str(CLI), "check-mr", str(path), "--from-ci"],
-                                  capture_output=True, text=True, env=full_env)
+                event = json.loads(env["event"])
+                event.get("pull_request", {}).setdefault("base", {"sha": base})
+                Path(tmp, "event.json").write_text(json.dumps(event))
+            return subprocess.run([sys.executable, str(CLI), "check-mr", "roadmap.json", "--from-ci"],
+                                  capture_output=True, text=True, env=full_env, cwd=tmp)
 
     def test_gitlab_merge_request_pipeline(self):
         data = example()
@@ -183,7 +193,7 @@ class JudgedByTheBaseRoadmap(unittest.TestCase):
     def git(self, repo, *args):
         return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout
 
-    def run_ci(self, base_files, change, title, gitlab=True, base_sha=None):
+    def run_ci(self, base_files, change, title, gitlab=True, base_sha=None, no_base=False):
         """A scratch repository: commit base_files, apply change(repo), commit, and run check-mr --from-ci."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "repo"
@@ -204,10 +214,11 @@ class JudgedByTheBaseRoadmap(unittest.TestCase):
             if gitlab:
                 env.update({"GITLAB_CI": "true", "CI_MERGE_REQUEST_TITLE": title,
                             "CI_MERGE_REQUEST_DESCRIPTION": "", "CI_MERGE_REQUEST_PROJECT_PATH": REPO,
-                            "CI_MERGE_REQUEST_DIFF_BASE_SHA": base})
+                            "CI_MERGE_REQUEST_DIFF_BASE_SHA": "" if no_base else base})
             else:
                 event = Path(tmp) / "event.json"
-                event.write_text(json.dumps({"pull_request": {"title": title, "body": "", "base": {"sha": base}}}))
+                pr = {"title": title, "body": "", "base": {} if no_base else {"sha": base}}
+                event.write_text(json.dumps({"pull_request": pr}))
                 env.update({"GITHUB_ACTIONS": "true", "GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": REPO})
             return subprocess.run([sys.executable, str(CLI), "check-mr", "roadmap.json", "--from-ci"],
                                   capture_output=True, text=True, env=env, cwd=repo)
@@ -251,6 +262,16 @@ class JudgedByTheBaseRoadmap(unittest.TestCase):
         res = self.run_ci(base, self.add_own_issue(), "my-side-thing: tweak", base_sha="0123456789abcdef0123")
         self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
         self.assertIn("full history", res.stdout)
+
+    def test_no_base_commit_from_the_forge_stops_the_check(self):
+        """Without a base commit the only roadmap at hand is the merge request's own: never trust it."""
+        base = {"roadmap.json": json.dumps(example()), "app.py": "print('base')\n"}
+        for gitlab in (True, False):
+            with self.subTest(gitlab=gitlab):
+                res = self.run_ci(base, self.add_own_issue(), "my-side-thing: tweak", gitlab, no_base=True)
+                self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+                self.assertIn("no base commit", res.stdout)
+                self.assertNotIn("OK:", res.stdout)
 
     def test_renaming_code_to_the_roadmap_page_is_not_a_roadmap_change(self):
         base = {"roadmap.json": json.dumps(example()), "core.py": "def main():\n    return 1\n" * 20}

@@ -143,13 +143,15 @@ def cmd_check_mr(args) -> int:
         if args.from_ci:
             title, body, project = checkmr.from_ci()
             base = checkmr.ci_base()
-            if base:
-                # The agreed roadmap is the base commit's, never the merge request's own copy.
-                data = checkmr.base_roadmap(base, args.roadmap)
-            else:
-                data = _load(args.roadmap)
-                print("note: the forge gave no base commit, so the roadmap in this merge request was used")
-            if changed is None and base:
+            if not base:
+                # The only roadmap left would be the merge request's own copy, which it can edit.
+                print("error: the forge gave no base commit (CI_MERGE_REQUEST_DIFF_BASE_SHA on GitLab, "
+                      "pull_request.base.sha on GitHub and Forgejo), so the agreed roadmap cannot be read; "
+                      "run the job only for merge request pipelines")
+                return 2
+            # The agreed roadmap is the base commit's, never the merge request's own copy.
+            data = checkmr.base_roadmap(base, args.roadmap)
+            if changed is None:
                 changed = checkmr.changed_files(base)
                 if changed is None:
                     print("note: git could not list the changed files (fetch the full history); checked the "
