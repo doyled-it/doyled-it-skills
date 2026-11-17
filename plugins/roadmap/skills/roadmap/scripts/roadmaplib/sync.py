@@ -18,12 +18,16 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
-from . import blocks, model, orca
+from . import blocks, forge, model, orca, render, validate
 
 DEFAULT_GATE_RULES = {"M": "mr_merged"}
 BLOCKED_LABELS = {"blocked", "status::blocked", "status: blocked", "workflow::blocked"}
 PROGRESS_LABELS = {"in progress", "doing", "status::in progress", "status::doing", "workflow::in progress",
                    "status: in progress"}
+
+
+class SyncRefused(Exception):
+    """sync will not run: the roadmap has structural errors, or a forge write was asked of a draft."""
 
 
 @dataclass
@@ -57,21 +61,28 @@ class SyncReport:
     merge_requests: dict[str, list[dict]] = field(default_factory=dict)
     drift: list[Drift] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)   # forge reads or writes that failed: the report is incomplete
+    cleared: list[str] = field(default_factory=list)  # issues whose recorded merge requests are gone
 
     @property
     def changed(self) -> bool:
-        return bool(self.status_changes or self.gate_ticks or self.merge_requests)
+        return bool(self.status_changes or self.gate_ticks or self.merge_requests or self.cleared)
 
     def as_dict(self) -> dict:
         return {"status_changes": [asdict(c) for c in self.status_changes],
                 "gate_ticks": [asdict(t) for t in self.gate_ticks],
                 "merge_requests": self.merge_requests,
                 "drift": [asdict(d) for d in self.drift],
-                "notes": self.notes}
+                "notes": self.notes,
+                "errors": self.errors}
 
     def text(self) -> str:
         lines = ["Sync is read-only on the forge and Orca unless --update-epics is given. "
                  "Use --write to save status and gates into roadmap.json.", ""]
+        if self.errors:
+            lines += ["Incomplete: these forge calls failed, so the report below misses what they would have "
+                      "shown. Nothing is saved; run sync again once the forge answers."]
+            lines += [f"  {e}" for e in self.errors] + [""]
         lines.append("Status changes")
         lines += [f"  {c.issue}: {model.STATUSES[c.old]} -> {model.STATUSES[c.new]} ({c.why})"
                   for c in self.status_changes] or ["  none"]
@@ -90,6 +101,12 @@ class SyncReport:
         if self.notes:
             lines += ["", "Notes"] + [f"  {n}" for n in self.notes]
         return "\n".join(lines)
+
+
+def parse_now(value: str) -> datetime:
+    """An ISO date (or date and time) for --now; raises ValueError when it is not one."""
+    dt = datetime.fromisoformat(value)
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _parse_time(value: str | None) -> datetime | None:
@@ -184,6 +201,16 @@ RANK = {"to_do": 0, "blocked": 1, "in_progress": 2, "in_review": 3, "done": 4}
 
 def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None = None,
          update_epics: bool = False) -> SyncReport:
+    findings = validate.errors(validate.check(raw))
+    structural = [f for f in findings if f.code in render.BLOCKING]
+    if structural:
+        raise SyncRefused("fix these first:\n" + "\n".join(str(f) for f in structural))
+    if update_epics and not raw.get("agreed"):
+        raise SyncRefused("--update-epics writes to the forge, and this roadmap is a draft; "
+                          'set "agreed": true once the program lead agrees it')
+    if update_epics and findings:
+        raise SyncRefused("--update-epics writes to the forge; fix these first:\n"
+                          + "\n".join(str(f) for f in findings))
     out = copy.deepcopy(raw)
     data = model.normalize(raw)
     items = model.issues_by_id(data)
@@ -191,7 +218,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     report = SyncReport(roadmap=out)
     cfg = data.get("forge") or {}
     rules = dict(DEFAULT_GATE_RULES, **(cfg.get("gate_rules") or {}))
-    today = (datetime.fromisoformat(now).replace(tzinfo=timezone.utc) if now
+    today = (parse_now(now) if now
              else datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc))
     stale_before = today - timedelta(days=stale_days)
 
@@ -204,6 +231,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     if tasks is not None:
         for t in orca.active(tasks):
             task_issue[t["id"]] = orca.match(t, items)
+    started = {t["id"] for t in orca.started(tasks)} if tasks is not None else set()
 
     projects = roadmap_projects(data, cfg)
     lead = model.lead_gates(data)
@@ -217,10 +245,17 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             continue
         try:
             fi = fg.get_issue(it["ref"])
-        except Exception as exc:  # a missing or unreadable issue is drift, not a crash
-            report.drift.append(Drift("missing-on-forge", iid, f'{it["ref"]} could not be read: {exc}'))
+        except forge.NotFound as exc:
+            report.drift.append(Drift("missing-on-forge", iid, f'{it["ref"]} does not exist or cannot be seen: {exc}'))
             continue
-        related = fg.related_mrs(fi)
+        except forge.ForgeError as exc:   # a rate limit or server error is not a missing issue
+            report.errors.append(f'{iid}: reading {it["ref"]} failed: {exc}')
+            continue
+        try:
+            related = fg.related_mrs(fi)
+        except forge.ForgeError as exc:
+            report.errors.append(f'{iid}: reading the merge requests of {it["ref"]} failed: {exc}')
+            continue
         # Only merge requests in the roadmap's own projects count: anyone can
         # mention an issue from a repository of their own.
         mrs = [m for m in related if m.get("project") in projects]
@@ -234,15 +269,17 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             report.merge_requests[iid] = [{k: m.get(k) for k in ("ref", "url", "state", "draft", "pipeline",
                                                                    "pipeline_url")} for m in mrs]
             raw_items[iid]["merge_requests"] = report.merge_requests[iid]
+        elif raw_items[iid].pop("merge_requests", None) is not None:
+            report.cleared.append(iid)
 
         # Status.
         new, why = _forge_status(fi, mrs, cfg)
         old = it["status"]
-        if new and new != old:
+        if old == "done" and fi["state"] == "open":
+            report.drift.append(Drift("done-but-open", iid, f'Done on the roadmap but {fi["ref"]} is open'))
+        elif new and new != old:
             forward = RANK[new] > RANK[old] or new == "blocked" or old == "blocked"
-            if old == "done" and new != "done":
-                report.drift.append(Drift("done-but-open", iid, f'Done on the roadmap but {fi["ref"]} is open'))
-            elif forward:
+            if forward:
                 report.status_changes.append(StatusChange(iid, old, new, why))
                 raw_items[iid]["status"] = new
                 it = dict(it, status=new)
@@ -299,12 +336,17 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
         epic = None
         try:
             epic = fg.get_epic(ep["ref"])
-        except Exception as exc:
+        except forge.NotFound as exc:
             report.notes.append(f'epic {ep["ref"]} could not be read: {exc}')
+        except forge.ForgeError as exc:
+            report.errors.append(f'{ep["id"]}: reading epic {ep["ref"]} failed: {exc}')
         try:
             members = fg.epic_issues(epic or {"ref": ep["ref"], "number": int(re.split(r"[#&]", ep["ref"])[-1])})
-        except Exception as exc:
+        except forge.NotFound as exc:
             report.notes.append(f'issues in epic {ep["ref"]} could not be read: {exc}')
+            members = []
+        except forge.ForgeError as exc:
+            report.errors.append(f'{ep["id"]}: reading the issues of epic {ep["ref"]} failed: {exc}')
             members = []
         for fi in members:
             if fi["state"] == "open" and fi["ref"] not in roadmap_refs:
@@ -320,8 +362,14 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             continue
         if body == (epic.get("body") or ""):
             continue
-        if update_epics:
-            fg.update_epic_body(epic, body)
+        if update_epics and report.errors:
+            report.notes.append(f'did not update epic {ep["ref"]} ({ep["id"]}): the report is incomplete')
+        elif update_epics:
+            try:
+                fg.update_epic_body(epic, body)
+            except forge.ForgeError as exc:
+                report.errors.append(f'{ep["id"]}: writing the roadmap section of epic {ep["ref"]} failed: {exc}')
+                continue
             report.notes.append(f'updated the roadmap section in epic {ep["ref"]} ({ep["id"]})')
         else:
             report.notes.append(f'the roadmap section in epic {ep["ref"]} ({ep["id"]}) is out of date; '
@@ -333,8 +381,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     for project in projects:
         try:
             mrs = fg.open_mrs(project)
-        except Exception as exc:
-            report.notes.append(f"merge requests in {project} could not be read: {exc}")
+        except forge.ForgeError as exc:
+            report.errors.append(f"reading the open merge requests of {project} failed: {exc}")
             continue
         for mr in mrs:
             if mr["ref"] in known_mrs or mr["ref"] in named:
@@ -355,6 +403,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
                 report.drift.append(Drift("unlinked-orca-task", t["id"],
                                           f'Orca task "{t["title"]}" does not start with a roadmap issue name'))
                 continue
+            if t["id"] not in started:
+                continue   # queued or waiting in Orca: not started yet
             waiting = [d for d in items[iid]["depends_on"] if raw_items[d]["status"] != "done"]
             if waiting:
                 report.drift.append(Drift("started-early", iid,

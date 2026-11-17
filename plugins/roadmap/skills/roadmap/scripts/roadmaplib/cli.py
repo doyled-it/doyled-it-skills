@@ -84,6 +84,9 @@ def cmd_publish(args) -> int:
 def cmd_sync(args) -> int:
     from . import forge, orca, sync
 
+    if args.update_epics and not args.write:
+        print("error: --update-epics needs --write, so the epics on the forge and roadmap.json show the same status")
+        return 2
     data = _load(args.roadmap)
     try:
         fg = forge.from_args(data, args)
@@ -91,16 +94,32 @@ def cmd_sync(args) -> int:
         print(f"error: {exc}")
         return 2
     tasks = orca.tasks_from_args(data, args)
-    report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now,
-                       update_epics=args.update_epics)
+    try:
+        report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now,
+                           update_epics=args.update_epics)
+    except (sync.SyncRefused, forge.ForgeError) as exc:
+        print(f"error: {exc}")
+        return 2
     if args.json:
         print(json.dumps(report.as_dict(), indent=2))
     else:
         print(report.text())
+    if report.errors:
+        return 1
     if args.write and report.changed:
         model.save(args.roadmap, report.roadmap)
         print(f"updated status and gates in {args.roadmap}; re-render the page next")
     return 0
+
+
+def _iso_date(value: str) -> str:
+    from . import sync
+
+    try:
+        sync.parse_now(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'"{value}" is not an ISO date such as 2026-11-17') from None
+    return value
 
 
 def _forge_args(p: argparse.ArgumentParser) -> None:
@@ -145,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="rewrite the generated roadmap section in each epic (the only forge write sync makes)")
     s.add_argument("--json", action="store_true", help="print the report as JSON")
     s.add_argument("--stale-days", type=int, default=14, help="no activity for this many days is drift")
-    s.add_argument("--now", help="ISO date to measure staleness from (default: today)")
+    s.add_argument("--now", type=_iso_date, help="ISO date to measure staleness from (default: today)")
     s.add_argument("--orca-run", help="Orca run id to read tasks from (default: roadmap orca.run)")
     s.add_argument("--orca-json", help="read Orca tasks from this JSON file instead of the orca CLI")
     s.add_argument("--no-orca", action="store_true", help="skip the Orca check")

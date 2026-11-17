@@ -22,8 +22,19 @@ def parse_tasks(raw) -> list[dict]:
             for t in raw or [] if isinstance(t, dict)]
 
 
+# Tasks a worker is actually running. Others ("ready", "blocked", "pending",
+# "queued") are waiting, so they have not started anything early.
+STARTED = {"dispatched", "running", "in_progress", "active", "working", "started"}
+
+
 def active(tasks: list[dict]) -> list[dict]:
+    """Tasks not finished: running or waiting."""
     return [t for t in tasks if t["status"] not in FINISHED]
+
+
+def started(tasks: list[dict]) -> list[dict]:
+    """Tasks a worker is running now."""
+    return [t for t in tasks if t["status"] in STARTED]
 
 
 def read_run(run: str) -> list[dict]:
@@ -32,7 +43,8 @@ def read_run(run: str) -> list[dict]:
     proc = subprocess.run(["orca", "orchestration", "task-list", "--run", run, "--json"],
                           capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError((proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["orca failed"])
+        lines = (proc.stderr or proc.stdout).strip().splitlines()
+        raise RuntimeError(lines[-1] if lines else "orca failed")
     return parse_tasks(json.loads(proc.stdout))
 
 

@@ -80,7 +80,7 @@ roadmap.py sync roadmap.json [--write] [--json] [--update-epics]
 | Option | Meaning |
 | --- | --- |
 | `--write` | Save status, gate ticks and merge request links into `roadmap.json`. Never writes to the forge or Orca. |
-| `--update-epics` | Rewrite the generated section in each published epic. The only forge write sync makes. |
+| `--update-epics` | Rewrite the generated section in each published epic. The only forge write sync makes. Needs `--write`, an agreed roadmap and no validate errors. |
 | `--json` | Print the report as JSON. |
 | `--stale-days N` | No forge activity for N days is drift (default 14). |
 | `--now DATE` | Measure staleness from this ISO date (default today). |
@@ -88,6 +88,15 @@ roadmap.py sync roadmap.json [--write] [--json] [--update-epics]
 | `--orca-json FILE` | Read Orca tasks from a file instead of the orca CLI. |
 | `--no-orca` | Skip the Orca check. |
 | `--forge`, `--repo`, `--recorded` | As for publish. |
+
+sync refuses a roadmap with structural errors (a dangling dependency, a loop,
+a missing field). When a forge read or write fails (a rate limit, a server
+error), the report starts with "Incomplete" and lists the failures, nothing is
+saved, and the command exits 1; an issue that does not exist is
+`missing-on-forge` drift instead. With `--write`, merge requests no longer
+linked to an issue are removed from its record. Only Orca tasks a worker is
+running (`dispatched`, `running`) count as started; `ready`, `blocked` and
+other queued tasks are waiting.
 
 Drift kinds:
 
@@ -103,7 +112,7 @@ Drift kinds:
 | `unlisted-epic-issue` | An open issue in a roadmap epic that the roadmap does not list. |
 | `unlinked-merge-request` | An open merge request that no roadmap issue accounts for. |
 | `unlinked-orca-task` | An active Orca task whose title does not start with a roadmap issue's short name or link. |
-| `started-early` | An Orca task for an issue whose dependencies are not Done. |
+| `started-early` | A running Orca task for an issue whose dependencies are not Done. |
 
 A merge request counts as accounted for when the forge links it to a roadmap
 issue, when it mentions a roadmap issue's reference or short name, or when the
