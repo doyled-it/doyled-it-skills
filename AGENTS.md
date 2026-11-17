@@ -29,11 +29,15 @@
   never record private forge content); the smoke check additionally needs the
   CodeGraph CLI and uv for scaffold validation.
 - Roadmap safety rules any change must keep, each with a test: text the tool
-  writes is neutralized (no line starting with `/`, one-line titles), a
-  description with broken markers is reported and never written, tokens go only
-  to their own host over https, gates D and U pass only from `approved_by` in
-  roadmap.json, nothing is deleted, and the only thing ever closed is the tool's
-  own "Roadmap drift" issue. The plugin's hooks never write and fail open.
+  writes is neutralized (no line GitLab would run as a quick action, one-line
+  titles), hand text holding such a line holds back only that one write, a
+  description with broken markers (or markers only inside code) is reported and
+  never written, tokens go only to their own host over https, gates D and U
+  pass only from `approved_by` in roadmap.json, M only from a merged closing
+  merge request in the roadmap's projects, nothing is deleted, and the only thing ever closed is the tool's
+  own "Roadmap drift" issue (opened by the token's own user). The plugin's
+  hooks never write, fail open, stay silent without a roadmap, and block a
+  turn only on drift the agent can fix for issues that turn changed.
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.

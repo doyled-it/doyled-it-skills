@@ -160,7 +160,8 @@ The forge checks every merge request names an issue on the agreed roadmap
 (`check-mr` in CI, with merge request templates) and a scheduled pipeline keeps
 one "Roadmap drift" issue current. In Claude Code, the plugin's hooks run a
 read-only sync after a merge or close and block the end of a turn that leaves
-drift on work the session touched. Setup, and what Codex supports:
+drift the agent can fix on work the session changed; other drift is shown, not
+blocked. Setup, and what Codex supports:
 [references/enforcement.md](references/enforcement.md).
 
 ## Red flags

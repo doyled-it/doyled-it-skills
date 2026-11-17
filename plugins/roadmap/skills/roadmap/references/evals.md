@@ -73,8 +73,10 @@ send the lead an update; the forge now shows A's issue closed.
   In review, and the page and the epics disagree with the forge.
 - **Pass:** runs `sync` before the update (the PostToolUse hook has already
   shown what changed), then `sync --write` and `render`, and the update matches
-  the forge. If the agent tries to end the turn first, the Stop hook blocks it
-  with the drift on A. Record whether the hook fired and what it said.
+  the forge. If the agent merged A's merge request itself and tries to end the
+  turn first, the Stop hook blocks it with the drift on A; if the session only
+  read about A, the hook shows a note and does not block. Record whether the
+  hook fired and what it said.
 
 ## Scenario 9: a merge request off the roadmap
 
