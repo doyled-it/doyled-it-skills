@@ -71,6 +71,39 @@ class FailedApplyKeepsItsRecord(unittest.TestCase):
         self.assertTrue(created, "refs of what was created before the failure are saved")
 
 
+class SubIssueWriteFails(FakeGitHub):
+    def send(self, method, path, body=None, allow_close=False):
+        if path.endswith("/sub_issues"):
+            raise forge.ForgeError(f"{method} {path} failed: HTTP 403")
+        return super().send(method, path, body, allow_close)
+
+
+class GitHubCreateIsTwoWrites(unittest.TestCase):
+    """Creating an issue and making it a sub-issue are two writes: a failure on the second keeps the first."""
+
+    def test_the_new_issue_is_recorded_and_the_failed_link_is_the_last_action(self):
+        def make(cls):
+            fake = cls()
+            for number, title in ((10, "Better ranking"), (12, "Rank results by open rate")):
+                fake.add_issue(REPO, number, title)
+            fake.add_issue(REPO, 11, "Record which results people open", state="closed")
+            fake.sub_issues[(REPO, 10)] = [fake.issues[(REPO, n)]["id"] for n in (11, 12)]
+            return fake
+
+        fake = make(SubIssueWriteFails)
+        data = example()
+        data["epics"] = data["epics"][:1]
+        data["issues"] = [issue(data, "click-signals"), issue(data, "ranking-model"), issue(data, "ranking-check")]
+        report = publish.publish(data, github(fake), apply=True)
+        self.assertIn("HTTP 403", report.failed)
+        ref = issue(report.roadmap, "ranking-check").get("ref")
+        self.assertTrue(ref and ref.startswith(f"{REPO}#"), "the created issue is saved")
+        last = report.actions[-1]
+        self.assertEqual((last.kind, last.target), ("add-to-epic", "ranking-check"))
+        dry = publish.publish(data, github(make(FakeGitHub)), apply=False)
+        self.assertIn(("add-to-epic", "ranking-check"), [(a.kind, a.target) for a in dry.actions])
+
+
 class DoneWork(unittest.TestCase):
     def test_done_issue_with_no_ref_links_a_closed_issue_with_its_title(self):
         fake = fresh_forge()

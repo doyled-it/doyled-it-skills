@@ -188,10 +188,10 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
                     _write_back(raw_issues[iid], fi)
                     fresh.add(iid)
                     report.changed = True
-                    created_in_epic = bool(native_epics and epic.get("id"))
+                    created_in_epic = bool(native_epics and epic.get("id") and fg.create_sets_epic)
                 else:
                     fi = _placeholder("issue", iid, it["title"])
-                    created_in_epic = True
+                    created_in_epic = bool(fg.create_sets_epic or not native_epics)
         issues[iid] = fi
 
         if not fi.get("new") and iid not in fresh:

@@ -389,6 +389,7 @@ def command_hold(fg, body: str) -> str | None:
 class GitLab:
     kind = "gitlab"
     native_epics = True
+    create_sets_epic = True   # epic_id goes in the create call itself: one write
     epic_word = "group epic"
 
     def __init__(self, transport, host: str | None, project: str | None, group: str | None):
@@ -522,6 +523,7 @@ class GitLab:
 class GitHub:
     kind = "github"
     native_epics = True
+    create_sets_epic = False  # a sub-issue is a second write, which publish makes and reports itself
     epic_word = "parent issue"
 
     def __init__(self, transport, host: str | None, project: str | None, group: str | None = None):
@@ -567,10 +569,8 @@ class GitHub:
         return [i for i in self.all_issues(project) if i["state"] == "open"]
 
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
-        issue = self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
-        if epic and epic.get("id"):
-            self.add_to_epic(issue, epic)
-        return issue
+        """One write: the issue. Publish adds it to its parent with add_to_epic afterwards."""
+        return self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
 
     def update_issue_body(self, issue: dict, body: str) -> None:
         self.t.send("PATCH", f"repos/{issue['project']}/issues/{issue['number']}", {"body": body})
