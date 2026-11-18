@@ -573,6 +573,7 @@ class GitHub:
         self.host = host or "github.com"
         self.project = project
         self._open_cache: dict[str, list] = {}
+        self._member_ids: dict[tuple, set] = {}
 
     @staticmethod
     def _project_of(d: dict, default: str) -> str:
@@ -638,7 +639,10 @@ class GitHub:
     def in_epic(self, issue: dict, epic: dict) -> bool:
         if not epic.get("number"):
             return False
-        return issue.get("id") in {i["id"] for i in self.epic_issues(epic)}
+        key = (epic["ref"], epic["number"])
+        if key not in self._member_ids:   # one read per epic, however many issues ask
+            self._member_ids[key] = {i["id"] for i in self.epic_issues(epic)}
+        return issue.get("id") in self._member_ids[key]
 
     def close_drift_issue(self, issue: dict, author: str | None) -> None:
         fresh = _check_drift_issue(self.get_issue(issue["ref"]), author)
@@ -648,6 +652,7 @@ class GitHub:
     def add_to_epic(self, issue: dict, epic: dict) -> None:
         project = epic["ref"].rsplit("#", 1)[0]
         self.t.send("POST", f"repos/{project}/issues/{epic['number']}/sub_issues", {"sub_issue_id": issue["id"]})
+        self._member_ids.setdefault((epic["ref"], epic["number"]), set()).add(issue["id"])
 
     def blocked_by(self, issue: dict) -> list[dict]:
         raw = self.t.get_all(f"repos/{issue['project']}/issues/{issue['number']}/dependencies/blocked_by")

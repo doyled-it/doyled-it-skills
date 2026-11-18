@@ -150,12 +150,15 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
 
     # Epics.
     epics: dict[str, dict] = {}
+    open_epics: list[dict] | None = None   # listed at most once per run
     for ep in data["epics"]:
         if ep.get("ref"):
             epics[ep["id"]] = fg.get_epic(ep["ref"])
             report.add("link-epic", ep["id"], f'{ep["ref"]} (named in the roadmap)')
             continue
-        match = next((e for e in fg.open_epics() if e["ref"] not in claimed and _same(e["title"], ep["name"])), None)
+        if open_epics is None:
+            open_epics = fg.open_epics()
+        match = next((e for e in open_epics if e["ref"] not in claimed and _same(e["title"], ep["name"])), None)
         if match:
             claimed.add(match["ref"])
             epics[ep["id"]] = match
