@@ -118,6 +118,50 @@ the checks in the host repo's CI. The hook is Claude Code only; the hard per-com
 gate is unavailable on Codex, opencode, and other runtimes, which get the soft layer
 and the CI layer. The hook fails open on any error, never wedging an unrelated session.
 
+## Tabletop
+
+### dungeon-master-loop
+
+A superpowers-style loop for running D&D 5e (2024) as a Dungeon Master. World-building
+and session prep are two disciplines that feed each other: the world sets the initial
+conditions, prep turns the current world state into a session that is fun to run, and what
+happens at the table feeds back into the world. Most DM advice covers one step in
+isolation. This plugin makes the loop explicit and passes named artifacts between the
+steps, the way development-loop composes its phases.
+
+Start with the **dungeon-master-loop** skill. It is the orchestrator: it defines the
+artifact contract (setting canon, the Front, faction clocks, secrets and clues, hooks, the
+party roster, the session plan, encounters, statblocks, the mini inventory, the print
+manifest, and the session recap) and routes to nine sub-skills in a gated, two-pass order:
+
+- **worldbuilding-initial-conditions**: set the world, the central pressure (the Front),
+  the landing position, the cast, factions, and a pantheon, so play unfolds without a
+  scripted plot. Carries a cited story-model reference (railroad versus sandbox).
+- **session-zero**: safety tools and the bonds and wants that seed the world.
+- **party-composition**: capture the roster and derive the encounter baseline, tactical
+  gaps, and spotlight needs that everything downstream reads.
+- **session-prep**: the Lazy Dungeon Master eight steps, plus non-combat (social,
+  exploration, puzzle) challenge design, into a runnable session plan.
+- **encounter-design**: planned fights tuned to party size and makeup with the 2024 XP
+  budget, made interesting with objective, terrain, tactics, and pacing.
+- **improvised-combat**: a fast path for a fight with no prep, reusing the combat core and
+  preferring minis you own.
+- **custom-monsters**: homebrew and reskinned statblocks for 5e 2024, with edition-labeled
+  build math (the 2024 DMG has no create-a-monster table).
+- **printable-minis-and-terrain**: tie prep to 3D printing on a Bambu Lab X2D, with a
+  multi-session print lookahead, an owned-mini inventory, and proxy rules.
+- **advancing-the-world**: after the session, capture the recap, write prep and table
+  inventions into canon, tick clocks, roll secrets forward, and grow the Front.
+
+The rules and research are system-agnostic methodology. A thin vault-binding reference maps
+every artifact 1:1 to the-dungeon-games Obsidian vault. The suite ships as one plugin, so
+install it project-scoped to keep the D&D skills out of unrelated sessions:
+
+```bash
+# run inside your D&D workspace (for example the the-dungeon-games vault)
+claude plugin install dungeon-master-loop@doyled-it-skills --scope project
+```
+
 ## Install with native plugins
 
 For modern Claude Code and Codex, prefer
@@ -138,6 +182,9 @@ For manual Claude Code installation, add both marketplaces and install the plugi
 /plugin install nonfiction-superpowers@doyled-it-skills
 /plugin install printable-parts@doyled-it-skills
 ```
+
+The **dungeon-master-loop** plugin installs project-scoped instead (see Tabletop above),
+so its ten D&D skills load only in your game workspace, not in every session.
 
 Installing plugins exposes skills. Explicitly load the matching skill; mentioning a
 name in a plan is not an invocation. Native names are
