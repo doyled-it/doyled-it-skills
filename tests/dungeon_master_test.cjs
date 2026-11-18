@@ -44,8 +44,8 @@ test('marketplace entry and plugin metadata are consistent', () => {
   // Version is valid semver, not a hardcoded literal; pair with the marketplace entry only if it carries one.
   assert.match(p.version, /^\d+\.\d+\.\d+$/u, 'plugin version must be semver');
   if (entry.version !== undefined) assert.equal(p.version, entry.version);
-  // Plugins defer to the repo LICENSE rather than naming an SPDX id.
-  assert.equal(p.license, 'AGPL-3.0-only');
+  // Plugins defer to the repo LICENSE (Commons Clause plus AGPL-3.0) rather than naming an SPDX id.
+  assert.equal(p.license, 'SEE LICENSE IN LICENSE');
   // Description consistent across the two manifests (AGENTS.md requirement).
   assert.equal(p.description, entry.description);
   assert.match(p.description, /Start with the dungeon-master-loop skill\./u);
