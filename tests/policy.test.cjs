@@ -84,7 +84,7 @@ test('development loop explicitly routes bug diagnosis, reviews and inline execu
 
 test('changed plugins invalidate known installed caches', () => {
   for (const [name, version] of [
-    ['codegraph', '1.2.1'], ['development-loop', '1.2.1'], ['cross-repo-completeness', '1.1.1'],
+    ['codegraph', '1.2.2'], ['development-loop', '1.2.2'], ['cross-repo-completeness', '1.1.2'],
   ]) assert.equal(JSON.parse(read(`plugins/${name}/.claude-plugin/plugin.json`)).version, version);
 });
 
@@ -111,7 +111,7 @@ test('printable-parts: marketplace entry and plugin metadata are consistent', ()
   assert.equal(entry.source, './plugins/printable-parts');
   const plugin = ppPlugin();
   assert.equal(plugin.name, 'printable-parts');
-  assert.equal(plugin.version, '1.1.0');
+  assert.equal(plugin.version, '1.1.1');
   // Description consistent across the two manifests (AGENTS.md requirement).
   assert.equal(plugin.description, entry.description);
   assert.match(plugin.description, /text-to-cad/u);
