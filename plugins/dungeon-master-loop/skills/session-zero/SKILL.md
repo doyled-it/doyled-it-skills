@@ -56,6 +56,10 @@ or NPC to a bond or want. session-prep points the strong start at a want.
 
 ## Outputs (artifacts handed forward)
 
+In Obsidian (the default binding), the player-facing handout is marked with the Player Facing Notes
+`pfn` flag, and the bonds and wants feed PC notes that become Initiative Tracker party members, per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`.
+
 - Agreed safety tools, and the table's lines and veils (a hard constraint on all prep).
 - Table expectations and tone.
 - Per-character bonds and wants, feeding the party roster, the world finalize pass, and hooks.

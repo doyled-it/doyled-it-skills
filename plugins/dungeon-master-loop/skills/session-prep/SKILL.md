@@ -77,6 +77,10 @@ session note.
 
 ## Outputs (artifacts handed forward)
 
+In Obsidian (the default binding), the plan carries live blocks: Initiative Tracker `encounter`
+blocks for its fights and Randomness roll tables for its improv, per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`.
+
 A session plan: strong start, potential scenes, secrets in play, fantastic locations, NPCs,
 chosen or designed monsters, rewards, the non-combat challenges, and the "Prep inventions" list.
 encounter-design and improvised-combat consume its fights; printable-minis-and-terrain consumes

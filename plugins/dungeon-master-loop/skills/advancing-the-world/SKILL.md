@@ -105,6 +105,10 @@ to three active Fronts.
 
 ## Outputs (artifacts handed forward)
 
+In Obsidian (the default binding), a promoted NPC or a re-statted villain is written as a
+bestiary-indexed statblock (`statblock: inline`), per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`, so it stays live in the trackers.
+
 Updated setting canon, ticked faction clocks, a rolled-forward secrets list, new hooks and
 seeds, a re-stat flag on recurring villains, and an updated Front. session-prep reads all of
 these for the next session. The loop closes.

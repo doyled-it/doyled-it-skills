@@ -55,6 +55,11 @@ for the melee.
 
 ## Outputs (artifacts handed forward)
 
+In Obsidian (the default binding), each PC is also an Initiative Tracker party member (a note with
+`hp`, `ac`, `modifier`, and `level` frontmatter, grouped into a party), per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`, so `players: true` pulls the whole
+party into any encounter.
+
 A party roster artifact with size, per-character levels, roles, the three computed budgets, the
 tactical gaps and strengths, and the spotlight checklist. encounter-design, improvised-combat, and
 session-prep all read it.

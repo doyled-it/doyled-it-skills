@@ -132,6 +132,23 @@ test('README documents the plugin and the project-scoped install', () => {
   assert.match(text, /dungeon-master-loop@doyled-it-skills --scope project/u);
 });
 
+test('the Obsidian formats reference exists and every consuming skill links it', () => {
+  const ref = `${pluginDir}/skills/dungeon-master-loop/references/obsidian-ttrpg-formats.md`;
+  assert.ok(fs.existsSync(path.join(root, ref)), 'obsidian-ttrpg-formats.md should exist');
+  const refText = read(ref);
+  assert.match(refText, /statblock: inline/u);
+  assert.match(refText, /```encounter/u);
+  const consumers = [
+    'custom-monsters', 'encounter-design', 'improvised-combat',
+    'worldbuilding-initial-conditions', 'advancing-the-world', 'party-composition',
+    'session-prep', 'session-zero',
+  ];
+  for (const sk of consumers) {
+    const text = read(`${pluginDir}/skills/${sk}/SKILL.md`);
+    assert.match(text, /obsidian-ttrpg-formats\.md/u, `${sk} must link the Obsidian formats reference`);
+  }
+});
+
 test('no em dashes anywhere in the plugin', () => {
   const emDash = String.fromCharCode(0x2014);
   for (const file of walkFiles(pluginDir)) {

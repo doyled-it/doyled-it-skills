@@ -26,7 +26,10 @@ how to build and run one.
 
 Everything the sub-skills produce and consume is a named artifact. The contract is abstract
 here so the method works at any table or tool. For a worked example that maps every artifact 1:1
-to folders in an Obsidian vault, see `references/vault-binding.md`.
+to folders in an Obsidian vault, see `references/vault-binding.md`. Obsidian with its D&D plugin
+set is the documented default binding, and the exact plugin syntax each artifact uses (bestiary-
+indexed statblocks, encounter blocks, maps, roll tables, and queries) is in
+`references/obsidian-ttrpg-formats.md`.
 
 | Artifact | Produced by | Consumed by |
 | --- | --- | --- |
