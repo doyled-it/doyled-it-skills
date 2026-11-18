@@ -66,7 +66,10 @@ roadmap.py publish roadmap.json --apply    # make the changes
 | `--repo PATH` | Checkout whose `origin` remote picks the forge when `forge.kind` is not set. |
 | `--recorded FILE` | Answer forge reads from recorded responses (tests and demos). |
 
-Refuses a roadmap that is not agreed, or that has validate errors. The report
+Refuses a roadmap that is not agreed, or that has validate errors. On GitLab it
+also refuses, in the dry run as well, an epic with no `ref` when `forge.group`
+is not set: GitLab epics live in a group, so such an epic could not be created
+(a project in a personal namespace has no group epics). The report
 groups the changes into epics, issues and links and ends with a count.
 
 - An issue or epic without a `ref` is linked to an existing open forge item

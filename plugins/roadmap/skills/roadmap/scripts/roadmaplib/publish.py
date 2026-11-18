@@ -97,6 +97,14 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
     errs = validate.errors(validate.check(raw))
     if errs:
         raise PublishRefused("fix these first:\n" + "\n".join(str(e) for e in errs))
+    # GitLab epics live in a group. Without one, an epic with no ref can only be
+    # created, and that cannot work: refuse in the dry run too, before any call.
+    if getattr(fg, "kind", "") == "gitlab" and not getattr(fg, "group", None):
+        homeless = [e["id"] for e in raw["epics"] if not e.get("ref")]
+        if homeless:
+            raise PublishRefused('GitLab epics live in a group and forge "group" is not set, so these epics with '
+                                 f'no "ref" cannot be created: {", ".join(homeless)}. Set forge "group" in '
+                                 'roadmap.json, or name each epic\'s existing "ref"')
 
     out = copy.deepcopy(raw)
     where = f"{fg.kind} ({fg.host or 'default host'}), project {fg.project or 'not set'}"

@@ -132,6 +132,32 @@ class Refusals(unittest.TestCase):
             publish.publish(data, fg, apply=False)
         self.assertIn("agreed", str(ctx.exception))
 
+    def test_gitlab_epic_with_no_group_is_refused_by_the_dry_run_too(self):
+        # Found live: the dry run listed "create epic" and exited 0, then --apply
+        # stopped at the first epic. GitLab epics live in a group, so both refuse
+        # before any forge call.
+        data = gitlab_roadmap()
+        del data["forge"]["group"]
+        for apply in (False, True):
+            fg = forge.GitLab(NoWrites({}), host="h", project="acme/search", group=None)
+            with self.assertRaises(publish.PublishRefused) as ctx:
+                publish.publish(data, fg, apply=apply)
+            self.assertIn('"group"', str(ctx.exception))
+            self.assertIn("search-page, release-safety", str(ctx.exception))
+            self.assertNotIn("ranking", str(ctx.exception))  # it names its epic in "ref"
+
+    def test_gitlab_with_no_group_is_fine_when_every_epic_has_a_ref(self):
+        data = gitlab_roadmap()
+        del data["forge"]["group"]
+        data["epics"] = data["epics"][:1]
+        for it in data["issues"]:
+            it["epic"] = data["epics"][0]["id"]
+        fg = forge.GitLab(NoWrites(fixture("gitlab_publish.json")), host="gitlab.example.com",
+                          project="acme/search", group=None)
+        report = publish.publish(data, fg, apply=False)
+        self.assertIsNone(report.failed)
+        self.assertEqual(kinds(report, "create-epic"), [])
+
     def test_roadmap_with_errors_is_refused(self):
         data = gitlab_roadmap()
         issue(data, "page-build")["depends_on"] = ["ghost"]
