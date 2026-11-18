@@ -1,7 +1,7 @@
 {
   "name": "dungeon-master-loop",
   "description": "A superpowers-style loop for running D&D 5e (2024) as a Dungeon Master: world-building and session prep as composable skills that hand named artifacts back and forth, so the world feeds prep and play feeds back into the world. Start with the dungeon-master-loop skill.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": { "name": "doyled-it" },
   "license": "SEE LICENSE IN LICENSE",
   "keywords": ["dnd", "dungeons-and-dragons", "5e-2024", "dungeon-master", "worldbuilding", "session-prep", "encounters", "homebrew-monsters", "3d-printing", "superpowers"]

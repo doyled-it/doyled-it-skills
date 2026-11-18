@@ -81,17 +81,29 @@ place clock sizes are defined.
 
 ### Ticking a clock down (the canonical definition, referenced elsewhere)
 
-Following Blades in the Dark practice, players can reduce a threat or suspicion clock through
-action, such as bribing a guard captain, covering their tracks, or sabotaging a ritual. This is
-the one place clock reduction is defined.
+Following Blades in the Dark practice (clocks: https://roll20.net/compendium/BITD/Rules:Progress%20clocks,
+the source story-model.md already cites), players can set back any faction clock through action,
+such as bribing a guard captain, covering their tracks, or sabotaging a ritual. This is the one
+place between-session faction clock reduction is defined. In-scene danger and racing clocks follow
+`session-prep/references/non-combat-challenges.md` instead.
 
 - When: tick down only when the players did something in the fiction that plausibly sets the
-  faction's plan back or lowers the pressure. Time passing, or a bare wish, does not tick a clock
-  down. Name the action and why it works, as you do for a tick up.
-- How much: tick it down by 1 by default. Tick it down by 2 only for a decisive effort or a
-  strong success. Never go below 0.
-- At 0: a clock at 0 can be removed or reset. Remove it when the threat is resolved; reset it
-  (keep it at 0) when the faction could try again later. Record which, and why.
+  faction's plan back. Time passing, or a bare wish, does not tick a clock down. Name the action
+  and why it works, as you do for a tick up. A qualifying success is a player action that
+  succeeds in the fiction and plausibly harms that faction's goal.
+- Net once per session: net the faction's progress against the players' setbacks for the
+  session and apply the net change once. Example: the faction advances +2 and the players set it
+  back -1, so tick it up by 1.
+- How much: a setback is 1 by default, 2 only for a decisive effort or a strong success. Never
+  go below 0.
+- A filled clock cannot be ticked down. Once a clock fills and fires its consequence, later
+  setbacks go on the faction's next clock. When a near-full clock drops, re-check the print
+  lookahead (see `printable-minis-and-terrain`), since minis queued for the consequence may no
+  longer be needed.
+- At 0: a faction always has exactly one clock, so when a clock reaches 0, either reset it or
+  retire the faction. Reset means start a fresh clock with a new goal and a size chosen from
+  Clock sizes above. Retire means remove the faction from canon when its threat is resolved.
+  Record which, and why. Never leave a faction without a clock.
 - A clock that reaches 0 is not a filled clock, so it triggers no consequence.
 
 ## Step 4: Roll secrets forward

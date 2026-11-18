@@ -34,8 +34,11 @@ reported via D&D Beyond and Sly Flourish summaries, not confirmed against the bo
 - Use a progress clock, which you can draw live. A danger clock fills toward a bad outcome; a
   racing clock pits the party against a rival clock.
 - Tie failed checks to clock progress; a clock can run backward on a strong success. (Attributed
-  to the Alexandrian via summary, unverified.)
-  The rules for ticking down live in `advancing-the-world`, under Ticking a clock down.
+  to the Alexandrian via summary, unverified.) These in-scene danger and racing clocks are
+  governed here; a qualifying success is a check that succeeds against the danger.
+- Between-session faction clocks are separate: their reduction rule lives in
+  `advancing-the-world`, under Ticking a clock down. Both follow Blades in the Dark clocks
+  (https://roll20.net/compendium/BITD/Rules:Progress%20clocks).
 - Make the stakes concrete: name what is lost and why the party cannot simply wait.
 
 ## Meaningful failure (fail forward)
