@@ -32,9 +32,22 @@ SYNONYMS = {
     r"\bswim ?lanes?\b": "Epic",
 }
 URL = re.compile(r"https?://\S+")
-REF = re.compile(r"^[\w.-]+(?:/[\w.-]+)*[#&]\d+$")
+_PATH = r"[\w.-]+(?:/[\w.-]+)*"
+ISSUE_REF = re.compile(rf"^{_PATH}#\d+$")
+GITLAB_EPIC_REF = re.compile(rf"^{_PATH}&\d+$")
+HASH_EPIC_REF = re.compile(rf"^{_PATH}#\d+$")
 FORGES = ("gitlab", "github", "forgejo", "gitea")
 BARE_HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::\d{1,5})?$")
+
+
+def _epic_ref_ok(ref: object, kind: str | None) -> bool:
+    """GitLab epics are group&N; GitHub and Forgejo parents are issues, project#N; unknown allows both."""
+    ref = str(ref)
+    if kind == "gitlab":
+        return bool(GITLAB_EPIC_REF.match(ref))
+    if kind in ("github", "forgejo", "gitea"):
+        return bool(HASH_EPIC_REF.match(ref))
+    return bool(GITLAB_EPIC_REF.match(ref) or HASH_EPIC_REF.match(ref))
 
 
 @dataclass(frozen=True)
@@ -112,6 +125,8 @@ def check(raw: dict) -> list[Finding]:
                 err("bad-gate-rule", where, f'gate "{letter}" is not defined in "gates"')
     iterations = {i.get("name") for i in data.get("iterations", []) if isinstance(i, dict)}
 
+    kind = forge.get("kind") if isinstance(forge, dict) and forge.get("kind") in FORGES else None
+
     # Epics.
     epic_ids: set[str] = set()
     for n, ep in enumerate(data["epics"]):
@@ -130,8 +145,9 @@ def check(raw: dict) -> list[Finding]:
         if ep.get("name") and _codes(ep["name"], allowed):
             err("glossary-code", f"{where}.name",
                 f'"{ep["name"]}" uses a code; give the epic a plain name')
-        if ep.get("ref") and not REF.match(ep["ref"]):
-            err("bad-ref", f"{where}.ref", f'"{ep["ref"]}" is not a forge reference like group/project&12')
+        if ep.get("ref") and not _epic_ref_ok(ep["ref"], kind):
+            like = "group&12" if kind == "gitlab" else "group/project#12" if kind else "group&12 or group/project#12"
+            err("bad-ref", f"{where}.ref", f'"{ep["ref"]}" is not a {kind or "forge"} epic reference like {like}')
     by_epic = {ep.get("id"): ep for ep in data["epics"]}
     for ep in data["epics"]:
         parent = ep.get("parent")
@@ -184,7 +200,7 @@ def check(raw: dict) -> list[Finding]:
                 f"{days} days is more than two weeks; make it a child epic with its own issues")
         if it.get("iteration") and iterations and it["iteration"] not in iterations:
             err("unknown-iteration", f"{where}.iteration", f'iteration "{it["iteration"]}" is not defined')
-        if it.get("ref") and not REF.match(it["ref"]):
+        if it.get("ref") and not ISSUE_REF.match(str(it["ref"])):
             err("bad-ref", f"{where}.ref", f'"{it["ref"]}" is not a forge reference like group/project#12')
 
     # Publish links forge items by title and by reference, so both must be unique.
