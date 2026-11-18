@@ -12,7 +12,7 @@ from unittest import mock
 
 from fakeforge import FakeGitHub, github
 from helpers import example, issue
-from roadmaplib import cli, forge, publish, validate
+from roadmaplib import blocks, cli, forge, publish, validate
 
 REPO = "example-org/search-service"
 
@@ -175,6 +175,86 @@ class CrossRepository(unittest.TestCase):
         report = publish.publish(data, github(fake), apply=False)
         self.assertNotIn("ranking-model", [a.target for a in report.actions if a.kind == "add-blocked-by"])
         self.assertNotIn("click-log", [a.target for a in report.actions if a.kind == "add-to-epic"])
+
+
+class EpicNoteWrittenOnce(unittest.TestCase):
+    """The epic's note belongs inside the generated section, once, not also above it."""
+
+    def note(self, eid):
+        return next(e for e in example()["epics"] if e["id"] == eid)["note"]
+
+    def epic_body(self, fake, title):
+        return next(d for d in fake.issues.values() if d["title"] == title)["body"]
+
+    def test_a_new_epic_has_its_note_once(self):
+        fake = fresh_forge()
+        publish.publish(example(), github(fake), apply=True)
+        body = self.epic_body(fake, "Safe weekly releases")
+        self.assertEqual(body.count(self.note("release-safety")), 1, body)
+
+    def test_a_new_epic_is_created_with_its_section_so_a_stopped_run_still_shows_it_once(self):
+        fake = fresh_forge()
+        fake.fail_on_write = 2   # the first new epic is created, then the run stops
+        publish.publish(example(), github(fake), apply=True)
+        body = self.epic_body(fake, "New search page")
+        self.assertEqual(body.count(self.note("search-page")), 1, body)
+        self.assertIsNotNone(blocks.block_content(body, blocks.EPIC_START, blocks.EPIC_END))
+        fake.fail_on_write = None
+        publish.publish(example(), github(fake), apply=True)
+        body = self.epic_body(fake, "New search page")
+        self.assertEqual(body.count(self.note("search-page")), 1, body)
+
+    def test_a_linked_epic_with_no_description_gets_its_note_once(self):
+        fake = fresh_forge()
+        fake.issues[(REPO, 10)]["body"] = ""
+        publish.publish(example(), github(fake), apply=True)
+        body = fake.issues[(REPO, 10)]["body"]
+        self.assertEqual(body.count(self.note("ranking")), 1, body)
+
+    def test_hand_text_of_a_linked_epic_is_kept_above_the_section(self):
+        fake = fresh_forge()
+        publish.publish(example(), github(fake), apply=True)
+        body = fake.issues[(REPO, 10)]["body"]
+        self.assertTrue(body.startswith("Ranking work.\n\n" + blocks.EPIC_START), body[:80])
+
+
+class LinkOnlyRunWording(unittest.TestCase):
+    """A run that only links existing items wrote nothing to the forge, and says so."""
+
+    def test_a_link_only_apply_does_not_claim_changes_were_made(self):
+        fake = fresh_forge()
+        first = publish.publish(example(), github(fake), apply=True)
+        n = len(fake.writes)
+        second = publish.publish(first.roadmap, github(fake), apply=True)
+        self.assertEqual(fake.writes[n:], [])
+        self.assertEqual({a.kind for a in second.actions}, {"link-epic", "link-issue"})
+        text = second.text()
+        links = len(second.actions)
+        self.assertNotIn("these changes were made", text)
+        self.assertTrue(text.startswith(f"Applied: linked {links} existing items; no forge writes."), text[:120])
+
+    def test_an_apply_that_writes_still_says_so(self):
+        report = publish.publish(example(), github(fresh_forge()), apply=True)
+        self.assertTrue(report.text().startswith("Applied: these changes were made on the forge."))
+
+    def test_one_linked_item_reads_as_one_item(self):
+        data = example()
+        data["epics"] = data["epics"][:1]
+        data["issues"] = []
+        fake = fresh_forge()
+        fake.issues[(REPO, 10)]["body"] = blocks.epic_body(data, "ranking", "Ranking work.")
+        report = publish.publish(data, github(fake), apply=True)
+        self.assertEqual([a.kind for a in report.actions], ["link-epic"])
+        self.assertTrue(report.text().startswith("Applied: linked 1 existing item; no forge writes."),
+                        report.text()[:120])
+
+    def test_an_apply_with_nothing_to_do_says_nothing_was_written(self):
+        report = publish.Report(applied=True, forge="github", roadmap={})
+        self.assertTrue(report.text().startswith("Applied: nothing to change; no forge writes."))
+
+    def test_the_dry_run_wording_is_unchanged(self):
+        report = publish.publish(example(), github(fresh_forge()), apply=False)
+        self.assertTrue(report.text().startswith("Dry run: nothing was written."))
 
 
 if __name__ == "__main__":

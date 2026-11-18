@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -229,6 +230,44 @@ class PublishCommand(unittest.TestCase):
             self.assertIn("Dry run", out.stdout)
             self.assertIn("create issue", out.stdout)
             self.assertEqual(path.read_text(), before)
+
+
+class EchoEpics(Recorder):
+    """A GitLab that answers an epic create or update with the description it was sent."""
+
+    def __init__(self, responses):
+        super().__init__(responses)
+        self.epic_bodies: dict[int, str] = {}
+
+    def send(self, method, path, body=None, allow_close=False):
+        out = super().send(method, path, body, allow_close)
+        if method == "POST" and path == "groups/acme/epics":
+            n = 30 + len(self.epic_bodies)
+            self.epic_bodies[n] = body["description"]
+            return {"id": 600 + n, "iid": n, "group_id": 3, "title": body["title"],
+                    "description": body["description"], "web_url": f"https://gitlab.example.com/groups/acme/-/epics/{n}"}
+        m = re.fullmatch(r"groups/acme/epics/(\d+)", path)
+        if method == "PUT" and m:
+            self.epic_bodies[int(m[1])] = body["description"]
+        return out
+
+
+class GitLabNewEpicNote(unittest.TestCase):
+    def test_a_new_gitlab_epic_has_its_note_once(self):
+        data = gitlab_roadmap()
+        data["issues"] = [issue(data, "click-signals"), issue(data, "ranking-model"), issue(data, "release-checks")]
+        rec = EchoEpics(fixture("gitlab_publish.json"))
+        rec.responses["POST projects/acme%2Fsearch/issues"] = {
+            "id": 2021, "iid": 21, "project_id": 7, "title": "Release checks", "description": "",
+            "state": "opened", "labels": [], "references": {"full": "acme/search#21"},
+            "web_url": "https://gitlab.example.com/acme/search/-/work_items/21"}
+        fg = forge.GitLab(rec, host="gitlab.example.com", project="acme/search", group="acme")
+        publish.publish(data, fg, apply=True)
+        note = next(e for e in data["epics"] if e["id"] == "release-safety")["note"]
+        created = next(b for m, p, b in rec.calls if (m, p) == ("POST", "groups/acme/epics"))
+        self.assertLessEqual(created["description"].count(note), 1, created["description"])
+        body = rec.epic_bodies[30]   # the new epic, as the run left it
+        self.assertEqual(body.count(note), 1, body)
 
 
 if __name__ == "__main__":

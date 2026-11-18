@@ -30,6 +30,12 @@ class Action:
     body: str | None = None   # the description that would be written, when the change writes one
 
 
+# Actions that write to the forge. Linking an existing item, skipping one and a
+# hand fix write nothing there.
+WRITES = frozenset({"create-epic", "update-epic", "create-issue", "update-issue", "add-to-epic",
+                    "add-blocked-by", "pin-epic"})
+
+
 @dataclass
 class Report:
     applied: bool
@@ -43,8 +49,7 @@ class Report:
         self.actions.append(Action(kind, target, detail, body))
 
     def text(self) -> str:
-        head = ("Applied: these changes were made on the forge." if self.applied else
-                "Dry run: nothing was written. Run again with --apply to make these changes.")
+        head = self._head()
         lines = [head, f"Forge: {self.forge}", ""]
         if self.failed:
             lines[:0] = [f"Stopped by a forge error: {self.failed}",
@@ -69,6 +74,16 @@ class Report:
         summary = ", ".join(f"{n} {k.replace('-', ' ')}" for k, n in sorted(counts.items())) or "nothing to do"
         lines.append(f"Summary: {summary}. Nothing is ever closed or deleted.")
         return "\n".join(lines)
+
+    def _head(self) -> str:
+        if not self.applied:
+            return "Dry run: nothing was written. Run again with --apply to make these changes."
+        if self.failed or any(a.kind in WRITES for a in self.actions):
+            return "Applied: these changes were made on the forge."
+        links = sum(a.kind in ("link-epic", "link-issue") for a in self.actions)
+        if links:
+            return f"Applied: linked {links} existing item{'' if links == 1 else 's'}; no forge writes."
+        return "Applied: nothing to change; no forge writes."
 
 
 def _placeholder(kind: str, rid: str, title: str) -> dict:
@@ -140,7 +155,10 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
             _write_back(raw_epics[ep["id"]], match)
             report.changed = True
             continue
-        first_body = blocks.md_block(ep.get("note", "")).strip()
+        # The note lives inside the generated section, so the new epic is
+        # created with that section (its issues not on the forge yet) and the
+        # note is written once. A run that stops here still shows it.
+        first_body = blocks.epic_body(out, ep["id"], "", task_list=not native_epics)
         report.add("create-epic", ep["id"], f'new {fg.epic_word} "{blocks.one_line(ep["name"])}"', body=first_body)
         if apply:
             created = fg.create_epic(blocks.one_line(ep["name"]), first_body)
@@ -260,8 +278,7 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
     for ep in data["epics"]:
         e = epics[ep["id"]]
         try:
-            start = e.get("body") or blocks.md_block(ep.get("note", "")).strip()
-            body = blocks.epic_body(out, ep["id"], start, task_list=not native_epics)
+            body = blocks.epic_body(out, ep["id"], e.get("body") or "", task_list=not native_epics)
         except blocks.MarkerError as exc:
             report.add("hand-fix", ep["id"], f'{e.get("ref")}: {exc}')
             continue

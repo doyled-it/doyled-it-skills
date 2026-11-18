@@ -123,11 +123,13 @@ then run the command again.
 
 - **Issue** (`<!-- roadmap:start -->` to `<!-- roadmap:end -->`): the issue's
   short name, epic and dependencies, and the gate checklist.
-- **Epic** (`<!-- roadmap:epic:start -->` to `<!-- roadmap:epic:end -->`): a link
-  to the full roadmap page (`page_url`, or a note that the lead keeps it), a
-  Mermaid flowchart of the epic's issues with arrows to and from issues in other
-  epics (dashed), status shown as color and as words, gate letters in each box,
-  and a status table. On Forgejo it also holds the task list described above.
+- **Epic** (`<!-- roadmap:epic:start -->` to `<!-- roadmap:epic:end -->`): a
+  link to the full roadmap page (`page_url`, or a note that the lead keeps it),
+  the epic's note (written once: a new epic is created with this section, so the
+  note is not also put above it), a Mermaid flowchart of the epic's issues with
+  arrows to and from issues in other epics (dashed), status shown as color and
+  as words, gate letters in each box, and a status table. On Forgejo it also
+  holds the task list described above.
 
 GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
 `epic-preview` to see the section locally before the first write.
