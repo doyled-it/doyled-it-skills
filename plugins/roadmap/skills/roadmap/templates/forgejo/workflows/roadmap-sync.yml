@@ -22,6 +22,5 @@ jobs:
       FORGEJO_HOST: ${{ vars.ROADMAP_FORGE_HOST }}
     steps:
       - uses: https://code.forgejo.org/actions/checkout@v4
-      - run: python3 tools/roadmap/roadmap.py sync roadmap.json --no-orca --write --update-epics
-      - run: python3 tools/roadmap/roadmap.py drift-issue roadmap.json --no-orca --apply
+      - run: python3 tools/roadmap/roadmap.py sync roadmap.json --no-orca --write --update-epics --update-drift-issue
       - run: python3 tools/roadmap/roadmap.py render roadmap.json

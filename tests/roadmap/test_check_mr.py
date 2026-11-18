@@ -302,7 +302,7 @@ class Templates(unittest.TestCase):
                      "forgejo/workflows/roadmap-sync.yml"):
             text = (t / path).read_text()
             self.assertIn("sync roadmap.json --no-orca --write --update-epics", text, path)
-            self.assertIn("drift-issue roadmap.json --no-orca --apply", text, path)
+            self.assertIn("--update-drift-issue", text, path)
 
     def test_the_gitlab_sync_job_clears_the_glab_image_entrypoint(self):
         # The glab image's ENTRYPOINT is glab, so a script run by the image would be

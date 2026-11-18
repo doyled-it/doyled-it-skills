@@ -78,8 +78,10 @@ python3 scripts/roadmap.py sync roadmap.json --write      # also save status and
   the same title instead of creating a duplicate. It sets epic membership,
   blocked-by links and the gate checklist, writes forge links back into
   `roadmap.json`, and never closes or deletes anything.
-- `sync` is read-only on the forge and Orca. `--update-epics` is its one forge
-  write: it rewrites only the generated section in each epic description.
+- `sync` is read-only on the forge and Orca. Its only forge writes are the two
+  opt-in flags: `--update-epics` rewrites only the generated section in each
+  epic description, and `--update-drift-issue` keeps the one "Roadmap drift"
+  issue current.
 - Each epic description carries a generated section between hidden markers: a
   link to the full roadmap page, a Mermaid flowchart of the epic's issues with
   arrows to and from other epics, and a status table. Hand-written text outside
@@ -171,7 +173,7 @@ blocked. Setup, and what Codex supports:
 | "The plan is obvious; I'll start the workers and write it down later." | No worker starts before the roadmap is agreed. |
 | "This small extra fix doesn't need to be on the roadmap." | Inside an agreed issue: fine. Otherwise propose it and wait. |
 | "I'll call it T3.2 for now." | Short readable names only; validate rejects codes. |
-| "Sync can just update the forge too." | sync is read-only; only `publish --apply` and `sync --update-epics` write, and only with approval. |
+| "Sync can just update the forge too." | sync is read-only; only `publish --apply`, `sync --update-epics` and `sync --update-drift-issue` write, and only with approval. |
 | "I'll close the stale issues while publishing." | Nothing is ever deleted, and the only thing ever closed is the tool's own "Roadmap drift" issue once drift is zero. |
 
 ## Evaluation

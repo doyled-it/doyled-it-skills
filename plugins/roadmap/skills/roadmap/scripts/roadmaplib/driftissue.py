@@ -102,7 +102,7 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
                                    "cannot be told apart from a copy someone else opened; check the token")
         result.notes.append("could not read which user the token belongs to, so no existing drift issue is "
                             "trusted; with --apply this stops")
-    issues = fg.all_issues(project)
+    issues = fg.open_issues_titled(project, TITLE)
     open_ones = _mine(issues, me)
     current = open_ones[0] if open_ones else None
     others = _leftovers(issues, current)

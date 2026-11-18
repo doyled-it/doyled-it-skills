@@ -314,3 +314,9 @@ test('canonical instructions and generated state conventions exist', () => {
   }
   for (const dir of ['.codegraph/', '.superpowers/', '.worktrees/']) assert.ok(read('.gitignore').includes(dir));
 });
+
+test('roadmap tests are discovered, not listed by hand', () => {
+  const runner = read('tests/roadmap_test.sh');
+  assert.match(runner, /unittest discover[^\n]*-p 'test_\*\.py'/u);
+  assert.doesNotMatch(runner, /unittest -q test_/u);
+});

@@ -50,8 +50,8 @@ def run_listed(data, fake, listed, apply=True):
     """run(), with the forge's issue list passed through listed (to try another order)."""
     fg = github(fake)
     report = sync.sync(data, fg, orca_tasks=None, now=NOW)
-    every = fg.all_issues
-    with mock.patch.object(fg, "all_issues", lambda project: listed(every(project))):
+    every = fg.open_issues_titled
+    with mock.patch.object(fg, "open_issues_titled", lambda project, title: listed(every(project, title))):
         return driftissue.run(data, fg, report, apply=apply, today=NOW)
 
 

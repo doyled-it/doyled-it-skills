@@ -63,9 +63,9 @@ the work's merge request is opened.
 
 ### Scheduled sync and the drift issue
 
-A scheduled pipeline runs `sync --no-orca --write --update-epics` (the epics'
-generated sections and statuses), then `drift-issue --no-orca --apply`, then
-`render`. It keeps one issue titled "Roadmap drift" open and current while
+A scheduled pipeline runs `sync --no-orca --write --update-epics
+--update-drift-issue` (the epics' generated sections and statuses, and the drift
+issue, from one sync), then `render`. It keeps one issue titled "Roadmap drift" open and current while
 there is drift, and closes it when drift is zero: the only thing the tool ever
 closes. Every kind of drift counts, because each is something the lead, the
 team or an agent can clear (the table of kinds in [commands.md](commands.md)

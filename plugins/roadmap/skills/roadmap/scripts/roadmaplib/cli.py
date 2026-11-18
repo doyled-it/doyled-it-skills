@@ -132,6 +132,18 @@ def cmd_sync(args) -> int:
     if args.write and report.changed:
         model.save(args.roadmap, report.roadmap)
         print(f"updated status and gates in {args.roadmap}; re-render the page next")
+    if args.update_drift_issue:
+        # The drift issue is written from this same report, so a scheduled run syncs once.
+        from datetime import date
+
+        from . import driftissue
+
+        try:
+            result = driftissue.run(data, fg, report, apply=True, today=args.now or date.today().isoformat())
+        except forge.ForgeError as exc:
+            print(f"error: {exc}")
+            return 2
+        print(result.text())
     return 1 if report.write_errors else 0
 
 
@@ -266,6 +278,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="update status and gate ticks in roadmap.json (never writes to the forge or Orca)")
     s.add_argument("--update-epics", action="store_true",
                    help="rewrite the generated roadmap section in each epic (the only forge write sync makes)")
+    s.add_argument("--update-drift-issue", action="store_true",
+                   help="also create, update or close the one Roadmap drift issue from this same report "
+                        "(what drift-issue --apply does, without a second sync)")
     s.add_argument("--json", action="store_true", help="print the report as JSON")
     s.add_argument("--stale-days", type=int, default=14, help="no activity for this many days is drift")
     s.add_argument("--now", type=_iso_date, help="ISO date to measure staleness from (default: today)")

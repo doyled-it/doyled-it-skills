@@ -25,8 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python3 tools/roadmap/roadmap.py sync roadmap.json --no-orca --write --update-epics
-      - run: python3 tools/roadmap/roadmap.py drift-issue roadmap.json --no-orca --apply
+      - run: python3 tools/roadmap/roadmap.py sync roadmap.json --no-orca --write --update-epics --update-drift-issue
       - run: python3 tools/roadmap/roadmap.py render roadmap.json
       - uses: actions/upload-artifact@v4
         if: always()

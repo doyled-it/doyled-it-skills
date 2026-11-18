@@ -453,6 +453,12 @@ class GitLab:
             self._open_cache[project] = [self._issue(d) for d in raw]
         return self._open_cache[project]
 
+    def open_issues_titled(self, project: str, title: str) -> list[dict]:
+        """Open issues whose title is exactly this, asked of the forge so closed issues are not paged."""
+        raw = self.t.get_all(f"projects/{enc(project)}/issues?state=opened&in=title&search={quote(title)}")
+        return [i for i in (self._issue(d) for d in raw)
+                if i["state"] == "open" and blocks.one_line(i["title"]) == title]
+
     def blocked_by(self, issue: dict) -> list[dict]:
         links = self.t.get_all(f"projects/{enc(issue['project'])}/issues/{issue['number']}/links")
         return [self._issue(d) for d in links if d.get("link_type") == "is_blocked_by"]
@@ -629,6 +635,12 @@ class GitHub:
     def open_issues(self, project: str) -> list[dict]:
         return [i for i in self.all_issues(project) if i["state"] == "open"]
 
+    def open_issues_titled(self, project: str, title: str) -> list[dict]:
+        """Open issues whose title is exactly this, without reading the closed ones."""
+        raw = self.t.get_all(f"repos/{project}/issues?state=open")
+        return [i for i in (self._issue(d, project) for d in raw)
+                if not i["is_pull_request"] and i["state"] == "open" and blocks.one_line(i["title"]) == title]
+
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
         """One write: the issue. Publish adds it to its parent with add_to_epic afterwards."""
         return self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
@@ -778,6 +790,11 @@ class Forgejo(GitHub):
             self._open_cache[project] = [i for i in (self._issue(d, project) for d in raw)
                                          if not i["is_pull_request"]]
         return self._open_cache[project]
+
+    def open_issues_titled(self, project: str, title: str) -> list[dict]:
+        raw = self.t.get_all(f"repos/{project}/issues?state=open&type=issues&q={quote(title)}")
+        return [i for i in (self._issue(d, project) for d in raw)
+                if not i["is_pull_request"] and i["state"] == "open" and blocks.one_line(i["title"]) == title]
 
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
         return self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)

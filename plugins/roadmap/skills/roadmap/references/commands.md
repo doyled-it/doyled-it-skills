@@ -148,13 +148,14 @@ the Orca and forge options of `sync`. The scheduled pipelines run it with
 ## sync
 
 ```bash
-roadmap.py sync roadmap.json [--write] [--json] [--update-epics]
+roadmap.py sync roadmap.json [--write] [--json] [--update-epics] [--update-drift-issue]
 ```
 
 | Option | Meaning |
 | --- | --- |
 | `--write` | Save status, gate ticks and merge request links into `roadmap.json`. Never writes to the forge or Orca. |
-| `--update-epics` | Rewrite the generated section in each published epic. The only forge write sync makes. Needs `--write`, an agreed roadmap and no validate errors. |
+| `--update-drift-issue` | Also create, update or close the one "Roadmap drift" issue from this same sync report (what `drift-issue --apply` does, without a second sync). The only other forge write sync makes, and the only issue it may close. |
+| `--update-epics` | Rewrite the generated section in each published epic. A forge write sync makes only when asked. Needs `--write`, an agreed roadmap and no validate errors. |
 | `--json` | Print the report as JSON. |
 | `--stale-days N` | No forge activity for N days is drift (default 14). |
 | `--now DATE` | Measure staleness from this ISO date (default today). |
