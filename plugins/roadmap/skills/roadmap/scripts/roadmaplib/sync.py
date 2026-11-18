@@ -213,7 +213,7 @@ def closes(mr: dict, fi: dict, kind: str = "gitlab") -> bool:
     for m in _closing(kind).finditer(text):
         for ref in re.findall(REF_ITEM, m.group(1)):
             if ref.lower().startswith("http"):
-                if fi.get("url") and ref.rstrip("/.") == fi["url"]:
+                if fi.get("url") and ref.rstrip("/.") in model.item_urls(fi["url"]):
                     return True
             elif ref.startswith("#"):
                 if f"{mr.get('project')}#{ref[1:]}" == fi["ref"]:

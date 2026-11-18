@@ -92,7 +92,10 @@ added elsewhere in a description:
   issue (`Closes #12`, `Fixes group/project#12`, or the issue's URL after a
   closing word the forge itself accepts: close, fix and resolve in their
   usual forms everywhere, and on GitLab also the -ing forms and "implements")
-  or is named in the roadmap issue's own text (`!12`). `mr_green` ticks when such a merge request has a green
+  or is named in the roadmap issue's own text (`!12`). On GitLab an issue's
+  page has two forms, `/-/issues/12` and `/-/work_items/12` (the form its API
+  returns from GitLab 17 on); either one counts, here and on the
+  `Roadmap issue:` line. `mr_green` ticks when such a merge request has a green
   pipeline. A ticked `- [x] M: ...` line with no merged merge request ticks
   nothing. A rule cannot name a lead gate. (`mr_approved_green` was renamed
   `mr_green`: it never checked approvals.)
@@ -130,6 +133,10 @@ then run the command again.
   arrows to and from issues in other epics (dashed), status shown as color and
   as words, gate letters in each box, and a status table. On Forgejo it also
   holds the task list described above.
+
+Links use the page URL the forge returns for each item, as given: on GitLab
+19 that is `/-/work_items/N` for an issue and `/groups/<group>/-/epics/N` for
+an epic.
 
 GitLab, GitHub and Forgejo all render Mermaid in issue descriptions. Run
 `epic-preview` to see the section locally before the first write.

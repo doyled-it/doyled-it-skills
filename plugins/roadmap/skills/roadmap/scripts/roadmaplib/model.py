@@ -62,6 +62,22 @@ def safe_url(url) -> str | None:
     return url if isinstance(url, str) and SAFE_URL.match(url) else None
 
 
+# GitLab names one issue's page two ways: /-/issues/N, and /-/work_items/N,
+# which is what its API returns as web_url from GitLab 17 on. GitHub and
+# Forgejo paths have no "/-/" and are left as they are.
+GITLAB_ITEM_PAGE = re.compile(r"/-/(?:issues|work_items)/(\d+)$")
+
+
+def item_urls(url: str) -> set[str]:
+    """Every URL that names the same issue page as url (url itself, without a trailing slash)."""
+    url = url.rstrip("/")
+    m = GITLAB_ITEM_PAGE.search(url)
+    if not m:
+        return {url}
+    base = url[:m.start()]
+    return {f"{base}/-/issues/{m[1]}", f"{base}/-/work_items/{m[1]}"}
+
+
 class RoadmapError(Exception):
     """The roadmap file cannot be read at all."""
 

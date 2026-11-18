@@ -49,7 +49,7 @@ def _named(it: dict, text: str, project: str | None) -> bool:
         if re.search(rf"(?<![\w/&!#]){re.escape('#' + ref.rsplit('#', 1)[1])}(?!\d)", text):
             return True
     url = model.safe_url(it.get("url"))
-    return bool(url and re.search(rf"{re.escape(url.rstrip('/'))}(?![\w/])", text))
+    return bool(url and any(re.search(rf"{re.escape(u)}(?![\w/])", text) for u in model.item_urls(url)))
 
 
 def _norm(path: str) -> str:
