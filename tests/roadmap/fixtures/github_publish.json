@@ -1,0 +1,111 @@
+{
+ "GET repos/example-org/search-service/issues/10": {
+  "id": 9010,
+  "number": 10,
+  "title": "Better ranking",
+  "body": "Ranking work.",
+  "state": "open",
+  "labels": [
+   {
+    "name": "epic"
+   }
+  ],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "html_url": "https://github.com/example-org/search-service/issues/10"
+ },
+ "GET repos/example-org/search-service/issues/11": {
+  "id": 9011,
+  "number": 11,
+  "title": "Record which results people open",
+  "body": "Anonymous counts.",
+  "state": "closed",
+  "labels": [],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "html_url": "https://github.com/example-org/search-service/issues/11"
+ },
+ "GET repos/example-org/search-service/issues/12": {
+  "id": 9012,
+  "number": 12,
+  "title": "Rank results by open rate",
+  "body": "Blend.",
+  "state": "open",
+  "labels": [],
+  "updated_at": "2026-11-16T10:00:00Z",
+  "html_url": "https://github.com/example-org/search-service/issues/12"
+ },
+ "GET repos/example-org/search-service/issues?state=all": [
+  {
+   "id": 9010,
+   "number": 10,
+   "title": "Better ranking",
+   "body": "",
+   "state": "open",
+   "labels": [
+    {
+     "name": "epic"
+    }
+   ],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://github.com/example-org/search-service/issues/10"
+  },
+  {
+   "id": 9012,
+   "number": 12,
+   "title": "Rank results by open rate",
+   "body": "",
+   "state": "open",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://github.com/example-org/search-service/issues/12"
+  },
+  {
+   "id": 9020,
+   "number": 20,
+   "title": "Design the results page",
+   "body": "Layout notes.",
+   "state": "open",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://github.com/example-org/search-service/issues/20"
+  },
+  {
+   "id": 9021,
+   "number": 21,
+   "title": "Build the results page",
+   "body": "",
+   "state": "open",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://github.com/example-org/search-service/issues/21",
+   "pull_request": {
+    "url": "https://github.com/example-org/search-service/pull/21"
+   }
+  }
+ ],
+ "GET repos/example-org/search-service/issues/10/sub_issues": [
+  {
+   "id": 9011,
+   "number": 11,
+   "title": "Record which results people open",
+   "body": "",
+   "state": "closed",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://github.com/example-org/search-service/issues/11"
+  }
+ ],
+ "GET repos/example-org/search-service/issues/11/dependencies/blocked_by": [],
+ "GET repos/example-org/search-service/issues/12/dependencies/blocked_by": [
+  {
+   "id": 9011,
+   "number": 11,
+   "title": "Record which results people open",
+   "body": "",
+   "state": "closed",
+   "labels": [],
+   "updated_at": "2026-11-16T10:00:00Z",
+   "html_url": "https://github.com/example-org/search-service/issues/11"
+  }
+ ],
+ "GET repos/example-org/search-service/issues/20/dependencies/blocked_by": []
+}

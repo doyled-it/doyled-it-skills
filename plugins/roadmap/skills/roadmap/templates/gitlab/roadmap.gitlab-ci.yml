@@ -1,0 +1,54 @@
+# Roadmap jobs for GitLab CI. Copy into .gitlab-ci.yml (or include it) and copy
+# the roadmap command (scripts/roadmap.py and scripts/roadmaplib/ from the
+# roadmap skill) to tools/roadmap/ in the repository. See the skill's
+# references/enforcement.md.
+
+variables:
+  ROADMAP_TOOL: tools/roadmap/roadmap.py
+
+# Fails a merge request that names no issue on the agreed roadmap. A merge
+# request that changes only roadmap.json (and roadmap.html) passes: the job
+# reads the changed files from git, so it needs the history (GIT_DEPTH 0) and
+# an image with git. GitLab does not rerun this job when only the description
+# is edited: after adding the "Roadmap issue:" line, run the pipeline again.
+roadmap-check:
+  stage: test
+  image: python:3.12
+  variables:
+    GIT_DEPTH: "0"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - python3 "$ROADMAP_TOOL" check-mr roadmap.json --from-ci
+
+# Scheduled: sync the roadmap, rewrite the epics' generated sections, and keep
+# one "Roadmap drift" issue current. Create a pipeline schedule with the
+# variable ROADMAP_SYNC=1, and a masked project access token with api scope in
+# ROADMAP_BOT_TOKEN.
+# The job cannot read Orca, so drift that needs Orca's task list
+# (nothing-behind, started-early, unlinked-orca-task) is not in this drift
+# issue: sync reports it where Orca runs.
+roadmap-sync:
+  stage: test
+  # A fixed glab release, not latest, so a new release cannot change what the
+  # job does with its api token. Move it forward on purpose. The image's
+  # ENTRYPOINT is glab, so clear it or the script lines would be glab arguments.
+  image:
+    name: registry.gitlab.com/gitlab-org/cli:v1.123.0
+    entrypoint: [""]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ROADMAP_SYNC == "1"
+  variables:
+    # The token is sent only to this host: roadmap.json's forge.host must be
+    # empty or name the same host, or the job stops before any call.
+    GITLAB_HOST: $CI_SERVER_HOST
+    GITLAB_TOKEN: $ROADMAP_BOT_TOKEN
+  script:
+    - apk add --no-cache python3
+    - python3 "$ROADMAP_TOOL" sync roadmap.json --no-orca --write --update-epics --update-drift-issue
+    - python3 "$ROADMAP_TOOL" render roadmap.json
+  artifacts:
+    when: always
+    paths:
+      - roadmap.json
+      - roadmap.html

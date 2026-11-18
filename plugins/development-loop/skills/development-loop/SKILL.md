@@ -1,7 +1,7 @@
 ---
 name: development-loop
 description: Use when starting a feature, enhancement, or bugfix before writing code; when tempted to edit before understanding the repository; or when a change crosses backend, frontend, service, and deploy repositories.
-compatibility: Composes upstream Superpowers plus using-codegraph and cross-repo-completeness. Invoke namespaced plugin names when the runtime exposes them, or the bare skill names for a shared-skills fallback.
+compatibility: Composes upstream Superpowers plus using-codegraph, cross-repo-completeness, and roadmap for program work. Invoke namespaced plugin names when the runtime exposes them, or the bare skill names for a shared-skills fallback.
 ---
 
 # Development loop
@@ -22,6 +22,15 @@ A typo or doc/config edit with no behavior change may skip the design and plan
 loop. A code-understanding question still uses `using-codegraph`; it simply does
 not need an implementation plan. If scope and design are already approved, resume
 the approved stage instead of asking for the same approval again.
+
+## 0. Program check
+
+If this work is part of a program (several issues, workers or sessions toward
+one goal), invoke `roadmap` (native name `roadmap:roadmap`) first. The roadmap
+must exist and be agreed with the program lead before any worker starts, and
+this work must be an issue on it whose dependencies are Done. If it is not on
+the roadmap, propose the change, show it rendered, and wait for agreement. Work
+that is not part of a program skips this step.
 
 ## 1. Understand
 
@@ -105,6 +114,14 @@ Do not infer permission to merge from permission to push.
 Update each repo's AGENTS.md when a change introduces a convention, interface, or
 build/test command future work needs. A CLAUDE.md shim can import that canonical
 file instead of maintaining two copies.
+
+## 6. Issue done (program work)
+
+When the work is a roadmap issue, finish it on the roadmap: run `roadmap.py sync`
+(orchestrators run it at every update), tick its gates with evidence links, set
+it Done (or run `roadmap.py sync --write`), re-render the page, and send a short
+plain-language update: what finished, the gate results, and what is now ready to
+start. See the `roadmap` skill.
 
 ## Installation and evaluation
 

@@ -1,0 +1,145 @@
+"""drift-issue: keep one "Roadmap drift" issue on the forge in step with sync's drift report.
+
+Created once when there is drift, updated in place (only the text between its
+own markers), and closed when drift is zero. The issue is found by its title,
+its marker block and its author, the token's own user: anyone can copy the
+title and the markers, but not the author. Text outside the block is kept as it
+is and does not matter, so a person's note there, or an intro worded by an
+older release, never leads to a second issue. When the token's user has several
+such issues, the oldest is kept current, whatever text is outside its markers,
+and one note names every other open issue with that title, whoever opened it.
+It is the only issue the tool ever closes, and the close re-reads the
+issue and checks its title, marker block and author first. When the sync report
+is incomplete (a forge call failed), nothing is written: an incomplete report
+must not close the issue or rewrite it.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from . import blocks, forge
+
+TITLE = forge.DRIFT_TITLE
+INTRO = forge.DRIFT_INTRO
+skeleton = forge.drift_body
+
+
+@dataclass
+class Action:
+    kind: str     # create-drift-issue, update-drift-issue, close-drift-issue
+    detail: str
+
+
+@dataclass
+class Result:
+    applied: bool
+    actions: list[Action] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    def text(self) -> str:
+        head = "Applied." if self.applied else "Dry run: nothing was written. Run again with --apply."
+        lines = [head] + [f"  {a.kind.replace('-', ' ')}: {a.detail}" for a in self.actions]
+        if not self.actions:
+            lines.append("  nothing to change")
+        lines += [f"note: {n}" for n in self.notes]
+        return "\n".join(lines)
+
+
+def counted(report) -> list:
+    """The drift the issue tracks: every kind someone can clear (sync.DRIFT_OWNER)."""
+    from . import sync
+
+    return [d for d in report.drift if d.kind in sync.DRIFT_OWNER]
+
+
+def section(report, today: str) -> str:
+    lines = [f"Drift found by `roadmap sync` on {blocks.md_inline(today)}:", ""]
+    lines += [f"- **{d.kind}** {blocks.md_inline(d.target)}: {blocks.md_inline(d.message)}" for d in counted(report)]
+    return "\n".join(lines)
+
+
+def _number(issue: dict) -> float:
+    n = issue.get("number")
+    return n if isinstance(n, int) else float("inf")
+
+
+def _mine(issues: list[dict], me: str | None) -> list[dict]:
+    """Open drift issues the token's user opened, oldest first.
+
+    A copy opened later under the same user never displaces the issue the tool
+    keeps, even a word-for-word copy when a person has added a note to the
+    original.
+    """
+    return sorted((i for i in issues if forge.is_drift_issue(i, me)), key=_number)
+
+
+def _leftovers(issues: list[dict], current: dict | None) -> list[dict]:
+    """Every open issue titled like the drift issue, whoever opened it, that is not the one kept current."""
+    return sorted((i for i in issues if i is not current and i.get("state") == "open"
+                   and blocks.one_line(i.get("title")) == TITLE), key=_number)
+
+
+def _me(fg) -> str | None:
+    try:
+        return fg.current_user()
+    except forge.ForgeError:
+        return None
+
+
+def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
+    result = Result(applied=apply)
+    if report.errors:
+        result.notes.append("the sync report is incomplete, so the drift issue was left as it is")
+        return result
+    project = fg.project
+    if not project:
+        raise forge.ForgeError('set forge "project" in roadmap.json: the drift issue lives there')
+    me = _me(fg)
+    if me is None:
+        if apply:
+            raise forge.ForgeError("could not read which user the token belongs to (GET user), so the drift issue "
+                                   "cannot be told apart from a copy someone else opened; check the token")
+        result.notes.append("could not read which user the token belongs to, so no existing drift issue is "
+                            "trusted; with --apply this stops")
+    issues = fg.open_issues_titled(project, TITLE)
+    open_ones = _mine(issues, me)
+    current = open_ones[0] if open_ones else None
+    others = _leftovers(issues, current)
+    if others:
+        result.notes.append(f'open "{TITLE}" issues not kept current by this tool: '
+                            f'{", ".join(str(i.get("ref")) for i in others)}; close them by hand if they are '
+                            "left over")
+    if current and not forge.only_tool_text(current.get("body") or ""):
+        result.notes.append(f"{current['ref']} has text outside its marker block that this tool did not write; "
+                            "it is kept as it is, and only the text between the markers changes")
+    drift = counted(report)
+    if not drift:
+        if current:
+            result.actions.append(Action("close-drift-issue", f"{current['ref']}: no drift left"))
+            if apply:
+                fg.close_drift_issue(current, me)
+        return result
+    content = section(report, today)
+    if current is None:
+        body = skeleton(content)
+        result.actions.append(Action("create-drift-issue", f'"{TITLE}" in {project}, {len(drift)} items'))
+        if apply:
+            fg.create_issue(project, TITLE, body, None)
+        return result
+    old = current.get("body") or ""
+    body = blocks.replace_block(old, blocks.DRIFT_START, blocks.DRIFT_END, content)
+    hold = forge.command_hold(fg, body)
+    if hold and _without_date(body) != _without_date(old):
+        result.notes.append(f"{current['ref']} was not updated: {hold}")
+    elif _without_date(body) != _without_date(old):
+        result.actions.append(Action("update-drift-issue", f"{current['ref']}, {len(drift)} items"))
+        if apply:
+            fg.update_issue_body(current, body)
+    return result
+
+
+def _without_date(body: str) -> str:
+    """The body with the run date left out, so a new date alone is not a change."""
+    content = blocks.block_content(body, blocks.DRIFT_START, blocks.DRIFT_END) or ""
+    return content.split("\n", 1)[-1]

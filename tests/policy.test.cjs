@@ -84,7 +84,8 @@ test('development loop explicitly routes bug diagnosis, reviews and inline execu
 
 test('changed plugins invalidate known installed caches', () => {
   for (const [name, version] of [
-    ['codegraph', '1.2.2'], ['development-loop', '1.2.2'], ['cross-repo-completeness', '1.1.2'],
+    ['codegraph', '1.2.2'], ['development-loop', '1.3.0'], ['cross-repo-completeness', '1.1.2'],
+    ['roadmap', '1.0.0'],
   ]) assert.equal(JSON.parse(read(`plugins/${name}/.claude-plugin/plugin.json`)).version, version);
 });
 
@@ -204,12 +205,120 @@ test('printable-parts: no em dashes in the plugin or its tests', () => {
   }
 });
 
+// --- roadmap plugin ----------------------------------------------------------
+
+const rmSkill = () => read('plugins/roadmap/skills/roadmap/SKILL.md');
+
+test('roadmap: marketplace entry and plugin metadata are consistent', () => {
+  const entry = marketplace().plugins.find((p) => p.name === 'roadmap');
+  assert.ok(entry, 'roadmap missing from marketplace.json');
+  assert.equal(entry.source, './plugins/roadmap');
+  const plugin = JSON.parse(read('plugins/roadmap/.claude-plugin/plugin.json'));
+  assert.equal(plugin.name, 'roadmap');
+  assert.equal(plugin.description, entry.description);
+  assert.match(plugin.description, /Start with the roadmap skill\./u);
+});
+
+test('roadmap: SKILL.md says when to use it and carries the agreed glossary', () => {
+  const text = rmSkill();
+  const desc = (text.match(/^description:\s*(.*)$/mu) || [])[1] || '';
+  assert.match(desc, /^Use when/u);
+  for (const word of ['Roadmap', 'Epic', 'Issue', 'Depends on', 'Gate', 'Merge request', 'Status', 'Iteration']) {
+    assert.ok(text.includes(`| ${word} |`), `glossary missing ${word}`);
+  }
+  for (const status of ['To do', 'In progress', 'In review', 'Blocked', 'Done']) {
+    assert.ok(text.includes(status), `missing status ${status}`);
+  }
+  assert.match(text, /Never say "milestone"/u);
+  assert.match(text, /No worker starts before this/u);
+  assert.match(text, /`superpowers:brainstorming`/u);
+  assert.match(text, /`development-loop`/u);
+  assert.ok(text.split('\n').length < 500, 'SKILL.md should stay under 500 lines');
+});
+
+test('roadmap: lifecycle covers kickoff, each issue, done, new work and handoff', () => {
+  const text = rmSkill();
+  for (const heading of ['Program kickoff', 'Each issue', 'Issue done', 'New work', 'Handoff']) {
+    assert.match(text, new RegExp(`### \\d\\. ${heading}`, 'u'));
+  }
+  assert.match(text, /short name and\s+link/u);
+});
+
+test('roadmap: references are linked one level deep and exist', () => {
+  const text = rmSkill();
+  for (const ref of ['glossary.md', 'forges.md', 'commands.md', 'evals.md', 'roadmap.schema.json',
+    'example-roadmap.json']) {
+    assert.ok(text.includes(`references/${ref}`), `SKILL.md does not link ${ref}`);
+    assert.ok(read(`plugins/roadmap/skills/roadmap/references/${ref}`).length > 0);
+  }
+  const forges = read('plugins/roadmap/skills/roadmap/references/forges.md');
+  assert.match(forges, /Forgejo/u);
+  assert.match(forges, /no endpoint to add an issue to a project/u);
+});
+
+test('roadmap: the skill is generic, with no project specifics', () => {
+  for (const file of walkFiles('plugins/roadmap')) {
+    if (/__pycache__/u.test(file)) continue;
+    assert.doesNotMatch(read(file), /\b(?:ep2p|irmbpmn|mdoyle|CDP|gemma)\b/u, `project specific text in ${file}`);
+  }
+});
+
+test('roadmap: SKILL.md says where the command lives and the docs match the code', () => {
+  const text = rmSkill();
+  assert.match(text, /in this skill's\s+own directory/u);
+  assert.match(text, /-path '\*roadmap\/scripts\/roadmap\.py'/u);
+  const desc = (text.match(/^description:\s*(.*)$/mu) || [])[1] || '';
+  assert.doesNotMatch(desc, /\. (?:Keeps|Renders|Publishes)\b/u, 'description should name triggers only');
+  for (const file of ['SKILL.md', 'references/glossary.md']) {
+    assert.doesNotMatch(read(`plugins/roadmap/skills/roadmap/${file}`), /\| Iteration \|[^\n]*sprint/iu,
+      `Iteration defined with "sprint" in ${file}`);
+  }
+  assert.match(read('plugins/roadmap/skills/roadmap/references/forges.md'), /from `--forge` when given, then `forge\.kind`/u);
+  assert.ok(!walkFiles('plugins/roadmap').some((f) => /global-instructions/u.test(f)),
+    'the personal global-instructions draft does not belong in the public plugin');
+});
+
+test('roadmap: orchestrators sync at every update, and the enforcement layers are documented', () => {
+  const text = rmSkill();
+  assert.match(text, /[Oo]rchestrators run `sync` at every update/u);
+  assert.ok(text.includes('references/enforcement.md'), 'SKILL.md does not link enforcement.md');
+  const enforcement = read('plugins/roadmap/skills/roadmap/references/enforcement.md');
+  for (const word of ['check-mr', 'drift-issue', 'PostToolUse', 'Stop', 'codex-notify', 'Install nothing']) {
+    assert.ok(enforcement.includes(word), `enforcement.md does not cover ${word}`);
+  }
+  assert.match(read(skillPaths[1]), /## 6\. Issue done[\s\S]{0,400}run `roadmap\.py sync`/u);
+  assert.match(block, /run `roadmap`\s+sync at every update/u);
+  const plugin = JSON.parse(read('plugins/roadmap/.claude-plugin/plugin.json'));
+  assert.match(plugin.description, /closes only its own drift issue/u);
+});
+
+test('roadmap: no em dashes in the plugin or its tests', () => {
+  for (const file of [...walkFiles('plugins/roadmap'), ...walkFiles('tests/roadmap')]) {
+    if (/\.(md|json|py|sh)$/u.test(file)) assert.ok(!read(file).includes('—'), `em dash in ${file}`);
+  }
+});
+
+test('development loop checks the roadmap first and finishes issues on it', () => {
+  const text = read(skillPaths[1]);
+  assert.match(text, /## 0\. Program check[\s\S]{0,400}`roadmap`[\s\S]{0,300}agreed[\s\S]{0,120}before any worker starts/u);
+  assert.match(text, /## 6\. Issue done[\s\S]{0,300}re-render/u);
+  assert.match(block, /`roadmap`[\s\S]{0,120}agreed before any worker starts/u);
+  assert.ok(read('README.md').includes('### roadmap'));
+  assert.ok(read('README.md').includes('/plugin install roadmap@doyled-it-skills'));
+});
+
 test('canonical instructions and generated state conventions exist', () => {
   assert.equal(read('CLAUDE.md').trim(), '@AGENTS.md');
   for (const name of ['development-loop', 'using-codegraph', 'cross-repo-completeness']) {
     assert.ok(read('AGENTS.md').includes('`' + name + '`'));
   }
-  for (const dir of ['.codegraph/', '.superpowers/']) assert.ok(read('.gitignore').includes(dir));
+  for (const dir of ['.codegraph/', '.superpowers/', '.worktrees/']) assert.ok(read('.gitignore').includes(dir));
+});
+
+test('roadmap tests are discovered, not listed by hand', () => {
+  const runner = read('tests/roadmap_test.sh');
+  assert.match(runner, /unittest discover[^\n]*-p 'test_\*\.py'/u);
+  assert.doesNotMatch(runner, /unittest -q test_/u);
 });
 
 // --- nonfiction-superpowers: writing-software-docs ---------------------------

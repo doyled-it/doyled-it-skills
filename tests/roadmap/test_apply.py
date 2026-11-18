@@ -1,0 +1,261 @@
+"""publish --apply against a stateful fake GitHub: idempotency, failures, done work, collisions."""
+
+from __future__ import annotations
+
+import io
+import json
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from unittest import mock
+
+from fakeforge import FakeGitHub, github
+from helpers import example, issue
+from roadmaplib import blocks, cli, forge, publish, validate
+
+REPO = "example-org/search-service"
+
+
+def fresh_forge() -> FakeGitHub:
+    """The forge the example roadmap names: epic #10, issues #11 (closed) and #12."""
+    fake = FakeGitHub()
+    fake.add_issue(REPO, 10, "Better ranking", "Ranking work.")
+    fake.add_issue(REPO, 11, "Record which results people open", "Anonymous counts.", state="closed")
+    fake.add_issue(REPO, 12, "Rank results by open rate", "Blend.")
+    fake.sub_issues[(REPO, 10)] = [fake.issues[(REPO, 11)]["id"]]
+    fake.blocked[(REPO, 12)] = [fake.issues[(REPO, 11)]["id"]]
+    return fake
+
+
+class ApplyTwice(unittest.TestCase):
+    def test_second_apply_writes_nothing_and_creates_no_duplicates(self):
+        fake = fresh_forge()
+        first = publish.publish(example(), github(fake), apply=True)
+        n_first = len(fake.writes)
+        self.assertGreater(n_first, 10)
+        titles = fake.titles(REPO)
+        second = publish.publish(first.roadmap, github(fake), apply=True)
+        self.assertEqual(fake.writes[n_first:], [], [a.kind for a in second.actions])
+        self.assertEqual(fake.titles(REPO), titles)
+        self.assertEqual(len(titles), len(set(titles)))
+
+    def test_rerun_with_the_unsaved_roadmap_after_a_failure_creates_no_duplicates(self):
+        fake = fresh_forge()
+        fake.fail_on_write = 6
+        report = publish.publish(example(), github(fake), apply=True)
+        self.assertIn("HTTP 403", report.failed)
+        self.assertIn("Stopped", report.text())
+        fake.fail_on_write = None
+        publish.publish(example(), github(fake), apply=True)
+        titles = fake.titles(REPO)
+        self.assertEqual(len(titles), len(set(titles)))
+
+
+class FailedApplyKeepsItsRecord(unittest.TestCase):
+    def test_cli_prints_the_partial_report_and_saves_the_links_made(self):
+        fake = fresh_forge()
+        fake.fail_on_write = 6
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            path.write_text(json.dumps(example()))
+            out = io.StringIO()
+            with mock.patch.object(forge, "from_args", return_value=github(fake)), redirect_stdout(out):
+                code = cli.main(["publish", str(path), "--apply"])
+            saved = json.loads(path.read_text())
+        self.assertEqual(code, 2)
+        self.assertIn("HTTP 403", out.getvalue())
+        self.assertIn("create epic", out.getvalue())
+        created = [i for i in saved["epics"] + saved["issues"] if i.get("ref") and i["id"] not in
+                   ("ranking", "click-signals", "ranking-model")]
+        self.assertTrue(created, "refs of what was created before the failure are saved")
+
+
+class SubIssueWriteFails(FakeGitHub):
+    def send(self, method, path, body=None, allow_close=False):
+        if path.endswith("/sub_issues"):
+            raise forge.ForgeError(f"{method} {path} failed: HTTP 403")
+        return super().send(method, path, body, allow_close)
+
+
+class GitHubCreateIsTwoWrites(unittest.TestCase):
+    """Creating an issue and making it a sub-issue are two writes: a failure on the second keeps the first."""
+
+    def test_the_new_issue_is_recorded_and_the_failed_link_is_the_last_action(self):
+        def make(cls):
+            fake = cls()
+            for number, title in ((10, "Better ranking"), (12, "Rank results by open rate")):
+                fake.add_issue(REPO, number, title)
+            fake.add_issue(REPO, 11, "Record which results people open", state="closed")
+            fake.sub_issues[(REPO, 10)] = [fake.issues[(REPO, n)]["id"] for n in (11, 12)]
+            return fake
+
+        fake = make(SubIssueWriteFails)
+        data = example()
+        data["epics"] = data["epics"][:1]
+        data["issues"] = [issue(data, "click-signals"), issue(data, "ranking-model"), issue(data, "ranking-check")]
+        report = publish.publish(data, github(fake), apply=True)
+        self.assertIn("HTTP 403", report.failed)
+        ref = issue(report.roadmap, "ranking-check").get("ref")
+        self.assertTrue(ref and ref.startswith(f"{REPO}#"), "the created issue is saved")
+        last = report.actions[-1]
+        self.assertEqual((last.kind, last.target), ("add-to-epic", "ranking-check"))
+        dry = publish.publish(data, github(make(FakeGitHub)), apply=False)
+        self.assertIn(("add-to-epic", "ranking-check"), [(a.kind, a.target) for a in dry.actions])
+
+
+class DoneWork(unittest.TestCase):
+    def test_done_issue_with_no_ref_links_a_closed_issue_with_its_title(self):
+        fake = fresh_forge()
+        fake.add_issue(REPO, 13, "Design the results page", state="closed")
+        data = example()
+        issue(data, "page-design")["status"] = "done"
+        issue(data, "page-design")["gates"] = []
+        report = publish.publish(data, github(fake), apply=True)
+        self.assertEqual(issue(report.roadmap, "page-design")["ref"], f"{REPO}#13")
+        self.assertEqual(fake.titles(REPO).count("Design the results page"), 1)
+
+    def test_unfinished_work_is_never_linked_to_an_old_closed_issue(self):
+        """A closed issue with the same title is earlier work; linking it would make sync mark this Done."""
+        fake = fresh_forge()
+        fake.add_issue(REPO, 1, "Release every Tuesday", "From last year.", state="closed")
+        for status in ("to_do", "in_progress"):
+            with self.subTest(status=status):
+                data = example()
+                issue(data, "weekly-release")["status"] = status
+                report = publish.publish(data, github(fake), apply=False)
+                kinds = {a.kind for a in report.actions if a.target == "weekly-release"}
+                self.assertNotIn("link-issue", kinds)
+                self.assertIn("create-issue", kinds)
+                create = next(a for a in report.actions if a.kind == "create-issue" and a.target == "weekly-release")
+                self.assertIn(f"{REPO}#1", create.detail)
+                self.assertNotIn("ref", issue(report.roadmap, "weekly-release"))
+
+    def test_done_issue_with_nothing_on_the_forge_is_not_created(self):
+        fake = fresh_forge()
+        data = example()
+        issue(data, "page-design")["status"] = "done"
+        issue(data, "page-design")["gates"] = []
+        report = publish.publish(data, github(fake), apply=True)
+        self.assertNotIn("Design the results page", fake.titles(REPO))
+        self.assertIn("page-design", [a.target for a in report.actions if a.kind == "skip-issue"])
+
+
+class TitleCollisions(unittest.TestCase):
+    def test_validate_rejects_duplicate_titles_and_refs(self):
+        data = example()
+        issue(data, "ranking-check")["title"] = issue(data, "ranking-model")["title"]
+        issue(data, "page-build")["title"] = "better ranking"   # same as an epic name
+        issue(data, "page-design")["ref"] = issue(data, "ranking-model")["ref"]
+        found = {f.code for f in validate.errors(validate.check(data))}
+        self.assertIn("duplicate-title", found)
+        self.assertIn("duplicate-ref", found)
+
+    def test_a_forge_issue_is_linked_to_one_roadmap_item_only(self):
+        fake = fresh_forge()
+        fake.issues[(REPO, 12)]["title"] = "New search page"    # named by ranking-model, retitled like an epic
+        report = publish.publish(example(), github(fake), apply=False)
+        epic = next(a for a in report.actions if a.target == "search-page" and "epic" in a.kind)
+        self.assertEqual(epic.kind, "create-epic")
+        linked = [a.detail.split()[0] for a in report.actions if a.kind in ("link-epic", "link-issue")]
+        self.assertEqual(len(linked), len(set(linked)), linked)
+
+
+class CrossRepository(unittest.TestCase):
+    def test_existing_cross_repository_dependency_is_found_by_id(self):
+        fake = fresh_forge()
+        other = fake.add_issue("example-org/data", 5, "Collect the click log")
+        fake.blocked[(REPO, 12)].append(other["id"])
+        data = example()
+        data["issues"].append({"id": "click-log", "title": "Collect the click log", "epic": "ranking",
+                               "status": "done", "ref": "example-org/data#5",
+                               "url": "https://github.com/example-org/data/issues/5"})
+        issue(data, "ranking-model")["depends_on"].append("click-log")
+        fake.sub_issues[(REPO, 10)].append(other["id"])
+        report = publish.publish(data, github(fake), apply=False)
+        self.assertNotIn("ranking-model", [a.target for a in report.actions if a.kind == "add-blocked-by"])
+        self.assertNotIn("click-log", [a.target for a in report.actions if a.kind == "add-to-epic"])
+
+
+class EpicNoteWrittenOnce(unittest.TestCase):
+    """The epic's note belongs inside the generated section, once, not also above it."""
+
+    def note(self, eid):
+        return next(e for e in example()["epics"] if e["id"] == eid)["note"]
+
+    def epic_body(self, fake, title):
+        return next(d for d in fake.issues.values() if d["title"] == title)["body"]
+
+    def test_a_new_epic_has_its_note_once(self):
+        fake = fresh_forge()
+        publish.publish(example(), github(fake), apply=True)
+        body = self.epic_body(fake, "Safe weekly releases")
+        self.assertEqual(body.count(self.note("release-safety")), 1, body)
+
+    def test_a_new_epic_is_created_with_its_section_so_a_stopped_run_still_shows_it_once(self):
+        fake = fresh_forge()
+        fake.fail_on_write = 2   # the first new epic is created, then the run stops
+        publish.publish(example(), github(fake), apply=True)
+        body = self.epic_body(fake, "New search page")
+        self.assertEqual(body.count(self.note("search-page")), 1, body)
+        self.assertIsNotNone(blocks.block_content(body, blocks.EPIC_START, blocks.EPIC_END))
+        fake.fail_on_write = None
+        publish.publish(example(), github(fake), apply=True)
+        body = self.epic_body(fake, "New search page")
+        self.assertEqual(body.count(self.note("search-page")), 1, body)
+
+    def test_a_linked_epic_with_no_description_gets_its_note_once(self):
+        fake = fresh_forge()
+        fake.issues[(REPO, 10)]["body"] = ""
+        publish.publish(example(), github(fake), apply=True)
+        body = fake.issues[(REPO, 10)]["body"]
+        self.assertEqual(body.count(self.note("ranking")), 1, body)
+
+    def test_hand_text_of_a_linked_epic_is_kept_above_the_section(self):
+        fake = fresh_forge()
+        publish.publish(example(), github(fake), apply=True)
+        body = fake.issues[(REPO, 10)]["body"]
+        self.assertTrue(body.startswith("Ranking work.\n\n" + blocks.EPIC_START), body[:80])
+
+
+class LinkOnlyRunWording(unittest.TestCase):
+    """A run that only links existing items wrote nothing to the forge, and says so."""
+
+    def test_a_link_only_apply_does_not_claim_changes_were_made(self):
+        fake = fresh_forge()
+        first = publish.publish(example(), github(fake), apply=True)
+        n = len(fake.writes)
+        second = publish.publish(first.roadmap, github(fake), apply=True)
+        self.assertEqual(fake.writes[n:], [])
+        self.assertEqual({a.kind for a in second.actions}, {"link-epic", "link-issue"})
+        text = second.text()
+        links = len(second.actions)
+        self.assertNotIn("these changes were made", text)
+        self.assertTrue(text.startswith(f"Applied: linked {links} existing items; no forge writes."), text[:120])
+
+    def test_an_apply_that_writes_still_says_so(self):
+        report = publish.publish(example(), github(fresh_forge()), apply=True)
+        self.assertTrue(report.text().startswith("Applied: these changes were made on the forge."))
+
+    def test_one_linked_item_reads_as_one_item(self):
+        data = example()
+        data["epics"] = data["epics"][:1]
+        data["issues"] = []
+        fake = fresh_forge()
+        fake.issues[(REPO, 10)]["body"] = blocks.epic_body(data, "ranking", "Ranking work.")
+        report = publish.publish(data, github(fake), apply=True)
+        self.assertEqual([a.kind for a in report.actions], ["link-epic"])
+        self.assertTrue(report.text().startswith("Applied: linked 1 existing item; no forge writes."),
+                        report.text()[:120])
+
+    def test_an_apply_with_nothing_to_do_says_nothing_was_written(self):
+        report = publish.Report(applied=True, forge="github", roadmap={})
+        self.assertTrue(report.text().startswith("Applied: nothing to change; no forge writes."))
+
+    def test_the_dry_run_wording_is_unchanged(self):
+        report = publish.publish(example(), github(fresh_forge()), apply=False)
+        self.assertTrue(report.text().startswith("Dry run: nothing was written."))
+
+
+if __name__ == "__main__":
+    unittest.main()

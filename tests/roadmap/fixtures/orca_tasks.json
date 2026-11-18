@@ -1,0 +1,27 @@
+{
+ "ok": true,
+ "result": {
+  "tasks": [
+   {
+    "id": "task_1",
+    "status": "running",
+    "title": "ranking-model acme/search#12: rank by open rate"
+   },
+   {
+    "id": "task_2",
+    "status": "running",
+    "title": "Tidy the docs"
+   },
+   {
+    "id": "task_3",
+    "status": "dispatched",
+    "title": "page-ranking: wire the switch"
+   },
+   {
+    "id": "task_4",
+    "status": "completed",
+    "title": "Old finished work"
+   }
+  ]
+ }
+}

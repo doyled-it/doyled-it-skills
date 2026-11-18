@@ -1,0 +1,142 @@
+{
+  "title": "Search service roadmap",
+  "version": "Version 3",
+  "date": "2026-11-17",
+  "agreed": true,
+  "agreed_by": "the program lead",
+  "goal": "Customers find the right document on the first search, and the team can ship search changes every week without breaking anything.",
+  "rule": "We work only from this roadmap. Any change needs the program lead's approval, or a genuinely good reason stated in the next update. Updates are short and come when an issue is done or a gate result arrives.",
+  "forge": {
+    "kind": "github",
+    "host": "github.com",
+    "project": "example-org/search-service"
+  },
+  "gates": {
+    "D": "Design agreed with the program lead before building",
+    "R": "Independent review, every finding fixed and re-checked, pipeline green on the exact head",
+    "S": "Screen gate: every screen at every width, light and dark, accessibility checks",
+    "M": "Merged and released",
+    "U": "The program lead's explicit approval"
+  },
+  "iterations": [
+    {"name": "Iteration 1", "start": "2026-11-16", "end": "2026-11-27"},
+    {"name": "Iteration 2", "start": "2026-11-30", "end": "2026-12-11"}
+  ],
+  "epics": [
+    {
+      "id": "ranking",
+      "name": "Better ranking",
+      "note": "Results are ordered by what people actually open, not by keyword counts.",
+      "ref": "example-org/search-service#10",
+      "url": "https://github.com/example-org/search-service/issues/10"
+    },
+    {
+      "id": "search-page",
+      "name": "New search page",
+      "note": "One clear results page with filters that work on a phone."
+    },
+    {
+      "id": "release-safety",
+      "name": "Safe weekly releases",
+      "note": "A change cannot reach customers until the checks that matter have passed."
+    }
+  ],
+  "issues": [
+    {
+      "id": "click-signals",
+      "title": "Record which results people open",
+      "detail": "Anonymous counts per query and result, kept for 90 days",
+      "epic": "ranking",
+      "status": "done",
+      "depends_on": [],
+      "gates": [
+        {"gate": "D", "passed": true, "evidence": "https://github.com/example-org/search-service/issues/11#issuecomment-1",
+         "approved_by": "the program lead", "approved_on": "2026-11-10"},
+        {"gate": "R", "passed": true, "evidence": "https://github.com/example-org/search-service/pull/21"},
+        {"gate": "M", "passed": true, "evidence": "https://github.com/example-org/search-service/pull/21"}
+      ],
+      "ref": "example-org/search-service#11",
+      "url": "https://github.com/example-org/search-service/issues/11",
+      "iteration": "Iteration 1"
+    },
+    {
+      "id": "ranking-model",
+      "title": "Rank results by open rate",
+      "detail": "Blend open rate with text match; keep the old order behind a switch",
+      "epic": "ranking",
+      "status": "in_progress",
+      "depends_on": ["click-signals"],
+      "gates": [
+        {"gate": "D", "passed": true, "evidence": "https://github.com/example-org/search-service/issues/12#issuecomment-2",
+         "approved_by": "the program lead", "approved_on": "2026-11-10"},
+        "R",
+        "M"
+      ],
+      "ref": "example-org/search-service#12",
+      "url": "https://github.com/example-org/search-service/issues/12",
+      "iteration": "Iteration 1"
+    },
+    {
+      "id": "ranking-check",
+      "title": "Compare old and new ranking on real queries",
+      "detail": "Two hundred saved queries scored by two reviewers",
+      "epic": "ranking",
+      "status": "to_do",
+      "depends_on": ["ranking-model"],
+      "gates": ["D", "R", "U"],
+      "iteration": "Iteration 2"
+    },
+    {
+      "id": "page-design",
+      "title": "Design the results page",
+      "detail": "Layout, filters and empty states at phone and desktop widths",
+      "epic": "search-page",
+      "status": "in_review",
+      "depends_on": [],
+      "gates": ["D", "U"],
+      "iteration": "Iteration 1"
+    },
+    {
+      "id": "page-build",
+      "title": "Build the results page",
+      "detail": "Uses the agreed design; filters update the address bar",
+      "epic": "search-page",
+      "status": "to_do",
+      "depends_on": ["page-design"],
+      "gates": ["D", "R", "S", "M"],
+      "iteration": "Iteration 2"
+    },
+    {
+      "id": "page-ranking",
+      "title": "Show the new ranking on the page",
+      "detail": "Turn the switch on for ten percent of searches",
+      "epic": "search-page",
+      "status": "to_do",
+      "depends_on": ["page-build", "ranking-check"],
+      "gates": ["R", "S", "M", "U"]
+    },
+    {
+      "id": "release-checks",
+      "title": "Block releases on failing search checks",
+      "detail": "The release pipeline stops when the saved-query score drops",
+      "epic": "release-safety",
+      "status": "blocked",
+      "depends_on": [],
+      "gates": ["D", "R", "M"],
+      "links": [{"label": "Pipeline settings request", "url": "https://github.com/example-org/search-service/issues/30"}]
+    },
+    {
+      "id": "weekly-release",
+      "title": "Release every Tuesday",
+      "detail": "Release notes written from the merged changes",
+      "epic": "release-safety",
+      "status": "to_do",
+      "depends_on": ["release-checks", "click-signals"],
+      "gates": ["R", "M", "U"]
+    }
+  ],
+  "timeline": [
+    {"date": "Nov 16", "text": "Roadmap agreed. Click recording started."},
+    {"date": "Nov 17", "text": "Click recording done and released. Results page design sent for review. Release checks blocked on a pipeline settings request."}
+  ]
+}
