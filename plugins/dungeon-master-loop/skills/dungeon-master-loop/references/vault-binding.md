@@ -22,7 +22,7 @@ The vault already ships templates in `_templates/` and research notes in `world-
 | Bestiary statblock | `bestiary/` (`_templates/statblock.md`) | custom-monsters writes here; encounters reference by name. |
 | Mini and terrain inventory | suggested new note `gm-only/mini-inventory.md` | Not yet in the vault. printable-minis-and-terrain defines the columns. |
 | Print manifest | suggested new note `gm-only/print-queue.md` | Not yet in the vault. A dated queue of what to print before upcoming sessions. |
-| Session recap | the `## Recap` and `## Faction clocks to tick` sections of the session note | advancing-the-world fills these as its first step. |
+| Session recap | the `## Recap` and `## Faction clocks to tick` sections of the session note, with an "inventions made at the table" list under Recap | advancing-the-world fills these as its first step. Add the inventions list if the session template lacks it. |
 
 ## Conventions the vault expects
 

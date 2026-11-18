@@ -26,6 +26,10 @@ answers into the session's recap note:
 - Which secrets or clues did they find? Which did they miss?
 - What did they learn about the Front or a faction?
 - What did they change in the world that NPCs would react to?
+- What did you invent at the table that was not in the prep (NPCs, locations, secrets, monsters)?
+
+Write that last answer into the recap's "inventions made at the table" field. It is the named
+home for Phase 7's running list of inventions, and Step 2 reads it to decide what becomes canon.
 
 Gate: the recap exists before you touch any world artifact.
 
