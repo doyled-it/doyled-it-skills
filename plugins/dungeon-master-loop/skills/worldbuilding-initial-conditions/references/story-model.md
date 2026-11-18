@@ -54,10 +54,10 @@ the primary videos. Treat as unverified until you watch them.
    it cannot force the players' hand.
 3. Three to five nodes (a person, place, or event each), linked by about ten secrets and clues,
    each reachable at least three ways.
-4. One or two clocks: a 6-segment clock for the villain's plan, optionally a 4-segment clock for
-   a local pressure.
-5. Advance a portent after the session, not mid-scene. Tick the clock on a consequence or
-   elapsed time. Between sessions, ask what the villain did.
+4. One or two clocks: one for the villain's plan, optionally one for a local pressure. Clock sizes
+   and how they tick are defined once in `advancing-the-world`; this note does not redefine them.
+5. Advance a portent after the session, not mid-scene, following the tick rule in
+   `advancing-the-world`. Between sessions, ask what the villain did.
 6. At the end of the one-shot, keep the best surprise: promote one unresolved portent, NPC, or
    location into the next session's strong start. Add a second Front only when the first feels
    settled, up to three.

@@ -16,14 +16,25 @@ in the Fantasy Statblocks bestiary. Registration needs a frontmatter flag plus a
 - Add `statblock: inline` and a `name:` to the note's YAML frontmatter. This registers the first
   fenced `statblock` block in the bestiary. This is the method the Fantasy Statblocks docs
   recommend.
-- Turn on "Parse Frontmatter for Creatures" (the `autoParse` setting), and make sure the note is
-  inside a configured Bestiary folder (the default path is the whole vault). The example vault
-  binding ships a Fantasy Statblocks `data.json` with `autoParse: true`.
+- In Fantasy Statblocks settings, turn on "Parse Frontmatter for Creatures" (the `autoParse`
+  setting) and set its Bestiary folder paths to your monster and NPC folders only (for example
+  `bestiary` and `npcs`), not the whole vault. The default path is the whole vault, which would
+  parse your templates into the bestiary as a creature named after the template placeholder.
+- Disable the built-in 2014 SRD bestiary (the `disableSRD` setting) when you keep 2024 creature
+  notes, so your 2024 notes win in Initiative Tracker and Encounter Builder name lookups instead
+  of colliding with the built-in 2014 versions of the same name.
 
 A statblock block with no `statblock: inline` flag renders but is invisible to the trackers. That
 is the single most common integration bug. The alternative flag `statblock: true` puts the whole
 creature in frontmatter and needs its own `name:` key; it is more conflict-prone, so prefer
 `inline`.
+
+Two numeric rules the trackers depend on. Keep `hp` a plain number (for example `hp: 21`, with the
+dice in a separate `hit_dice`), because Initiative Tracker reads it as `Number(hp)` and an `hp`
+like `21 (6d6)` becomes NaN. And put the initiative modifier in `modifier` (the field Initiative
+Tracker reads; with no `modifier` it falls back to the Dex modifier from `stats[1]`). If a note's
+frontmatter uses an uppercase `CR`, add a lowercase `cr` too, because Encounter Builder reads
+lowercase `cr` from a linked note.
 
 ## Monster (custom-monsters output): a bestiary-indexed statblock
 
@@ -205,7 +216,7 @@ long: 50
 minZoom: 1
 maxZoom: 10
 defaultZoom: 5
-marker: default, 42, -71, [[Home Settlement]]
+marker: default, 42, 30, [[Home Settlement]]
 ```
 ````
 

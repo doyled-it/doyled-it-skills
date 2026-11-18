@@ -17,6 +17,9 @@ so you are not caught without a mini.
 The trick to improvising a good fight is the same as a prepped one, just faster: decide the
 question, grab enemies, give the space one feature, and know how the enemies fight.
 
+Even at speed, the table safety limits still bind. Hold the lines and veils from session-zero in
+mind before you reach for a theme or a monster, and never improvise content onto a line.
+
 ## The two-minute procedure
 
 1. **Question and objective.** One line: what is this fight about, and when does it end? Even

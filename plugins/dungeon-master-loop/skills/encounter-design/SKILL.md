@@ -19,6 +19,12 @@ fight starts.
 
 Do these in order. Difficulty is a constraint, not the design.
 
+### 0. Check table safety
+
+Before generating any content, read the table safety artifact (the lines and veils agreed at
+session-zero). Do not stage a fight on a line, and keep veiled content off screen. Safety is a
+hard constraint on the monsters, the objective, and the fiction, not an afterthought.
+
 ### 1. Objective first
 
 Decide what the fight is about, beyond "kill everything". Options: escort or protect an NPC,
@@ -28,10 +34,11 @@ points is more interesting and lets you plan failure outcomes short of a total p
 
 ### 2. Budget to party size and makeup
 
-Set a target difficulty (Low, Moderate, High) and compute the XP budget: the per-character XP
-for the party's level, times the number of characters who will be there. The 2024 method drops
-the old count-based multipliers. Then adjust qualitatively for the party's makeup (area damage,
-control, action economy, saves, nova, sustain). The table and the adjustments are in
+Set a target difficulty (Low, Moderate, High) and compute the XP budget as the sum of each
+character's own per-level budget (not an average level times a head count; a mixed-level party is
+summed level by level). The 2024 method drops the old count-based multipliers. Then adjust
+qualitatively for the party's makeup (area damage, control, action economy, saves, nova, sustain).
+The per-level table, the mixed-level worked example, and the adjustments are all in
 `references/encounter-math-2024.md`. Pull the precomputed budgets from the party roster
 (party-composition) when you have them.
 
