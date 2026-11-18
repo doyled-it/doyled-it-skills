@@ -211,3 +211,60 @@ test('canonical instructions and generated state conventions exist', () => {
   }
   for (const dir of ['.codegraph/', '.superpowers/']) assert.ok(read('.gitignore').includes(dir));
 });
+
+// --- nonfiction-superpowers: writing-software-docs ---------------------------
+
+const nfPlugin = () =>
+  JSON.parse(read('plugins/nonfiction-superpowers/.claude-plugin/plugin.json'));
+const sdSkill = () =>
+  read('plugins/nonfiction-superpowers/skills/writing-software-docs/SKILL.md');
+
+test('nonfiction-superpowers: manifests agree and the version is bumped', () => {
+  const entry = marketplace().plugins.find((p) => p.name === 'nonfiction-superpowers');
+  assert.ok(entry, 'nonfiction-superpowers missing from marketplace.json');
+  const plugin = nfPlugin();
+  assert.equal(plugin.version, '1.1.0');
+  assert.equal(plugin.description, entry.description);
+  assert.match(plugin.description, /writing-software-docs/u);
+});
+
+test('writing-software-docs: exists, opens with Use when, and does not claim review', () => {
+  const text = sdSkill();
+  const desc = /^description: (.*)$/mu.exec(text)[1];
+  assert.match(desc, /^Use when /u);
+  assert.doesNotMatch(desc, /\breviews?\b/iu);
+  assert.doesNotMatch(desc, /Excludes|Not for[^.]*changelog/iu);
+  assert.match(desc, /changelogs?/iu);
+  assert.match(desc, /release notes/iu);
+});
+
+test('writing-software-docs: marker placement, README exception, plan confirmation', () => {
+  const text = sdSkill();
+  assert.match(text, /after\s+any\s+frontmatter/iu);
+  assert.match(text, /\{\/\* diataxis: how-to \*\/\}/u);
+  assert.match(text, /READMEs?\s+and\s+mixed-type\s+landing\s+pages/iu);
+  assert.match(text, /confirm\s+the\s+plan\s+with\s+the\s+user\s+before\s+drafting/iu);
+  assert.match(text, /commit messages/iu);
+  assert.doesNotMatch(text, /references\/evals\.md/u);
+});
+
+test('writing-software-docs: the review handoff carries Diataxis criteria', () => {
+  assert.match(sdSkill(), /software-docs mode/iu);
+  const reviewer = read('plugins/nonfiction-superpowers/skills/reviewing-nonfiction/SKILL.md');
+  assert.match(reviewer, /Software documentation mode/u);
+  assert.match(reviewer, /lede|nut graf/u);
+  assert.match(reviewer, /one Diataxis type/iu);
+});
+
+test('nonfiction-superpowers: hook, README and writing-nonfiction route software docs', () => {
+  const hook = read('plugins/nonfiction-superpowers/hooks/session-start');
+  assert.match(hook, /software documentation[^.]*changelogs[^.]*writing-software-docs/u);
+  const readme = read('README.md');
+  assert.match(readme, /software documentation[^.]*start\s+with\s+\*\*writing-software-docs\*\*/iu);
+  const wn = read('plugins/nonfiction-superpowers/skills/writing-nonfiction/SKILL.md');
+  assert.match(wn, /changelogs/u);
+});
+
+test('writing-software-docs: evals are referenced from AGENTS.md, not the skill', () => {
+  assert.match(read('AGENTS.md'), /writing-software-docs\/references\/evals\.md/u);
+});

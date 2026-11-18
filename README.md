@@ -10,7 +10,9 @@ A Claude Code marketplace of personal skills. The skills follow the Agent Skills
 A superpowers-style system for writing nonfiction: a phased workflow with gates, built as a
 sequence of composable skills. It is to prose what superpowers is to code.
 
-Start with **writing-nonfiction** (the orchestrator). It runs the phases:
+For prose, start with **writing-nonfiction** (the orchestrator). For software documentation
+(docs pages, READMEs, guides, reference, changelogs, release notes), start with
+**writing-software-docs** instead. The nonfiction workflow runs the phases:
 
 1. **Brainstorm** the premise, angle, and audience (uses `superpowers:brainstorming`).
 2. **Design**: pin the form and a style sheet, then outline (`writing-a-researched-piece`,
@@ -32,6 +34,11 @@ The skills in the plugin:
   Gutkind), the AI-tells blacklist, and the mandatory proofread pass.
 - **reviewing-nonfiction**: the independent, adversarial review (fact-check, structure, data,
   craft, tells).
+- **writing-software-docs**: technical documentation organized by reader need with the
+  Diataxis framework (tutorial, how-to, reference, explanation): a placement plan first, one
+  type per page, cross-links instead of repetition, and unconfirmed facts listed
+  with visible markers where a needed step or cell has a gap. Its drafts are reviewed with
+  `reviewing-nonfiction` in software-docs mode.
 
 For an interactive data-story site, run `writing-nonfiction` for the research and prose and
 `superpowers` for the implementation under one plan (see the "Combining with code" section in the
