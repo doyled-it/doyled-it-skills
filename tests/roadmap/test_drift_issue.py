@@ -126,6 +126,28 @@ class OneDriftIssue(unittest.TestCase):
         self.assertEqual(mine["state"], "open")
 
 
+class OrcaKindsNeedOrca(unittest.TestCase):
+    """The scheduled pipelines run drift-issue with --no-orca: the Orca kinds never reach the issue there."""
+
+    def roadmap(self):
+        data = quiet()
+        data["issues"].append(issue(example(), "ranking-model"))   # In progress, #12 has no merge request
+        return data
+
+    def items(self, tasks):
+        fake = fresh_forge()
+        fg = github(fake)
+        report = sync.sync(self.roadmap(), fg, orca_tasks=tasks, now=NOW)
+        driftissue.run(self.roadmap(), fg, report, apply=True, today=NOW)
+        return "".join(d["body"] for d in drift_issues(fake))
+
+    def test_without_orca_nothing_behind_is_not_in_the_drift_issue(self):
+        self.assertNotIn("nothing-behind", self.items(None))
+
+    def test_with_orca_tasks_read_it_is(self):
+        self.assertIn("nothing-behind", self.items([]))
+
+
 class OnlyItsOwnIssue(unittest.TestCase):
     """Anyone can open an issue titled "Roadmap drift" with the markers; only the tool's own counts."""
 

@@ -4,6 +4,9 @@
 # tools/roadmap/. Store an access token with issue write scope as the
 # ROADMAP_TOKEN secret; FORGEJO_HOST binds it to this forge's host, so it is
 # never sent anywhere else. See the roadmap skill's references/enforcement.md.
+# The job cannot read Orca, so drift that needs Orca's task list
+# (nothing-behind, started-early, unlinked-orca-task) is not in this drift
+# issue: sync reports it where Orca runs.
 name: Roadmap sync
 on:
   schedule:

@@ -3,6 +3,9 @@
 # synced roadmap.json and page. Copy to .github/workflows/ and copy the roadmap
 # command to tools/roadmap/. See the roadmap skill's references/enforcement.md.
 # The synced roadmap.json is an artifact: review it and commit it by hand.
+# The job cannot read Orca, so drift that needs Orca's task list
+# (nothing-behind, started-early, unlinked-orca-task) is not in this drift
+# issue: sync reports it where Orca runs.
 name: Roadmap sync
 on:
   schedule:

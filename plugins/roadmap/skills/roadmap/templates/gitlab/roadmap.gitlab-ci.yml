@@ -25,6 +25,9 @@ roadmap-check:
 # one "Roadmap drift" issue current. Create a pipeline schedule with the
 # variable ROADMAP_SYNC=1, and a masked project access token with api scope in
 # ROADMAP_BOT_TOKEN.
+# The job cannot read Orca, so drift that needs Orca's task list
+# (nothing-behind, started-early, unlinked-orca-task) is not in this drift
+# issue: sync reports it where Orca runs.
 roadmap-sync:
   stage: test
   # A fixed glab release, not latest, so a new release cannot change what the

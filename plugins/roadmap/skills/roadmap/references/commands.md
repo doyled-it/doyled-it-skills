@@ -139,7 +139,8 @@ change which issue is the drift issue. When the token's user has several, the
 oldest is kept current, and one note names every other open issue titled
 "Roadmap drift", whoever opened it. When a forge call fails,
 the report is incomplete and the drift issue is left as it is (exit 1). Takes
-the Orca and forge options of `sync`. The scheduled pipelines run it; see
+the Orca and forge options of `sync`. The scheduled pipelines run it with
+`--no-orca`, so their drift issue never lists the kinds that need Orca; see
 [enforcement.md](enforcement.md).
 
 ## sync
@@ -176,15 +177,15 @@ Drift kinds:
 | `not-published` | A roadmap issue that is not Done, with nothing behind it on the forge. | the lead: publish |
 | `missing-on-forge` | The roadmap names a forge issue that cannot be read. | the agent: fix the ref |
 | `no-recent-activity` | No forge activity for `--stale-days` on an issue In progress or In review (To do and Blocked never go stale). | the team |
-| `nothing-behind` | In progress or in review, with no merge request and no Orca task. | the agent |
+| `nothing-behind` | In progress or in review, with no merge request and no Orca task (needs Orca: not reported with `--no-orca`, so never by the scheduled pipelines). | the agent |
 | `done-but-open` | Done on the roadmap, open on the forge. | the agent |
 | `lead-gate-ticked-on-forge` | A lead gate (D or U) is ticked on the forge but not recorded in `roadmap.json`; it was not ticked. | the lead |
 | `marker-problem` | A description's generated-section markers are broken; nothing was read from or written to that section. Fix it by hand. | the agent |
 | `quick-action` | GitLab only: an epic's hand-written text has a line GitLab would run as a command (`/close`); the roadmap section was not written. Remove the line or put it in a code block. | the agent |
 | `unlisted-epic-issue` | An open issue in a roadmap epic that the roadmap does not list. | the lead |
 | `unlinked-merge-request` | An open merge request that no roadmap issue accounts for. | the team |
-| `unlinked-orca-task` | An active Orca task whose title does not start with a roadmap issue's short name or link. | the team |
-| `started-early` | A running Orca task for an issue whose dependencies are not Done. | the team |
+| `unlinked-orca-task` | An active Orca task whose title does not start with a roadmap issue's short name or link (needs Orca: not reported with `--no-orca`). | the team |
+| `started-early` | A running Orca task for an issue whose dependencies are not Done (needs Orca: not reported with `--no-orca`). | the team |
 
 The agent hooks block a turn only on the agent's kinds, and only for issues
 that turn changed (see [enforcement.md](enforcement.md)); the drift issue

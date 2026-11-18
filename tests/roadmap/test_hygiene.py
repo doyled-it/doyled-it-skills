@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from fakeforge import FakeGitHub, github
-from helpers import CLI, EXAMPLE, example
+from helpers import CLI, EXAMPLE, SKILL, example
 from roadmaplib import forge, preview, publish, render
 
 SRI = "sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
@@ -81,6 +81,41 @@ class PreviewNeverClobbers(unittest.TestCase):
             self.assertEqual(res.returncode, 1)
             self.assertEqual(other.read_text(), "someone else's page")
             self.assertIn("x-full.html", res.stdout)
+
+
+class OrcaDriftIsDocumentedWhereItIsReported(unittest.TestCase):
+    """nothing-behind, started-early and unlinked-orca-task need Orca's task list.
+
+    The scheduled pipelines cannot read Orca, so the docs must not promise
+    them from the drift issue those pipelines keep.
+    """
+
+    ORCA_KINDS = ("nothing-behind", "started-early", "unlinked-orca-task")
+    TEMPLATES = ("templates/gitlab/roadmap.gitlab-ci.yml", "templates/github/workflows/roadmap-sync.yml",
+                 "templates/forgejo/workflows/roadmap-sync.yml")
+
+    def test_every_scheduled_pipeline_runs_without_orca(self):
+        for name in self.TEMPLATES:
+            text = (SKILL / name).read_text()
+            lines = [ln for ln in text.splitlines() if "drift-issue" in ln and "roadmap.json" in ln]
+            self.assertTrue(lines, name)
+            self.assertTrue(all("--no-orca" in ln for ln in lines), name)
+            self.assertIn("cannot read Orca", " ".join(ln.lstrip("# ") for ln in text.splitlines()), name)
+
+    def test_enforcement_says_the_scheduled_drift_issue_leaves_out_the_orca_kinds(self):
+        doc = " ".join((SKILL / "references" / "enforcement.md").read_text().split())
+        self.assertFalse("come only from a full `sync` or the drift issue." in doc, "old claim still there")
+        section = doc.split("### Scheduled sync and the drift issue", 1)[1].split("## Layer 2", 1)[0]
+        for kind in self.ORCA_KINDS:
+            self.assertIn(f"`{kind}`", section)
+        self.assertTrue("cannot read Orca" in section, "section does not say the pipeline cannot read Orca")
+
+    def test_the_drift_kinds_table_marks_the_orca_kinds(self):
+        doc = (SKILL / "references" / "commands.md").read_text()
+        for kind in self.ORCA_KINDS:
+            row = next(ln for ln in doc.splitlines() if ln.startswith(f"| `{kind}` |"))
+            self.assertIn("Orca", row.split("|")[2], kind)
+            self.assertIn("needs Orca", row, kind)
 
 
 class DocsListEveryCommand(unittest.TestCase):

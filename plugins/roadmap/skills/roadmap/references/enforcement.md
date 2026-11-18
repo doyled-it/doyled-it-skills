@@ -87,6 +87,17 @@ not started is not drift: a To do or Blocked issue never goes stale, and a Done 
 published", so an untouched backlog does not keep the issue open. The synced `roadmap.json` and page are job artifacts; the lead reviews
 and commits them, since the pipeline never pushes.
 
+The pipeline cannot read Orca: Orca runs on the lead's machine, not on the
+forge's runners. So the three kinds that need Orca's task list,
+`nothing-behind`, `started-early` and `unlinked-orca-task`, never appear in
+the drift issue the pipeline keeps. They are reported only by a `sync` (or a
+`drift-issue` run) without `--no-orca` on the machine where Orca runs, which
+is the `sync` the orchestrator runs at every update. The pipeline does not
+guess them instead: an empty task list would call every In progress issue
+with no merge request yet `nothing-behind`. A drift issue written by such a
+local `drift-issue` run lists them only until the next scheduled run, which
+rewrites it without them (and closes it if they were all that was left).
+
 | Forge | Template | Needs |
 | --- | --- | --- |
 | GitLab CI | `templates/gitlab/roadmap.gitlab-ci.yml` (job `roadmap-sync`) | a pipeline schedule with `ROADMAP_SYNC=1`; a masked project access token with `api` scope in `ROADMAP_BOT_TOKEN` |
@@ -122,8 +133,10 @@ The roadmap plugin registers two hooks (`hooks/hooks.json`, script
   `marker-problem`. Drift that needs the lead or the team
   (`lead-gate-ticked-on-forge`, `no-recent-activity`) is shown as a one-line
   note and never blocks. (`--only` skips Orca, epics and open merge requests,
-  so `nothing-behind`, `started-early`, `unlisted-epic-issue` and
-  `unlinked-merge-request` come only from a full `sync` or the drift issue.)
+  so `unlisted-epic-issue` and `unlinked-merge-request` come only from a full
+  `sync` or the drift issue, and `nothing-behind`, `started-early` and
+  `unlinked-orca-task` only from a full `sync` that reads Orca; see
+  "Scheduled sync and the drift issue".)
 
 Both look for `ROADMAP_FILE`, else `roadmap.json` in the working directory or
 at the git root, and do nothing and say nothing without one (a `roadmap.json`
