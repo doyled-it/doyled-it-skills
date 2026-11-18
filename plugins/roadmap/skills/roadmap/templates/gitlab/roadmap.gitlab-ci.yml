@@ -31,8 +31,11 @@ roadmap-check:
 roadmap-sync:
   stage: test
   # A fixed glab release, not latest, so a new release cannot change what the
-  # job does with its api token. Move it forward on purpose.
-  image: registry.gitlab.com/gitlab-org/cli:v1.123.0
+  # job does with its api token. Move it forward on purpose. The image's
+  # ENTRYPOINT is glab, so clear it or the script lines would be glab arguments.
+  image:
+    name: registry.gitlab.com/gitlab-org/cli:v1.123.0
+    entrypoint: [""]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $ROADMAP_SYNC == "1"
   variables:

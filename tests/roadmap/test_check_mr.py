@@ -304,6 +304,14 @@ class Templates(unittest.TestCase):
             self.assertIn("sync roadmap.json --no-orca --write --update-epics", text, path)
             self.assertIn("drift-issue roadmap.json --no-orca --apply", text, path)
 
+    def test_the_gitlab_sync_job_clears_the_glab_image_entrypoint(self):
+        # The glab image's ENTRYPOINT is glab, so a script run by the image would be
+        # passed to glab as arguments. The job must reset it.
+        text = (SKILL / "templates" / "gitlab" / "roadmap.gitlab-ci.yml").read_text()
+        job = text.split("roadmap-sync:")[1]
+        self.assertRegex(job, r'image:\s*\n\s+name: registry\.gitlab\.com/gitlab-org/cli:v[\d.]+\s*\n'
+                              r'\s+entrypoint: \[""\]')
+
 
 if __name__ == "__main__":
     unittest.main()
