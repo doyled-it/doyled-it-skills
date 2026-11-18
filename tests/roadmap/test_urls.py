@@ -138,6 +138,10 @@ class ClosingReferencesInEitherForm(unittest.TestCase):
             with self.subTest(written=written):
                 self.assertFalse(sync.closes(self.mr(f"Closes {written}"), fi, "gitlab"))
 
+    def test_a_longer_path_is_not_the_issue_page(self):
+        url = f"{HOST}/acme/search/-/work_items/12/designs"
+        self.assertEqual(model.item_urls(url), {url})
+
     def test_github_urls_are_not_rewritten(self):
         fi = {"ref": "o/r#12", "url": "https://github.com/o/r/issues/12"}
         self.assertFalse(sync.closes(self.mr("Closes https://github.com/o/r/-/work_items/12"), fi, "github"))
