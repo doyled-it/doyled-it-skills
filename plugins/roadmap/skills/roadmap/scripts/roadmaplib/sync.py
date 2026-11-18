@@ -326,7 +326,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             report.cleared.append(iid)
 
         # Status.
-        new, why = _forge_status(fi, mrs, cfg)
+        new, why = _forge_status(fi, linked, cfg)
         old = it["status"]
         if old == "done" and fi["state"] == "open":
             report.drift.append(Drift("done-but-open", iid, f'Done on the roadmap but {fi["ref"]} is open'))

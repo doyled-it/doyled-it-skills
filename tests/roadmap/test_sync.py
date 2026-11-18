@@ -35,6 +35,31 @@ def drift(report, kind):
     return [d for d in report.drift if d.kind == kind]
 
 
+class MentionedMergeRequestsDoNotMoveStatus(unittest.TestCase):
+    """An open merge request that only mentions the issue is not work on it."""
+
+    def run_with(self, description):
+        responses = fixture("gitlab_sync.json")
+        for key in ("GET projects/acme%2Fsearch/issues/12/related_merge_requests",
+                    "GET projects/acme%2Fsearch/merge_requests/31"):
+            body = responses[key]
+            for mr in (body if isinstance(body, list) else [body]):
+                mr["description"] = description
+        fg = forge.GitLab(NoWrites(responses), host="gitlab.example.com", project="acme/search", group="acme")
+        tasks = orca.parse_tasks(fixture("orca_tasks.json"))
+        return sync.sync(sync_roadmap(), fg, orca_tasks=tasks, stale_days=14, now="2026-11-17")
+
+    def test_a_mention_alone_leaves_the_status_alone(self):
+        report = self.run_with("Related to #12, see the discussion there.")
+        self.assertNotIn("ranking-model", {c.issue for c in report.status_changes})
+        self.assertEqual(issue(report.roadmap, "ranking-model")["status"], "in_progress")
+        self.assertIn("ranking-model", report.merge_requests)   # still reported as a related merge request
+
+    def test_a_closing_merge_request_still_moves_it_to_review(self):
+        report = self.run_with("Closes #12")
+        self.assertEqual({c.issue: c.new for c in report.status_changes}["ranking-model"], "in_review")
+
+
 class StatusFromForge(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
