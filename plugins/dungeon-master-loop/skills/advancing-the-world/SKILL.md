@@ -105,9 +105,10 @@ to three active Fronts.
 
 ## Outputs (artifacts handed forward)
 
-In Obsidian (the default binding), a promoted NPC or a re-statted villain is written as a
-bestiary-indexed statblock (`statblock: inline`), per
-`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`, so it stays live in the trackers.
+In Obsidian (the default binding), a re-statted villain or a promoted NPC who can fight is written
+as a bestiary-indexed statblock (`statblock: inline`), per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`, so it stays live in the trackers. A
+noncombatant NPC is a plain canon NPC note with no statblock.
 
 Updated setting canon, ticked faction clocks, a rolled-forward secrets list, new hooks and
 seeds, a re-stat flag on recurring villains, and an updated Front. session-prep reads all of

@@ -17,6 +17,12 @@ and no "Monster Statistics by Challenge Rating" table (the 2014 DMG did). So the
 official 2024 method, and any number you use comes from a specific, labeled source. The build
 math and its provenance are in `references/monster-building-2024.md`.
 
+## Check table safety first
+
+Before you build or reskin anything, read the table safety artifact (the lines and veils agreed at
+session-zero). A monster's theme, description, and signature move must not cross a line, and veiled
+content stays off screen. This is a hard constraint on the fiction, not a later filter.
+
 ## Three routes, fastest first
 
 ### 1. Reskin (default)

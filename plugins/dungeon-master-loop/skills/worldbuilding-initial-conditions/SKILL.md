@@ -55,7 +55,10 @@ before you finalize the cast and where they land.
 
 ## Pass two: finalize (after session zero and party-composition)
 
-Now you know the characters. Tie the world to them.
+Now you know the characters, and session zero has produced the table safety artifact. Read the
+lines and veils before you generate the cast and villains: a villain's methods, an NPC's history,
+and the Front's threat must not cross a line, and veiled content stays off screen. Then tie the
+world to the characters.
 
 4. **Factions.** Two or three. For each, write only members the party can meet, territory they
    can visit, and a goal that conflicts with another faction. Give each a clock (see
