@@ -548,6 +548,20 @@ class GitLab:
         return refs
 
 
+def _check_run_state(run: dict) -> str:
+    """One GitHub check run as success, pending or failure."""
+    if run.get("status") != "completed":
+        return "pending"
+    return "success" if run.get("conclusion") in ("success", "neutral", "skipped") else "failure"
+
+
+def _worst_state(states: list[str]) -> str:
+    for bad in ("failure", "error", "pending"):
+        if bad in states:
+            return "failure" if bad == "error" else bad
+    return "success"
+
+
 class GitHub:
     kind = "github"
     native_epics = True
@@ -677,13 +691,29 @@ class GitHub:
                 "pipeline": None, "pipeline_url": None, "head_sha": (d.get("head") or {}).get("sha")}
 
     def _with_checks(self, pr: dict) -> dict:
+        """The pipeline is the worst of the commit statuses and the GitHub Actions check runs.
+
+        The combined Status API alone says "pending" for a repository that only
+        uses Actions, so check runs are read too.
+        """
         if pr["state"] == "open" and pr.get("head_sha"):
+            base = f"repos/{pr['project']}/commits/{pr['head_sha']}"
+            states = []
             try:
-                st = self.t.get(f"repos/{pr['project']}/commits/{pr['head_sha']}/status")
-                pr["pipeline"] = st.get("state")
-                pr["pipeline_url"] = f"{pr['url']}/checks" if pr.get("url") else None
+                st = self.t.get(f"{base}/status")
+                has_statuses = st.get("total_count", len(st.get("statuses") or [1])) > 0
+                if has_statuses and st.get("state"):
+                    states.append(st["state"])
             except NotFound:
                 pass
+            try:
+                runs = self.t.get(f"{base}/check-runs").get("check_runs") or []
+                states += [_check_run_state(r) for r in runs]
+            except NotFound:
+                pass
+            if states:
+                pr["pipeline"] = _worst_state(states)
+                pr["pipeline_url"] = f"{pr['url']}/checks" if pr.get("url") else None
         return pr
 
     def related_mrs(self, issue: dict) -> list[dict]:
