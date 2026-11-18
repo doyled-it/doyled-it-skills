@@ -40,6 +40,21 @@ Tell it to review and report, not to rewrite. It checks, in order:
 The reviewer returns a prioritized list: blocking problems first, then minor ones. Each finding
 names a specific location and a suggested fix. The reviewer does not edit the draft.
 
+## Software documentation mode
+
+When the draft is software documentation (from `writing-software-docs`), swap the essay
+criteria for these. Do not require a lede, nut graf, an ending that answers the lead, or one of
+the six essay forms; they do not apply.
+
+1. **Accuracy.** Every claim traces to a source, and inferences are listed as unconfirmed, not
+   stated as fact.
+2. **One Diataxis type per page.** Flag steps inside reference, tables or background inside a
+   how-to, and so on. A README or mixed-type landing page is exempt if each section is labeled.
+3. **Placement and links.** The page matches the agreed placement plan and links related types
+   instead of repeating them.
+4. **Visible gaps.** Needed unconfirmed steps carry a `TODO(confirm)` marker.
+5. **Craft and AI tells.** Run the `writing-human-prose` blacklist as usual.
+
 ## The writer's job after review
 
 Triage the findings. Fix every blocking one. For any finding you reject, write one line saying

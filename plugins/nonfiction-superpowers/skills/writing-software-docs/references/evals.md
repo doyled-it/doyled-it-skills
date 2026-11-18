@@ -15,7 +15,7 @@ Pass criteria (with skill):
 
 - A placement plan comes before any prose, mapping each reader need to a Diataxis
   type and a destination (existing page section or new page).
-- Each page has one type, marked `<!-- diataxis: <type> -->`, and links to the
+- Each page has one type, marked with a Diataxis comment after any frontmatter, in the site's comment syntax, and links to the
   other types instead of repeating them. Existing pages gain same-type sections.
 - No inferred statement appears as fact. Steps or cells that need an unconfirmed fact
   carry a visible `**TODO(confirm):**` marker; every gap is in the Unconfirmed list.

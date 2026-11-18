@@ -27,6 +27,9 @@
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.
+  Scenarios for `writing-software-docs` live in
+  `plugins/nonfiction-superpowers/skills/writing-software-docs/references/evals.md`; consult
+  them when revising that skill, never from the skill itself.
 - Work on feature branches; use Conventional Commits and the owner identity Michael Doyle <michaeldoyle1994@gmail.com> (not a work or noreply address).
   Do not add coauthors. Remote writes require explicit user authorization.
 - Ignore `.codegraph/` and `.superpowers/`. Do not commit generated designs, plans,
