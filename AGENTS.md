@@ -27,7 +27,7 @@
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.
-- Work on feature branches; use Conventional Commits and a public noreply identity.
+- Work on feature branches; use Conventional Commits and the owner identity Michael Doyle <michaeldoyle1994@gmail.com> (not a work or noreply address).
   Do not add coauthors. Remote writes require explicit user authorization.
 - Ignore `.codegraph/` and `.superpowers/`. Do not commit generated designs, plans,
   transcripts, private configuration, or internal source. Keep prose free of
