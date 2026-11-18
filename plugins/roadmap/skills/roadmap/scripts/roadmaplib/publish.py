@@ -121,6 +121,14 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
                                  f'no "ref" cannot be created: {", ".join(homeless)}. Set forge "group" in '
                                  'roadmap.json, or name each epic\'s existing "ref"')
 
+    # An issue to create needs a project. Refuse here, before any forge call, not
+    # part way through an apply that has already written other items.
+    homeless = [i["id"] for i in model.normalize(raw)["issues"]
+                if not i.get("ref") and not (i.get("project") or fg.project)]
+    if homeless:
+        raise PublishRefused(f'these issues have no project to be created in: {", ".join(homeless)}. Set '
+                             'forge "project" in roadmap.json, or each issue\'s "project", or name its "ref"')
+
     out = copy.deepcopy(raw)
     where = f"{fg.kind} ({fg.host or 'default host'}), project {fg.project or 'not set'}"
     report = Report(applied=apply, forge=where, roadmap=out)
@@ -182,8 +190,6 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
             fi = fg.get_issue(it["ref"])
             report.add("link-issue", iid, f'{it["ref"]} (named in the roadmap)')
         else:
-            if not project:
-                raise PublishRefused(f'issue "{iid}" has no project; set forge.project or the issue\'s project')
             # Open issues first. A closed one is linked only to Done work: for
             # unfinished work it is earlier work, and sync would then mark this Done.
             same = [o for o in fg.all_issues(project) if o["ref"] not in claimed and _same(o["title"], it["title"])]
@@ -261,18 +267,21 @@ def _publish(raw: dict, fg, apply: bool, report: Report) -> None:
 
     # Optional: pin parent issues so a Forgejo epic is easy to find (it has no Projects API).
     if getattr(fg, "pin_epics", False):
-        slots = fg.can_pin()
         for ep in data["epics"]:
             e = epics[ep["id"]]
             if e.get("pinned"):
                 continue
             label = e.get("ref") or e.get("placeholder")
-            if not slots:
+            if not fg.can_pin():   # a slot is used by each pin, so ask again for every epic
                 report.add("pin-epic", ep["id"], f"{label}: the forge reports no free pin slot; pin it by hand")
                 continue
             report.add("pin-epic", ep["id"], f"pin {label} on the repository's issue list")
             if apply:
-                fg.pin(e)
+                try:
+                    fg.pin(e)
+                except forge.ForgeError as exc:
+                    # Pinning is a convenience: report it and carry on to the epic sections.
+                    report.add("hand-fix", ep["id"], f"{label}: pin failed ({exc}); pin it by hand")
 
     # Generated section in each epic (needs the issue links written back above).
     for ep in data["epics"]:

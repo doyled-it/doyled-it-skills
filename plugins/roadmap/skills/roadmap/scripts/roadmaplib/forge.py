@@ -734,6 +734,7 @@ class Forgejo(GitHub):
     def _issue(self, d: dict, project: str) -> dict:
         out = super()._issue(d, project)
         out["is_pull_request"] = bool(d.get("pull_request"))
+        out["pinned"] = bool(d.get("pin_order"))
         return out
 
     def all_issues(self, project: str) -> list[dict]:
@@ -745,6 +746,13 @@ class Forgejo(GitHub):
 
     def create_issue(self, project: str, title: str, body: str, epic: dict | None) -> dict:
         return self._issue(self.t.send("POST", f"repos/{project}/issues", {"title": title, "body": body}), project)
+
+    def open_epics(self) -> list[dict]:
+        """Open issues as parent candidates, with whether each is already pinned."""
+        if not self.project:
+            return []
+        return [{k: i[k] for k in ("ref", "url", "id", "number", "title", "body", "pinned")}
+                for i in self.open_issues(self.project)]
 
     def get_epic(self, ref: str) -> dict:
         project, n = split_issue_ref(ref)
