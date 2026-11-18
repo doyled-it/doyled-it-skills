@@ -40,8 +40,8 @@ artifact maps 1:1 to a folder or note: see `references/vault-binding.md`.
 | Encounter (statblock refs, map, terrain, objective, tactics) | encounter-design, improvised-combat | printable-minis-and-terrain, play |
 | Bestiary statblock (custom monster or villain) | custom-monsters | encounter-design, improvised-combat |
 | Mini and terrain inventory (what you physically own) | printable-minis-and-terrain | improvised-combat, encounter-design |
-| Print manifest (what to print, by when) | printable-minis-and-terrain | you, ahead of the session |
-| Session recap (what happened, loose ends, surviving villains) | advancing-the-world (guided capture) | advancing-the-world, next session-prep |
+| Print manifest (what to print, by when) | printable-minis-and-terrain (reads the Front, clocks, and cast for a multi-session lookahead) | you, ahead of the session |
+| Session recap (what happened, loose ends, surviving villains, inventions made at the table) | advancing-the-world (guided capture) | advancing-the-world, next session-prep |
 
 ### Data flow
 
@@ -66,6 +66,10 @@ digraph dm_loop {
   print -> play;
   play -> advance [label="recap + loose ends"];
   advance -> world [label="session to world"];
+
+  // The cast, clocks, and Front feed the print manifest ahead of any one
+  // session, because print lead time runs days out.
+  world -> print [label="cast, clocks, Front\n(multi-session lookahead)", constraint=false];
 
   // Prep-time write-back: anything invented during prep or improvised at the
   // table is promoted into canon, not left in the session note.
@@ -101,6 +105,9 @@ Gate: a party roster artifact exists with size, levels, roles, and derived drive
 **Phase 4, Finalize initial conditions (second pass).** Return to
 `worldbuilding-initial-conditions`, finalize pass: the landing position (where and how play
 starts), and NPC and villain ties to the bonds and wants from phases 2 and 3.
+Once the villains and recurring NPCs are named, invoke `printable-minis-and-terrain` to queue
+their minis now. Print lead time runs ahead of any single session, so the cast is the earliest
+thing you can commit to a plate.
 Gate: landing position set; at least one villain or NPC tied to a player character.
 
 **Phase 5, Session prep.** Invoke `session-prep`. Pull the world forward into a runnable
@@ -110,16 +117,19 @@ Gate: a session plan exists with a strong start, secrets in play, and at least o
 challenge.
 
 **Phase 6, Physical prep (optional, lead-time gated).** Invoke `printable-minis-and-terrain`.
-Reconcile the session plan and a multi-session lookahead against the mini and terrain inventory,
-and queue prints early enough to finish.
+Reconcile this session's plan against the mini and terrain inventory and the lookahead already
+seeded in Phases 4 and 8, and queue any remaining prints early enough to finish.
 Gate: every enemy and key terrain piece has a plan (owned, printing, or proxied).
 
 **Phase 7, Run.** Play. When you improvise a fight with no prepped encounter, invoke
-`improvised-combat`. Note every invented NPC, location, secret, or monster for write-back.
+`improvised-combat`. Record every invented NPC, location, secret, or monster in the recap's
+inventions field for write-back.
 
 **Phase 8, Advance the world.** Invoke `advancing-the-world`. Capture the recap, write prep-time
 and table inventions into canon, tick clocks, roll unfound secrets forward, convert loose ends
-to hooks, re-stat recurring villains, and advance the Front.
+to hooks, re-stat recurring villains, and advance the Front. With the clocks ticked and the Front
+grown, invoke `printable-minis-and-terrain` again to queue the likely enemies the coming sessions
+will need (a clock near filling, a re-statted villain), while there is still lead time.
 Gate: the world artifacts reflect the session. The loop returns to Phase 5 for the next session.
 
 ## Routing shortcuts

@@ -47,6 +47,11 @@ For each item, decide print, proxy, or token (below), and give anything to print
 by" date backed off from the session by its print time plus a day for failures. Batch minis that
 share a plate and material.
 
+Because lead time runs days out, the loop invokes this skill at three points, not just before a
+session: when the cast is finalized (queue the villains and recurring NPCs immediately), after
+advancing the world (queue the likely enemies a near-full clock or a re-statted villain will
+bring), and again at physical prep for the current session. Queue early, reconcile late.
+
 ## When to print, proxy, or token
 
 - **Print** when the creature is a boss or a set-piece centerpiece, will recur, or is a reusable
