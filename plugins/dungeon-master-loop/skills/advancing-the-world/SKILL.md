@@ -63,7 +63,7 @@ deliberate drop. None survives only in the session note.
 Clocks are the living world between sessions. A clock is a circle of 4, 6, or 8 segments (or 12
 for a slow, long arc; see Clock sizes below) that fills as an off-screen goal advances.
 
-Go faction by faction and tick each clock by 0, 1, or 2 segments, based on what that faction
+Go faction by faction and tick each clock up by 0, 1, or 2 segments, based on what that faction
 plausibly achieved given the players' action or inaction. Note why for each. A faction the
 players left untouched may still advance if the fiction says its plan moved on its own, or hold
 at zero when nothing changed its situation. Do not tick a clock just because a session happened.
@@ -71,12 +71,40 @@ at zero when nothing changed its situation. Do not tick a clock just because a s
 - Advance a Front portent here, not mid-scene.
 - A filled clock is a consequence: the faction achieves its goal. That is a new hook, a changed
   region, or a campaign turn. Record it.
+- A clock can also tick down; see Ticking a clock down below.
 
 ### Clock sizes (the canonical definition, referenced elsewhere)
 
 Use 4 segments for a fast scheme, 6 or 8 for a slow burn, and 12 only for a slow, long campaign
 arc. worldbuilding-initial-conditions and the story-model reference point here; this is the one
 place clock sizes are defined.
+
+### Ticking a clock down (the canonical definition, referenced elsewhere)
+
+Following Blades in the Dark practice (clocks: https://roll20.net/compendium/BITD/Rules:Progress%20clocks,
+the source story-model.md already cites), players can set back any faction clock through action,
+such as bribing a guard captain, covering their tracks, or sabotaging a ritual. This is the one
+place between-session faction clock reduction is defined. In-scene danger and racing clocks follow
+`session-prep/references/non-combat-challenges.md` instead.
+
+- When: tick down only when the players did something in the fiction that plausibly sets the
+  faction's plan back. Time passing, or a bare wish, does not tick a clock down. Name the action
+  and why it works, as you do for a tick up. A qualifying success is a player action that
+  succeeds in the fiction and plausibly harms that faction's goal.
+- Net once per session: net the faction's progress against the players' setbacks for the
+  session and apply the net change once. Example: the faction advances +2 and the players set it
+  back -1, so tick it up by 1.
+- How much: a setback is 1 by default, 2 only for a decisive effort or a strong success. Never
+  go below 0.
+- A filled clock cannot be ticked down. Once a clock fills and fires its consequence, later
+  setbacks go on the faction's next clock. When a near-full clock drops, re-check the print
+  lookahead (see `printable-minis-and-terrain`), since minis queued for the consequence may no
+  longer be needed.
+- At 0: a faction always has exactly one clock, so when a clock reaches 0, either reset it or
+  retire the faction. Reset means start a fresh clock with a new goal and a size chosen from
+  Clock sizes above. Retire means remove the faction from canon when its threat is resolved.
+  Record which, and why. Never leave a faction without a clock.
+- A clock that reaches 0 is not a filled clock, so it triggers no consequence.
 
 ## Step 4: Roll secrets forward
 
