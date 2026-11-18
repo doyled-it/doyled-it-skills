@@ -1,8 +1,21 @@
 {
   "name": "nonfiction-superpowers",
   "description": "A superpowers-style workflow for nonfiction prose: brainstorm, design, research, draft, review, and edit, as a sequence of composable skills. Start with the writing-nonfiction skill.",
-  "version": "1.0.0",
-  "author": { "name": "doyled-it" },
-  "license": "AGPL-3.0-only",
-  "keywords": ["writing", "nonfiction", "workflow", "essays", "data", "charts", "research", "editing", "review", "superpowers"]
+  "version": "1.0.1",
+  "author": {
+    "name": "doyled-it"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "writing",
+    "nonfiction",
+    "workflow",
+    "essays",
+    "data",
+    "charts",
+    "research",
+    "editing",
+    "review",
+    "superpowers"
+  ]
 }

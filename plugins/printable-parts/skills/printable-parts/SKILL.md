@@ -1,7 +1,7 @@
 ---
 name: printable-parts
 description: Designs 3D-printed functional parts whose every functional feature is a measured check on the exported mesh, layered on text-to-cad (composed by name, never vendored). It writes a measurable intent list before modeling, models with the cad skill, checks each intent on the exported STL or 3MF (not just the model code), guards against stale exports, renders cross-sections through every hole and slot, builds a test-fit coupon, and writes a print sheet for a Bambu Lab printer. Use when designing or printing any part that will be printed and then fitted, fastened, or loaded: a mount, bracket, stand, cover, enclosure, clip, perch, holder, adapter, jig, or fixture, or whenever a screw hole, countersink, slot, bore, snap, or press fit has to come out to a real dimension. Start here before the cad or print3d skills so the checks and the ordering hold.
-license: AGPL-3.0-only
+license: SEE LICENSE IN LICENSE
 metadata:
   repository: doyled-it/claude-skills
 ---
