@@ -852,6 +852,8 @@ class Forgejo(GitHub):
             issue = self._issue(src, project)
             if issue["project"] != project:
                 continue   # a mention from another repository, which anyone can make
+            if drift_lookalike(issue):
+                continue   # the drift issue names epics; counting it as a member would feed a drift loop
             if issue["ref"] not in seen:
                 seen.add(issue["ref"])
                 out.append(issue)

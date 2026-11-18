@@ -91,14 +91,17 @@ def one_line(text) -> str:
     return re.sub(r"\s+", " ", CONTROL.sub(" ", str(text if text is not None else ""))).strip()
 
 
-def md_inline(text) -> str:
+def md_inline(text, mentions: bool = False) -> str:
     """One line of plain text, safe inside a table cell, a list item or a heading.
 
     Markdown link, code and table syntax is escaped and angle brackets become
-    entities, so a title cannot add a link, a hidden comment or a marker.
+    entities, so a title cannot add a link, a hidden comment or a marker. A "#"
+    is escaped too, so a forge does not turn "#12" in a title or a drift line
+    into a mention of that issue (which would show up on it as a reference).
+    Pass mentions=True where the text is already a link label.
     """
     out = one_line(text).replace("\\", "\\\\")
-    for ch in "`[]|":
+    for ch in "`[]|" + ("" if mentions else "#"):
         out = out.replace(ch, "\\" + ch)
     return out.replace("<", "&lt;").replace(">", "&gt;")
 
@@ -293,7 +296,7 @@ def _gate_words(it: dict) -> str:
 
 def _issue_link(it: dict) -> str:
     if model.safe_url(it.get("url")):
-        return f"[{md_inline(it.get('ref') or it['id'])}]({it['url']})"
+        return f"[{md_inline(it.get('ref') or it['id'], mentions=True)}]({it['url']})"
     return f"`{it['id']}` (not on the forge yet)"
 
 
