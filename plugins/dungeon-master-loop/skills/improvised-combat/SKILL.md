@@ -43,6 +43,12 @@ damage, use fewer, tougher enemies; if they lack a healer, do not grind them. Ch
 situation if the fight sags (a wave arrives, the enemy flees, something collapses). End it when
 the question is answered.
 
+## Output in Obsidian
+
+Write the conjured fight as an Initiative Tracker `encounter` block (see
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`). Owned bestiary creatures drop in by
+name, so you can start the fight in seconds without statting anything.
+
 ## After the fight: flag for write-back
 
 Improvised enemies, NPCs, and places that the party engaged with are inventions. Note them so

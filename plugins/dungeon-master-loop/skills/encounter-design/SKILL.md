@@ -61,6 +61,11 @@ Make the battlefield and the enemies do work. The full checklist is in
 
 ## Output: the encounter artifact
 
+In Obsidian (the default binding), the runnable form is an Initiative Tracker `encounter` block,
+with the objective, terrain, and tactics as prose headings beside it, per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`. Creature names in the block resolve
+against the bestiary, so a `custom-monsters` statblock drops in by name.
+
 Record the encounter so it is runnable and so printing can read it: the objective, the enemy
 list with statblock references, the map and its terrain features, the enemy tactics and any
 retreat threshold, and the pacing beats or reinforcement triggers. Hand the enemy list and

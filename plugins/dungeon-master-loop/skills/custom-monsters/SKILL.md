@@ -61,6 +61,12 @@ one. Re-stat only when you are prepping that fight, not every time the party lev
 
 ## Output: the bestiary statblock artifact
 
+In Obsidian (the default binding), write it as a bestiary-indexed note: `statblock: inline` plus a
+`name` in frontmatter, with the `statblock` block body, per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`. That flag is what lets Initiative
+Tracker and Encounter Builder find the creature by name; without it the block renders but is
+invisible to the trackers.
+
 A statblock with its CR and XP, the base statblock if it is a reskin, the source and edition of any
 built numbers, the signature move, and any villain or legendary actions. encounter-design and
 improvised-combat reference it by name; printable-minis-and-terrain maps it to a mini.

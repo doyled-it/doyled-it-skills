@@ -79,6 +79,11 @@ character, factions have clocks, roughly ten secrets exist.
 
 ## Outputs (artifacts handed forward)
 
+In Obsidian (the default binding), combat-capable villains and major NPCs are written as
+bestiary-indexed statblocks (an NPC note that is also a `statblock: inline` creature), per
+`../dungeon-master-loop/references/obsidian-ttrpg-formats.md`, so they are ready to fight the
+moment play reaches them.
+
 - Setting canon: the region, settlements, factions, pantheon.
 - The Front: goal, portents, result.
 - Faction clocks: one per faction (sizes are defined in `advancing-the-world`: 4 for a fast
