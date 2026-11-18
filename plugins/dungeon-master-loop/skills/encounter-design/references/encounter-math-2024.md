@@ -86,12 +86,20 @@ Commons Attribution 4.0 (Wizards of the Coast), and unchanged from earlier editi
 
 A CR 0 monster is worth 10 XP if it has attacks, otherwise 0.
 
-## Party size
+## Party size and mixed levels
 
-The budget is linear: it is per character, multiplied by the count. A sixth character adds one
-more per-character share. Budget for the party that actually shows up, not the party on the
-sheet. The 2024 DMG has a Troubleshooting section for odd cases (a missing player, many weak
-creatures); its text was not read here, so consult it directly.
+The budget is the sum of each character's own per-level budget, not an average level times a head
+count. For a party all at one level this reduces to the per-level value times the number of
+characters. For a mixed-level party, look up each character's budget separately and add them.
+
+Worked example: a party of four at levels 4, 4, 5, 5, target Moderate. The two level 4 characters
+contribute 375 each and the two level 5 characters contribute 750 each, so the budget is
+375 + 375 + 750 + 750 = 2,250 XP. Averaging to level 4.5 and multiplying by four would understate
+it. Always sum the real levels.
+
+Budget for the party that actually shows up, not the party on the sheet. The 2024 DMG has a
+Troubleshooting section for odd cases (a missing player, many weak creatures); its text was not
+read here, so consult it directly.
 
 ## Party makeup: qualitative adjustments, not official math
 

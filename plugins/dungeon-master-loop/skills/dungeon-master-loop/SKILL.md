@@ -25,8 +25,8 @@ how to build and run one.
 ## The two directions and the artifact contract
 
 Everything the sub-skills produce and consume is a named artifact. The contract is abstract
-here so the method works at any table or tool. For the-dungeon-games Obsidian vault, each
-artifact maps 1:1 to a folder or note: see `references/vault-binding.md`.
+here so the method works at any table or tool. For a worked example that maps every artifact 1:1
+to folders in an Obsidian vault, see `references/vault-binding.md`.
 
 | Artifact | Produced by | Consumed by |
 | --- | --- | --- |
@@ -35,8 +35,9 @@ artifact maps 1:1 to a folder or note: see `references/vault-binding.md`.
 | Faction clocks | worldbuilding-initial-conditions | session-prep, advancing-the-world |
 | Secrets and clues | worldbuilding-initial-conditions, session-prep | session-prep, advancing-the-world |
 | Hooks and seeds (the iceberg of named-but-unbuilt things) | worldbuilding-initial-conditions, advancing-the-world | session-prep, worldbuilding-initial-conditions |
-| Party roster (size, classes, roles, levels, bonds, wants) | session-zero, party-composition | every prep and combat skill |
-| Session plan (strong start, scenes, secrets in play, NPCs, rewards) | session-prep | encounter-design, improvised-combat, play |
+| Party roster (size, classes, roles, per-character levels, bonds, wants) | session-zero, party-composition | every prep and combat skill |
+| Table safety (lines, veils, tone) | session-zero | worldbuilding-initial-conditions, session-prep, encounter-design, improvised-combat, custom-monsters |
+| Session plan (strong start, scenes, secrets in play, NPCs, rewards, prep inventions) | session-prep | encounter-design, improvised-combat, advancing-the-world, play |
 | Encounter (statblock refs, map, terrain, objective, tactics) | encounter-design, improvised-combat | printable-minis-and-terrain, play |
 | Bestiary statblock (custom monster or villain) | custom-monsters | encounter-design, improvised-combat |
 | Mini and terrain inventory (what you physically own) | printable-minis-and-terrain | improvised-combat, encounter-design |
@@ -108,7 +109,9 @@ starts), and NPC and villain ties to the bonds and wants from phases 2 and 3.
 Once the villains and recurring NPCs are named, invoke `printable-minis-and-terrain` to queue
 their minis now. Print lead time runs ahead of any single session, so the cast is the earliest
 thing you can commit to a plate.
-Gate: landing position set; at least one villain or NPC tied to a player character.
+Gate (matches the worldbuilding-initial-conditions finalize gate): landing position set; at least
+one villain or NPC tied to a player character; every faction has a clock; roughly ten secrets
+exist.
 
 **Phase 5, Session prep.** Invoke `session-prep`. Pull the world forward into a runnable
 session plan with combat and non-combat challenges. Invoke `encounter-design` for planned

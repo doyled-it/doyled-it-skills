@@ -59,8 +59,8 @@ Now you know the characters. Tie the world to them.
 
 4. **Factions.** Two or three. For each, write only members the party can meet, territory they
    can visit, and a goal that conflicts with another faction. Give each a clock (see
-   `advancing-the-world` for how clocks tick). A faction without a playable surface is lore, not
-   a faction.
+   `advancing-the-world` for clock sizes and how clocks tick). A faction without a playable
+   surface is lore, not a faction.
 5. **The cast.** A short roster of major NPCs and villains (named, with a want and a lever) and
    a list of minor NPCs (name and one line only, fleshed out on demand). Tie at least one
    villain or NPC to a player character's bond or want. That tie is what makes the opening
@@ -81,7 +81,8 @@ character, factions have clocks, roughly ten secrets exist.
 
 - Setting canon: the region, settlements, factions, pantheon.
 - The Front: goal, portents, result.
-- Faction clocks: one per faction, sized 4 (fast) to 8 (slow).
+- Faction clocks: one per faction (sizes are defined in `advancing-the-world`: 4 for a fast
+  scheme, 6 or 8 for a slow burn, 12 for a long arc).
 - Secrets and clues: about ten, some pointing past what is built.
 - Hooks and seeds: the named-but-unbuilt iceberg.
 

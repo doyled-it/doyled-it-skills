@@ -25,7 +25,8 @@ The book is a paid product, so only the sample row is quoted here. Buy it for th
 
 ## Route 3: Reverse-engineered 2024 Monster Manual (community, most current)
 
-Community work, not official, but tuned to the 2025 Monster Manual that your games actually use.
+Community work, not official, but tuned to the 2024 Monster Manual (the revised edition, released
+February 2025) that your games actually use.
 
 Blog of Holding, "Monster Manual on a Business Card" (license CC BY 4.0), 2024 Monster Manual
 medians:
@@ -46,12 +47,13 @@ Manual analysis):
 The full per-CR table in Alphastream's article is published as an image and was not transcribed
 here; open it for the intermediate rows.
 
-## Route 1 cross-check: 2014 DMG CR table (official, older target)
+## Cross-check: 2014 DMG CR table (official, older target)
 
-Official and complete, but calibrated to the 2014 Monster Manual. Blog of Holding finds 2024
+This is a cross-check on the Route 3 build, not a route of its own. The 2014 DMG CR table is
+official and complete, but calibrated to the 2014 Monster Manual. Blog of Holding finds 2024
 monsters run about +1 armor class, similar attack bonus and save DC, and higher hit points than the
-2014 guidelines. Use the 2014 table only as a cross-check, expecting those offsets. Its specific
-per-CR numbers were not retrieved here.
+2014 guidelines. Use the 2014 table only to sanity-check a Route 3 statblock, expecting those
+offsets. Its specific per-CR numbers were not retrieved here.
 
 ## Recommended method
 

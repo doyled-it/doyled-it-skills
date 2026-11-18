@@ -41,7 +41,10 @@ test('marketplace entry and plugin metadata are consistent', () => {
   assert.equal(entry.source, './plugins/dungeon-master-loop');
   const p = plugin();
   assert.equal(p.name, 'dungeon-master-loop');
-  assert.equal(p.version, '1.0.0');
+  // Version is valid semver, not a hardcoded literal; pair with the marketplace entry only if it carries one.
+  assert.match(p.version, /^\d+\.\d+\.\d+$/u, 'plugin version must be semver');
+  if (entry.version !== undefined) assert.equal(p.version, entry.version);
+  // Plugins defer to the repo LICENSE rather than naming an SPDX id.
   assert.equal(p.license, 'AGPL-3.0-only');
   // Description consistent across the two manifests (AGENTS.md requirement).
   assert.equal(p.description, entry.description);
@@ -93,6 +96,34 @@ test('the required review fixes are covered in the skills', () => {
   assert.match(math, /removed|dropped/iu);
   const monster = read(`${pluginDir}/skills/custom-monsters/references/monster-building-2024.md`);
   assert.match(monster, /no monster-creation framework/iu);
+});
+
+test('the code-review fixes are present', () => {
+  const orch = read(`${pluginDir}/skills/dungeon-master-loop/SKILL.md`);
+  assert.match(orch, /Table safety \(lines, veils, tone\)/u);
+  assert.match(orch, /every faction has a clock/iu);
+  const advancing = read(`${pluginDir}/skills/advancing-the-world/SKILL.md`);
+  assert.match(advancing, /Prep inventions/u);
+  assert.match(advancing, /inventions made at the table/iu);
+  assert.match(advancing, /0, 1, or 2/u);
+  assert.match(advancing, /Clock sizes \(the canonical definition/u);
+  const math = read(`${pluginDir}/skills/encounter-design/references/encounter-math-2024.md`);
+  assert.match(math, /sum of each character's own per-level budget/u);
+  assert.match(math, /375 \+ 375 \+ 750 \+ 750/u);
+  const binding = read(`${pluginDir}/skills/dungeon-master-loop/references/vault-binding.md`);
+  assert.match(binding, /gm-only\/fronts\//u);
+  assert.match(binding, /gm-only\/secrets-and-clues\.md/u);
+  assert.match(binding, /Canon NPCs/u);
+});
+
+test('no owner or private-repo identifiers leak into the public plugin', () => {
+  const banned = [/michael/iu, /mdoyle/iu, /the-dungeon-games/u];
+  for (const file of walkFiles(pluginDir)) {
+    if (/\.(md|json)$/u.test(file)) {
+      const text = read(file);
+      for (const re of banned) assert.doesNotMatch(text, re, `personal detail matching ${re} in ${file}`);
+    }
+  }
 });
 
 test('README documents the plugin and the project-scoped install', () => {

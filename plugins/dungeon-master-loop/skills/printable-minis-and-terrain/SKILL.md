@@ -10,8 +10,8 @@ description: Use when tying D&D encounter and world prep to 3D printing on an FD
 Physical minis and terrain make a fight read at the table, but printing takes hours to days, so it
 has to be planned against prep, not grabbed the night before. This skill connects encounter and
 world prep to the printer: it keeps an inventory of what you own, maps prepped enemies to minis,
-and queues prints early enough to finish. Printer-specific settings and times for Michael's Bambu
-Lab X2D are in `references/bambu-x2d-settings.md`.
+and queues prints early enough to finish. Printer-specific settings and times, worked for a Bambu
+Lab X2D as the example FDM printer, are in `references/bambu-x2d-settings.md`.
 
 This skill is optional in the loop (a token works), but when you do print, lead time is the whole
 game. A boss you decide to print three days out is fine; one you remember the night before is a
@@ -74,11 +74,11 @@ plan is a hole; close it with a proxy or a token before the session.
 Full settings, realistic print times, and optional filament purchases are in
 `references/bambu-x2d-settings.md`. The short version: it is a dual-nozzle FDM machine (no resin),
 so minis look good at table distance but soften on faces and thin parts. Use a 0.2 mm nozzle and
-fine layers for hero, NPC, and boss minis, and a 0.4 mm nozzle for crowds and terrain. The current
-PLA, PETG, and TPU stock covers minis, terrain, and flexible pieces; the reference flags optional
-purchases (fine-detail matte PLA, soluble support filament, a 0.2 mm hotend, a filament dryer) that
-would clearly help, with reasons. Confirm the exact model and firmware against Bambu's own specs
-before buying hardware.
+fine layers for hero, NPC, and boss minis, and a 0.4 mm nozzle for crowds and terrain. PLA covers
+minis, PLA or PETG covers terrain, and TPU covers flexible pieces; the reference flags optional
+filament and hardware (fine-detail matte PLA, soluble support filament, a 0.2 mm hotend, a filament
+dryer) that would clearly help, with reasons. Confirm the exact model and firmware against the
+manufacturer's own specs before buying hardware.
 
 ## Outputs (artifacts handed forward)
 
