@@ -35,29 +35,48 @@ Gate: the recap exists before you touch any world artifact.
 
 ## Step 2: Write inventions into canon (the write-back)
 
-A session invents things that must not be lost in the session note. This is the step most loops
-miss. Promote each into its proper canon artifact:
+A session invents things, both while prepping and at the table, that must not be lost in the
+session note. This is the step most loops miss. Read both sources of inventions:
 
-- An NPC you named in prep or improvised at the table, who the party engaged with, becomes a
-  canon NPC (name, want, lever, location).
-- A location you sketched or invented on the spot, that the party will return to, becomes a
-  canon location.
-- A fact you improvised as true becomes a secret or a line of canon.
-- A monster or statblock you reskinned or built on the fly, that may recur, goes to the bestiary
-  via `custom-monsters`.
+- The recap's "inventions made at the table" field (what you improvised during play).
+- The session plan's "Prep inventions" list (the NPCs, locations, secrets, and monsters you
+  invented while prepping, flagged there by session-prep).
 
-Rule: if the party engaged with it and it could come back, it is canon now. If it was pure
-color they walked past, leave it. Do not hoard.
+Walk every entry in both lists and resolve each one. Nothing stays only in the session note:
 
-## Step 3: Tick the clocks
+- An NPC you named, who the party engaged with, becomes a canon NPC (name, want, lever, location)
+  in the NPC folder.
+- A location the party will return to becomes a canon location.
+- A fact you treated as true becomes a secret or a line of canon.
+- A monster or statblock that may recur goes to the bestiary via `custom-monsters`.
 
-For each faction, advance its clock based on what the players did or ignored. A clock is a
-circle of 4, 6, 8, or 12 segments that fills as an off-screen goal advances.
+Prep inventions the party never reached are not discarded. Park each one as a hook or an iceberg
+seed in hooks and seeds, so it is still available even though it went unengaged. Pure color the
+party walked past that will never matter can be dropped, but drop it on purpose rather than
+leaving it stranded.
 
-- Tick 1 or 2 segments per session. Note why.
+Rule: every invention, prep-time or table-time, ends this step as canon, a parked hook, or a
+deliberate drop. None survives only in the session note.
+
+## Step 3: Advance the clocks
+
+Clocks are the living world between sessions. A clock is a circle of 4, 6, or 8 segments (or 12
+for a slow, long arc; see Clock sizes below) that fills as an off-screen goal advances.
+
+Go faction by faction and tick each clock by 0, 1, or 2 segments, based on what that faction
+plausibly achieved given the players' action or inaction. Note why for each. A faction the
+players left untouched may still advance if the fiction says its plan moved on its own, or hold
+at zero when nothing changed its situation. Do not tick a clock just because a session happened.
+
 - Advance a Front portent here, not mid-scene.
 - A filled clock is a consequence: the faction achieves its goal. That is a new hook, a changed
   region, or a campaign turn. Record it.
+
+### Clock sizes (the canonical definition, referenced elsewhere)
+
+Use 4 segments for a fast scheme, 6 or 8 for a slow burn, and 12 only for a slow, long campaign
+arc. worldbuilding-initial-conditions and the story-model reference point here; this is the one
+place clock sizes are defined.
 
 ## Step 4: Roll secrets forward
 

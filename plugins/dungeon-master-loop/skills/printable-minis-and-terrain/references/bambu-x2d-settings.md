@@ -40,9 +40,9 @@ schedule.
 - Print minis upright, face and front forward, tilted back slightly if a cloak or weapon allows.
   Print swords and spears at a slight angle so layer lines do not run across the weak axis.
 
-## Materials (current stock plus optional purchases)
+## Materials (by role, plus optional purchases)
 
-Current stock (PLA, PETG, TPU 95A HF) covers the common cases:
+The common FDM filaments (PLA, PETG, TPU 95A HF) cover the usual cases:
 
 - Minis: PLA (holds detail better than PETG). PETG HF works but strings more.
 - Terrain: PLA for most pieces, PETG for pieces that get handled or left in a hot car.

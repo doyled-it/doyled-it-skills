@@ -19,8 +19,9 @@ decide the order.
 ## Inputs
 
 Before prepping, confirm the world is current: `advancing-the-world` ran for the last session.
-Then pull the party roster (party-composition), the Front and faction clocks, the secrets list,
-and hooks and seeds.
+Then pull the party roster (party-composition), the table safety limits (the lines, veils, and
+tone agreed at session-zero), the Front and faction clocks, the secrets list, and hooks and
+seeds. The safety limits are a hard constraint on every scene, NPC, and monster you prep.
 
 ## The eight steps
 
@@ -67,20 +68,25 @@ core moves:
 ## Prep-time write-back
 
 Prepping invents things: a new NPC to voice, a location you sketched, a secret you decided is
-true, a reskinned monster. Do not strand these in the session note. Flag each invention in the
-plan, and when the session is done, `advancing-the-world` promotes the ones the party engaged
-with into canon. The world updates during prep, not only after play.
+true, a reskinned monster. Do not strand these in the session note. Record each one in a "Prep
+inventions" list in the session plan. That list is the exact field `advancing-the-world` Step 2
+reads. After the session it promotes the ones the party engaged with into canon, and it parks the
+ones the party never reached as hooks or iceberg seeds rather than discarding them. Either way the
+world updates during prep, not only after play, and no prep invention is left to die in the
+session note.
 
 ## Outputs (artifacts handed forward)
 
 A session plan: strong start, potential scenes, secrets in play, fantastic locations, NPCs,
-chosen or designed monsters, rewards, and the non-combat challenges. encounter-design and
-improvised-combat consume its fights; printable-minis-and-terrain consumes its enemies and
-terrain; advancing-the-world consumes its inventions and recap after play.
+chosen or designed monsters, rewards, the non-combat challenges, and the "Prep inventions" list.
+encounter-design and improvised-combat consume its fights; printable-minis-and-terrain consumes
+its enemies and terrain; advancing-the-world consumes its Prep inventions list and recap after
+play.
 
 ## Common mistakes
 
 - Writing a scene sequence (a plot) instead of a scene menu (a situation).
 - An all-combat session. Build at least one social and one exploration or puzzle beat.
 - Resolving social or exploration scenes on a single skill roll.
-- Inventing an NPC or location in prep and never promoting it to canon.
+- Inventing an NPC or location in prep and never recording it in the Prep inventions list, so it
+  never reaches canon or a hook.

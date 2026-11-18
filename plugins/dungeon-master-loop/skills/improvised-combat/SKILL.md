@@ -27,9 +27,9 @@ question, grab enemies, give the space one feature, and know how the enemies fig
    at the table.
 3. **Enemies from what you own.** Check the mini and terrain inventory first and prefer creatures
    you have a mini for. Reskin freely: a bandit statblock becomes a cultist, a wolf becomes a
-   hound of the Front. Match size category first, then silhouette, then role. Mark the real
-   monster with a labeled base or a colored ring and note the "counts as" in one line. See
-   `../printable-minis-and-terrain/SKILL.md` for the inventory and proxy rules.
+   hound of the Front. When you lack the exact mini, follow the canonical proxy rule in
+   `../printable-minis-and-terrain/SKILL.md` (match size, then silhouette, then role; mark the
+   real monster and note the "counts as"). Do not restate it here.
 4. **One terrain feature.** Give the space a single meaningful feature: a chokepoint, high
    ground, difficult terrain, or an interactive object. One is enough to make positioning matter.
 5. **How they fight.** Decide in a sentence how the enemies open, press, and break. Scale smarts

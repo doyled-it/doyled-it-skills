@@ -29,10 +29,22 @@ table) use this. Claims are attributed; items marked unverified came from second
 
 - Mix roles with synergy: brutes in front, ranged and controllers behind, a few lightning rods
   that let the party land big hits. (Sly Flourish.)
-- Scale tactics to Intelligence: about 7 or less acts on instinct, 12 or more coordinates, 14 or
-  more assesses and exploits weaknesses. (Keith Ammann, via excerpt, unverified against the book.)
-- Scale retreat to Wisdom: 7 or less flees too late, 8 to 11 flees but picks targets poorly, 14 or
-  more fights only when confident. (Ammann, via excerpt, unverified.)
+- Scale tactics to Intelligence and self-preservation to Wisdom. Keith Ammann's "The Monsters Know
+  What They're Doing" supplies the breakpoints below (via the Reactor excerpt, not verified against
+  the full book). The excerpt names some scores; rows marked [interpolated] fill the gaps between
+  them so every score is covered.
+
+  Intelligence, how the creature fights:
+  - 1 to 7: acts on instinct, no real tactics. (Ammann)
+  - 8 to 11: simple tactics and basic teamwork, no complex plans. [interpolated]
+  - 12 to 13: coordinates with allies and uses the battlefield. (Ammann: 12 or more coordinates)
+  - 14 and up: assesses the party, exploits weaknesses, and adapts mid-fight. (Ammann)
+
+  Wisdom, when the creature retreats:
+  - 1 to 7: poor self-preservation, flees too late or not at all. (Ammann)
+  - 8 to 11: flees when hurt, but reads threats poorly and targets indiscriminately. (Ammann)
+  - 12 to 13: retreats sensibly and picks reasonable targets. [interpolated]
+  - 14 and up: cautious, fights only when it judges it can win, and withdraws early. (Ammann)
 - Plan advance, fight, and retreat before combat, often with an HP threshold for retreat. Nearly
   every creature wants to survive (constructs and undead are the usual exceptions). Prefer ambush,
   sniping, and withdrawal when the statblock supports it.

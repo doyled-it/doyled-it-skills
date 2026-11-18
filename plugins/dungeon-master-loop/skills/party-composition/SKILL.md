@@ -16,9 +16,10 @@ not re-derive them every session. Re-run it whenever the roster changes.
 
 Record, for the party as a whole and per character:
 
-- **Size.** The number of player characters who actually show up to fights. This scales the
-  encounter budget linearly.
-- **Levels.** Each character's level (and the average or spread if they differ).
+- **Size.** The number of player characters who actually show up to fights.
+- **Levels.** Each character's own level, recorded separately. Never average the levels: the
+  budget is the sum of each character's per-level budget, not an average level times a head count
+  (see `../encounter-design/references/encounter-math-2024.md`).
 - **Classes and subclasses.**
 - **Roles.** Tag each character: striker (damage), controller (area and battlefield control),
   defender (tank, sticky, soaks hits), face (social), skirmisher or scout, healer or support,
@@ -30,25 +31,20 @@ From the roster, write down the three things the downstream skills need:
 
 ### 1. Encounter budget baseline
 
-The 2024 encounter budget is an XP amount per character, by level, times the number of
-characters. Compute and record the party's Low, Moderate, and High budgets now, so
-`encounter-design` and `improvised-combat` start from a number, not a lookup. The per-character
-XP table and the party-makeup adjustments live in
-`../encounter-design/references/encounter-math-2024.md`.
+The 2024 encounter budget is the sum of each character's per-level XP budget, not an average level
+times a count. Compute and record the party's Low, Moderate, and High budgets now (summing the
+real levels), so `encounter-design` and `improvised-combat` start from a number, not a lookup. The
+per-level XP table, the mixed-level worked example, and the canonical party-makeup adjustments all
+live in `../encounter-design/references/encounter-math-2024.md`.
 
 ### 2. Tactical gaps and strengths
 
-Makeup changes real difficulty at the same XP. Note the party's levers and holes, because these
-are qualitative adjustments the budget does not capture:
-
-- Strong area damage or control: single big monsters die fast, swarms get deleted. Lean on
-  resilient mid-sized groups and spread threats out.
-- No healer or thin sustain: attrition and multi-encounter days bite harder.
-- Low mobility or no ranged: terrain, fliers, and kiters punish them.
-- Weak in a save (often Wisdom or Constitution): charm, fear, and stun land hard. Use sparingly
-  unless you mean it.
-- High nova, low endurance: they win short fights fast and fade over a long day. Pace stakes
-  across the day, not one big fight.
+Makeup changes real difficulty at the same XP. The canonical list of makeup factors, and how each
+shifts difficulty, lives in `../encounter-design/references/encounter-math-2024.md` (the "Party
+makeup" section). Do not restate it here. Instead, record where this specific party sits on each
+factor: area damage and control, action economy, healer and sustain, mobility and range, weak
+saves, and nova versus endurance. Flag the one or two that matter most, so session-prep and
+encounter-design can lean into or around them.
 
 ### 3. Spotlight needs
 
@@ -59,14 +55,16 @@ for the melee.
 
 ## Outputs (artifacts handed forward)
 
-A party roster artifact with size, levels, roles, the three computed budgets, the tactical gaps
-and strengths, and the spotlight checklist. encounter-design, improvised-combat, and session-prep
-all read it.
+A party roster artifact with size, per-character levels, roles, the three computed budgets, the
+tactical gaps and strengths, and the spotlight checklist. encounter-design, improvised-combat, and
+session-prep all read it.
 
 ## Common mistakes
 
 - Budgeting for the party on the sheet instead of the party that shows up. A five-person party
   that is often four is a four-person budget.
+- Averaging the party's levels instead of summing each character's own budget. Mixed-level parties
+  must be summed level by level, or the budget is wrong.
 - Treating makeup adjustments as math. They are judgment calls layered on the XP budget, not a
   formula.
 - Recording roles and never using the spotlight checklist, so the same two players drive every

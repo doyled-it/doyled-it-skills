@@ -154,11 +154,11 @@ manifest, and the session recap) and routes to nine sub-skills in a gated, two-p
   inventions into canon, tick clocks, roll secrets forward, and grow the Front.
 
 The rules and research are system-agnostic methodology. A thin vault-binding reference maps
-every artifact 1:1 to the-dungeon-games Obsidian vault. The suite ships as one plugin, so
+every artifact 1:1 to an example Obsidian vault layout. The suite ships as one plugin, so
 install it project-scoped to keep the D&D skills out of unrelated sessions:
 
 ```bash
-# run inside your D&D workspace (for example the the-dungeon-games vault)
+# run inside your D&D workspace (an Obsidian vault, a notes folder, or any repo)
 claude plugin install dungeon-master-loop@doyled-it-skills --scope project
 ```
 
