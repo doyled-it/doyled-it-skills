@@ -35,6 +35,7 @@ reported via D&D Beyond and Sly Flourish summaries, not confirmed against the bo
   racing clock pits the party against a rival clock.
 - Tie failed checks to clock progress; a clock can run backward on a strong success. (Attributed
   to the Alexandrian via summary, unverified.)
+  The rules for ticking down live in `advancing-the-world`, under Ticking a clock down.
 - Make the stakes concrete: name what is lost and why the party cannot simply wait.
 
 ## Meaningful failure (fail forward)

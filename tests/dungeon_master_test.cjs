@@ -107,6 +107,12 @@ test('the code-review fixes are present', () => {
   assert.match(advancing, /inventions made at the table/iu);
   assert.match(advancing, /0, 1, or 2/u);
   assert.match(advancing, /Clock sizes \(the canonical definition/u);
+  assert.match(advancing, /Ticking a clock down/u);
+  assert.match(advancing, /Blades in the Dark/u);
+  assert.match(advancing, /tick (?:it )?down by 1/iu);
+  assert.match(advancing, /clock at 0 can be removed or reset/iu);
+  const challenges = read(`${pluginDir}/skills/session-prep/references/non-combat-challenges.md`);
+  assert.match(challenges, /Ticking a clock down/u);
   const math = read(`${pluginDir}/skills/encounter-design/references/encounter-math-2024.md`);
   assert.match(math, /sum of each character's own per-level budget/u);
   assert.match(math, /375 \+ 375 \+ 750 \+ 750/u);
