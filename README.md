@@ -274,3 +274,13 @@ plugins/<plugin>/.claude-plugin/plugin.json
 plugins/<plugin>/skills/<skill>/SKILL.md
 scripts/install-skills.sh
 ```
+
+## License
+
+This repository is licensed under the GNU Affero General Public License v3.0 with the Commons
+Clause condition prepended (see the `LICENSE` file). It is non-commercial, copyleft, and
+source-available: you may read, run, modify, and share it, and any derivative you distribute must
+stay under the same terms, but you may not sell it or offer it as a paid hosted service. The
+Commons Clause makes it deliberately not OSI open source, because an OSI license cannot forbid
+commercial use. Each plugin's `plugin.json` sets `"license": "SEE LICENSE IN LICENSE"` to point at
+these terms.
