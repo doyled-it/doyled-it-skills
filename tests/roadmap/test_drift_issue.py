@@ -6,12 +6,17 @@ and finding its own title and marker block.
 
 from __future__ import annotations
 
+import io
+import json
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 
 from fakeforge import FakeGitHub, github
 from helpers import example, issue
-from roadmaplib import blocks, driftissue, forge, sync
+from roadmaplib import blocks, cli, driftissue, forge, sync
 
 REPO = "example-org/search-service"
 NOW = "2026-11-17"
@@ -59,6 +64,61 @@ def drift_issues(fake):
 
 
 class OneDriftIssue(unittest.TestCase):
+    def test_scoped_cli_cannot_update_global_issue_and_unscoped_forge_only_can(self):
+        data = drifting()
+        data["orca"] = {"run": "run_expected"}
+        fake = fresh_forge()
+        current = fake.add_issue(REPO, 50, driftissue.TITLE, driftissue.skeleton("weekly-release unresolved"))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            recording = Path(tmp) / "orca.json"
+            path.write_text(json.dumps(data))
+            recording.write_text(json.dumps({"runs": {"run_other": []}}))
+            with (
+                mock.patch.object(forge, "from_args", return_value=github(fake)),
+                mock.patch.object(fake, "get", wraps=fake.get) as get,
+                redirect_stdout(io.StringIO()) as output,
+            ):
+                code = cli.main(
+                    [
+                        "sync",
+                        str(path),
+                        "--only",
+                        "click-signals",
+                        "--orca-json",
+                        str(recording),
+                        "--update-drift-issue",
+                    ]
+                )
+                self.assertEqual(current["state"], "open")
+                self.assertEqual(fake.writes, [])
+                get.assert_not_called()
+                self.assertNotEqual(code, 0)
+                self.assertIn("--only", output.getvalue())
+                self.assertIn("--update-drift-issue", output.getvalue())
+                issue(data, "click-signals")["status"] = "in_progress"
+                path.write_text(json.dumps(data))
+                self.assertEqual(cli.main(["sync", str(path), "--only", "click-signals", "--write"]), 0)
+                self.assertEqual(issue(json.loads(path.read_text()), "click-signals")["status"], "done")
+                self.assertEqual(fake.writes, [])
+                self.assertEqual(cli.main(["sync", str(path), "--no-orca", "--update-drift-issue"]), 0)
+                self.assertEqual(len(fake.writes), 1)
+                self.assertIn("weekly-release", current["body"])
+                self.assertEqual(current["state"], "open")
+
+    def test_shared_writer_holds_issue_scoped_report_before_forge_reads(self):
+        fake = fresh_forge()
+        current = fake.add_issue(REPO, 50, driftissue.TITLE, driftissue.skeleton("weekly-release unresolved"))
+        data = drifting()
+        fg = github(fake)
+        report = sync.sync(data, fg, only={"click-signals"}, now=NOW)
+        with mock.patch.object(fake, "get", wraps=fake.get) as get:
+            result = driftissue.run(data, fg, report, apply=True, today=NOW)
+        self.assertEqual(current["state"], "open")
+        self.assertEqual(result.actions, [])
+        self.assertEqual(fake.writes, [])
+        get.assert_not_called()
+
     def test_created_once_then_left_alone_while_nothing_changes(self):
         fake = fresh_forge()
         dry = run(drifting(), fake, apply=False)

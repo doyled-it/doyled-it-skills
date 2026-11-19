@@ -85,7 +85,9 @@ verification and explicit U approval are still pending.
   open gates and gives the read-only and dependent-dispatch directions. Record
   the outputs and verify that the checks preserved the canonical file. Verify
   that an issue-scoped sync skips Orca and a local save preserves the
-  program-wide observation.
+  program-wide observation. Combine `--only` and `--update-drift-issue` with
+  unresolved drift on a different issue. Check for refusal before any forge
+  call and verify the existing shared issue stays open.
 
 ## Scenario 9: a merge request off the roadmap
 
@@ -130,7 +132,10 @@ without an action journal or expected answer.
   worker Unknown even when task coverage is complete. A timestamped matching
   working record can support a confirmed observation for its own scope. Run
   sync and render from a saved lifecycle-only recording and check that both
-  report Unknown activity without a numeric zero.
+  report Unknown activity without a numeric zero. Add a second run with a
+  timestamped idle worker. Check with only the lifecycle-only run configured,
+  then with both runs configured. Both outputs must retain the idle row and
+  report Unknown activity for the run missing worker evidence.
 - **Pass:** the area reuses the existing adjacent preview on its own host if
   available. Otherwise it identifies the host limitation and preserves the
   page identity.
@@ -147,8 +152,9 @@ from the browser host and once with no reachable supported route.
   the local HTML, reports the missing access or route, and leaves tabs alone.
 
 - **Render check:** at 390 px in light and dark mode, the page fits its
-  viewport. Use Tab to focus each named issue and worker table region and
-  scroll its columns independently. Check that the delivery text is readable
+  viewport. Attempt a horizontal window scroll and confirm its offset stays
+  zero. Use Tab to focus each named issue and worker table region, inspect
+  the visible outline, and scroll its columns with ArrowRight. Check that the delivery text is readable
   and the flow can scroll in its own frame. Confirm that at desktop width
   both tables and timeline disclosures remain readable.
 

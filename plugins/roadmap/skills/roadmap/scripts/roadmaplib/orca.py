@@ -35,8 +35,9 @@ class RunTask(dict):
 class TaskCollection(list):
     """A task list with coverage of the requested runs and of the whole roadmap."""
 
-    def __init__(self):
+    def __init__(self, configured_runs: Iterable[str] = ()):
         super().__init__()
+        self.configured_runs = sorted(configured_runs)
         self.complete = True
         self.requested_complete = True
         self.notes: list[str] = []
@@ -350,7 +351,7 @@ def _recorded_runs(
 
 
 def _recorded_tasks(path, owners: dict) -> TaskCollection:
-    tasks = TaskCollection()
+    tasks = TaskCollection(owners)
     context = f"Orca recording {str(path)!r}"
     workers = {}
     observed_at = None
@@ -467,6 +468,7 @@ def _observe(tasks: TaskCollection, source: str, read: Callable, *, observed_at:
         "source": source,
         "observed_at": observed_at,
         "coverage_complete": tasks.complete,
+        "configured_runs": tasks.configured_runs,
         "workers": workers,
     }
 
@@ -528,7 +530,7 @@ def tasks_from_args(data: dict, args) -> list[dict] | str:
     source = f"CLI {command!r}"
     if executable and executable != command:
         source += f" resolved to {executable!r}"
-    tasks = TaskCollection()
+    tasks = TaskCollection(owners)
     _collect(tasks, runs, owners, lambda run: _read_run(run, command, executable), source)
     for run in sorted(owners.keys() - set(runs)):
         tasks.unknown(f"Orca run {run!r}", "outside the selected run", requested=False)

@@ -34,7 +34,8 @@ issue table per epic (with merge requests, pipelines and gate evidence once sync
 has recorded them), and the timeline. It works in light and dark mode and at
 phone width, and every box is reachable by keyboard. Published issues, epics,
 merge requests, pipelines and gate evidence all link to the forge.
-Wide tables scroll inside named regions that are reachable with Tab.
+Tab to a named table region to see its focus outline. Use the arrow keys to
+scroll wide columns within that region.
 
 With configured coordinators, the page shows ownership, parent and scope
 details, and each owner's ready issues and open gates. Orca worker observations
@@ -183,7 +184,7 @@ roadmap.py sync roadmap.json [--write] [--json] [--update-epics] [--update-drift
 | Option | Meaning |
 | --- | --- |
 | `--write` | Save reviewed status, gate ticks, merge request links and any changed Orca observation into the local `roadmap.json`. Root saves after review. |
-| `--update-drift-issue` | Opt into creating, updating or closing the one "Roadmap drift" issue from this report, as in `drift-issue --apply`. |
+| `--update-drift-issue` | Opt into creating, updating or closing the one "Roadmap drift" issue from this report, as in `drift-issue --apply`. Requires a program-wide sync. Combining it with `--only` exits 2 before any forge reads or writes. |
 | `--update-epics` | Opt into rewriting the generated section in each published epic on the forge. Needs `--write`, an agreed roadmap and no validate errors. |
 | `--json` | Print the report as JSON. |
 | `--stale-days N` | No forge activity for N days is drift (default 14). |
@@ -263,7 +264,8 @@ dispatch ID. This example adds `observed_at` to the worker-show response.
 
 The report's `orca_observation` holds `source` (`live` or `recorded`),
 capture-start `observed_at` (timestamp or null), `coverage_complete` (full
-task coverage), and `workers`. Each worker has `run`, `task`, `dispatch`,
+task coverage), `configured_runs` (the roadmap's run IDs at capture time),
+and `workers`. Each worker has `run`, `task`, `dispatch`,
 `activity`, `observed_at` and `owners` (coordinator keys mapped to parent
 keys or null). Activity is `working`, `waiting`, `idle`, `queued`,
 `stopped` or `unknown`. Missing or invalid worker evidence leaves activity
@@ -272,9 +274,11 @@ be null on Unknown rows. Capture and worker timestamps include a timezone.
 With `--write`, the snapshot is stored at `orca_observation` in the roadmap.
 Render displays that saved evidence at its recorded times. The confirmed
 working count covers only timestamped working observations. A zero requires a
-capture timestamp, full task coverage and at least one known timestamped worker
-observation, with no Unknown workers. An empty worker list leaves activity
-Unknown, including on a timestamped task-only capture. See
+capture timestamp, full task coverage, at least one configured run and a known
+timestamped worker observation from each configured run, with no Unknown worker
+rows. Other runs retain their observations. Older snapshots without
+`configured_runs` still display their timestamped evidence. Their program-wide
+zero remains Unknown. See
 [coordination.md](coordination.md#reconcile-area-updates) for reporting totals.
 
 Drift kinds:

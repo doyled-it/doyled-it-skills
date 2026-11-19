@@ -37,6 +37,10 @@ def problems(snapshot):
         yield ".observed_at", "must be a date and time with a timezone, or null"
     if not isinstance(snapshot.get("coverage_complete"), bool):
         yield ".coverage_complete", "must be true or false"
+    if "configured_runs" in snapshot:
+        runs = snapshot["configured_runs"]
+        if not isinstance(runs, list) or not all(nonblank(run) for run in runs):
+            yield ".configured_runs", "must be a list of nonblank run identifiers"
     workers = snapshot.get("workers")
     if not isinstance(workers, list):
         yield ".workers", "must be a list of worker observations"
@@ -70,8 +74,14 @@ def summary(snapshot: dict) -> str:
     observed = [row for row in workers if row["activity"] != "unknown" and is_timestamp(row["observed_at"])]
     working = {row["dispatch"] for row in observed if row["activity"] == "working"}
     unknown = len(workers) - len(observed)
+    configured_runs = set(snapshot.get("configured_runs", []))
+    missing_runs = configured_runs - {row["run"] for row in observed}
     can_count_zero = (
-        bool(observed) and not unknown and snapshot["coverage_complete"] and is_timestamp(snapshot["observed_at"])
+        bool(configured_runs)
+        and not missing_runs
+        and not unknown
+        and snapshot["coverage_complete"]
+        and is_timestamp(snapshot["observed_at"])
     )
     if working or can_count_zero:
         text = f"{len(working)} confirmed working, {unknown} Unknown"
@@ -79,6 +89,8 @@ def summary(snapshot: dict) -> str:
         text = "Worker activity is Unknown"
         if unknown:
             text += f" ({unknown} Unknown worker observations)"
+    if missing_runs:
+        text += f". Activity is Unknown for {', '.join(sorted(missing_runs))}"
     if not snapshot["coverage_complete"]:
         text += ". Coverage of all roadmap runs is Unknown"
     return text

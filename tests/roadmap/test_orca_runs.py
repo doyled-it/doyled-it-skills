@@ -568,6 +568,71 @@ class SyncWithNestedRuns(unittest.TestCase):
 
 
 class WorkerObservation(unittest.TestCase):
+    def test_program_zero_needs_activity_in_each_configured_run(self):
+        payload = {
+            "observed_at": OBSERVED,
+            "runs": {
+                "run_search": [task("Earlier search work", status="completed")],
+                "run_storage": [dispatched("task_idle", "dispatch_idle")],
+            },
+            "workers": {
+                "dispatch_idle": {**worker("task_idle", "dispatch_idle", "idle"), "observed_at": OBSERVED},
+            },
+        }
+        for activity in ("idle", "working"):
+            payload["workers"]["dispatch_idle"]["result"]["activity"] = activity
+            for configured in (["run_search"], ["run_search", "run_storage"], ["run_storage"], []):
+                with self.subTest(configured=configured, activity=activity):
+                    data = sync_roadmap()
+                    data.pop("orca", None)
+                    data["orchestration"] = {"coordinators": {run: {"run": run} for run in configured}}
+                    report = report_for(data, collect_recorded(data, payload))
+                    self.assertTrue(report.orca_complete)
+                    saved = json.loads(json.dumps(report.roadmap))
+                    self.assertEqual(saved["orca_observation"]["configured_runs"], sorted(configured))
+                    rows = saved["orca_observation"]["workers"]
+                    self.assertEqual(
+                        [(w["run"], w["activity"], w["observed_at"]) for w in rows],
+                        [("run_storage", activity, OBSERVED)],
+                    )
+                    expected = "Worker activity is Unknown"
+                    if activity == "working":
+                        expected = "1 confirmed working"
+                    elif configured == ["run_storage"]:
+                        expected = "0 confirmed working"
+                    for output in (report.text(), render.render_page(saved)):
+                        self.assertIn(expected, output)
+                        self.assertEqual("0 confirmed working" in output, expected == "0 confirmed working")
+                        if "run_search" in configured:
+                            self.assertIn("Activity is Unknown for run_search", output)
+
+    def test_legacy_snapshot_without_capture_scope_keeps_idle_row_and_unknown_total(self):
+        data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
+        data["orca_observation"] = {
+            "source": "recorded",
+            "observed_at": OBSERVED,
+            "coverage_complete": True,
+            "workers": [
+                {
+                    "run": "run_storage",
+                    "task": "task_idle",
+                    "dispatch": "dispatch_idle",
+                    "observed_at": OBSERVED,
+                    "activity": "idle",
+                    "owners": {},
+                }
+            ],
+        }
+        page = render.render_page(data)
+        self.assertIn("Idle", page)
+        self.assertIn("Worker activity is Unknown", page)
+        self.assertNotIn("0 confirmed working", page)
+        for invalid in (None, "run_storage", [{}], [""]):
+            with self.subTest(invalid=invalid):
+                data["orca_observation"]["configured_runs"] = invalid
+                with self.assertRaises(render.RenderError):
+                    render.render_page(data)
+
     def test_recorded_outer_worker_identifiers_must_match_the_result(self):
         data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
         identity = {"runId": "run_storage", "taskId": "task_work", "dispatchId": "dispatch_work"}

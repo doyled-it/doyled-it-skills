@@ -104,6 +104,9 @@ def cmd_publish(args) -> int:
 def cmd_sync(args) -> int:
     from . import forge, orca, sync
 
+    if args.only is not None and args.update_drift_issue:
+        print("error: --update-drift-issue requires a program-wide sync. Remove --only to update the shared issue.")
+        return 2
     if args.update_epics and not args.write:
         print("error: --update-epics needs --write, so the epics on the forge and roadmap.json show the same status")
         return 2

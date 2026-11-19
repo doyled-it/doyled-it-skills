@@ -89,6 +89,9 @@ def _me(fg) -> str | None:
 
 def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
     result = Result(applied=apply)
+    if report.issue_scoped:
+        result.notes.append("The report covers selected issues. The shared drift issue requires a full program report.")
+        return result
     if report.errors:
         result.notes.append("the sync report is incomplete, so the drift issue was left as it is")
         return result

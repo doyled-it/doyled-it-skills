@@ -132,11 +132,12 @@ class RenderStructure(unittest.TestCase):
                 self.assertEqual(attrs["role"], "region")
                 self.assertEqual(attrs["tabindex"], "0")
                 self.assertEqual(doc.tags[index + 1][0], "table")
-        self.assertRegex(render.CSS, r"\.tablewrap:focus-visible\s*\{[^}]*outline:")
+        self.assertRegex(render.CSS, r"\.tablewrap:focus-within\s*\{[^}]*outline:")
 
     def test_epic_grid_allocates_available_width_and_table_controls_its_own_overflow(self):
         self.assertRegex(render.CSS, r"\.tracks\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)")
         self.assertRegex(render.CSS, r"\.tablewrap\s*\{[^}]*overflow-x:\s*auto")
+        self.assertRegex(render.CSS, r"\.tablewrap\s*\{[^}]*position:\s*relative")
         self.assertRegex(render.CSS, r"table\s*\{[^}]*min-width:\s*[1-9]")
         self.assertRegex(render.CSS, r"\.track td:nth-child\(2\)\s*\{[^}]*min-width:\s*[1-9]")
 

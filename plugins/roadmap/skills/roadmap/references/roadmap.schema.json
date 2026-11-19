@@ -136,6 +136,11 @@
           "type": "boolean",
           "description": "Task coverage across all configured roadmap runs."
         },
+        "configured_runs": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "\\S"},
+          "description": "Roadmap run IDs configured at capture time. Older snapshots omit this field."
+        },
         "workers": {
           "type": "array",
           "items": {

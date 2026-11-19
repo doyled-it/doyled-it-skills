@@ -54,8 +54,11 @@
   drift checks and shared drift issue writes on incomplete full coverage.
   Missing worker evidence stays Unknown and leaves task coverage independent.
   Treat a recorded wrapper's run scope as binding on enclosed evidence.
-  Issue-scoped sync skips Orca and preserves the program-wide snapshot.
-  Keep roadmap tables readable inside named, keyboard-focusable scroll regions.
+  Require timestamped worker evidence in every run configured at capture time
+  for a program-wide zero. Issue-scoped sync skips Orca, preserves the global
+  snapshot and cannot update the shared drift issue.
+  Keep wide tables and positioned gate labels inside named scroll regions.
+  Verify visible focus, local keyboard scrolling and zero root scroll at 390 px.
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.

@@ -88,6 +88,7 @@ class SyncReport:
     orca_requested_complete: bool | None = None
     orca_observation: dict | None = None
     observation_changed: bool = False
+    issue_scoped: bool = False
 
     @property
     def changed(self) -> bool:
@@ -289,7 +290,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     data = model.normalize(raw)
     items = model.issues_by_id(data)
     raw_items = {i["id"]: i for i in out["issues"]}
-    report = SyncReport(roadmap=out)
+    report = SyncReport(roadmap=out, issue_scoped=only is not None)
     cfg = data.get("forge") or {}
     rules = model.gate_rules(data)
     unchecked = model.unchecked_gates(data)

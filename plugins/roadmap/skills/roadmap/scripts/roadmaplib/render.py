@@ -360,7 +360,7 @@ CSS = """
 body { margin:0; background:var(--canvas); color:var(--ink); font:400 15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-variant-numeric:tabular-nums; }
 a { color:var(--action); }
-a:focus-visible, .scroller:focus-visible, .tablewrap:focus-visible { outline:2.5px solid var(--action); outline-offset:2px; }
+a:focus-visible, .scroller:focus-visible, .tablewrap:focus-within { outline:2.5px solid var(--action); outline-offset:2px; }
 .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .wrap { max-width:1320px; margin:0 auto; padding:36px 24px 72px; }
 header.top { display:grid; grid-template-columns:1fr auto; gap:6px 28px; align-items:end; border-bottom:1px solid var(--rule);
@@ -421,7 +421,7 @@ a:focus .node .box, .node:focus .box, .node:hover .box { stroke:var(--action); s
 .tid { display:inline-grid; place-items:center; padding:0 8px; height:24px; font-size:12px; color:var(--ink3);
   border-radius:7px; background:var(--canvas); font-weight:700; }
 .tnote { margin:4px 0 10px; color:var(--ink3); font-size:14px; }
-.tablewrap { overflow-x:auto; }
+.tablewrap { position:relative; overflow-x:auto; }
 table { width:100%; min-width:40rem; border-collapse:collapse; font-size:14px; }
 th, td { text-align:left; padding:10px 8px; border-top:1px solid var(--rule); vertical-align:top; }
 thead th { border-top:0; color:var(--ink3); font-weight:500; font-size:13px; }
