@@ -85,7 +85,7 @@ test('development loop explicitly routes bug diagnosis, reviews and inline execu
 test('changed plugins invalidate known installed caches', () => {
   for (const [name, version] of [
     ['codegraph', '1.2.2'], ['development-loop', '1.3.0'], ['cross-repo-completeness', '1.1.2'],
-    ['roadmap', '1.0.0'],
+    ['roadmap', '1.1.0'],
   ]) assert.equal(JSON.parse(read(`plugins/${name}/.claude-plugin/plugin.json`)).version, version);
 });
 

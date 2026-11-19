@@ -128,15 +128,20 @@ The roadmap plugin registers two hooks (`hooks/hooks.json`, script
   call, so reading roadmap.json, running `validate` or asking about an issue
   costs nothing. A command counts only when git or the forge CLI is the
   command itself, not text inside `echo`, `grep` or quotes. It blocks the turn
-  only for drift the agent can fix: roadmap.json behind the forge (a status or
-  gate the forge now shows), `done-but-open`, `missing-on-forge` and
-  `marker-problem`. Drift that needs the lead or the team
-  (`lead-gate-ticked-on-forge`, `no-recent-activity`) is shown as a one-line
-  note and never blocks. (`--only` skips Orca, epics and open merge requests,
-  so `unlisted-epic-issue` and `unlinked-merge-request` come only from a full
+  only for actionable drift on those issues, such as a supported status or
+  gate update, `done-but-open`, `missing-on-forge` or `marker-problem`.
+  Drift that needs the lead or the team (`lead-gate-ticked-on-forge`,
+  `no-recent-activity`) is informational. (`--only` skips Orca, epics and open
+  merge requests, so `unlisted-epic-issue` and `unlinked-merge-request` come only from a full
   `sync` or the drift issue, and `nothing-behind`, `started-early` and
   `unlinked-orca-task` only from a full `sync` that reads Orca; see
   "Scheduled sync and the drift issue".)
+
+When the forge proposes Done with required gates still open in the canonical
+JSON, PostToolUse reports the hold. The proposal and any accompanying gate
+ticks are informational for Stop. The message calls for read-only sync,
+selective evidence updates through root, and holding dependent dispatch. An
+actionable finding on changed work can still block the turn.
 
 Both look for `ROADMAP_FILE`, else `roadmap.json` in the working directory or
 at the git root, and do nothing and say nothing without one (a `roadmap.json`
@@ -151,9 +156,12 @@ they fail open: a one-line warning and no block.
 Codex's `notify` program runs after each turn and cannot block it or reach the
 agent, so for Codex the forge layer is the enforcement. The same script has a
 `codex-notify` mode that runs the same check for the issues the turn's messages
-name (at most five) and shows any drift as a desktop
-notification (`osascript` on macOS, `notify-send` on Linux, or the command in
-`ROADMAP_HOOK_NOTIFIER`). To use it, the lead adds this line to
+name (at most five). It sends actionable drift and a separate informational
+notice for each closure held by an open required gate. Hold directions and
+open gates precede the issue ID because notices are capped at 300 characters.
+The desktop notifier is
+`osascript` on macOS, `notify-send` on Linux, or the command in
+`ROADMAP_HOOK_NOTIFIER`. To use it, the lead adds this line to
 `~/.codex/config.toml` (Codex appends its JSON payload as the last argument):
 
 ```toml
@@ -162,7 +170,7 @@ notify = ["python3", "<roadmap plugin directory>/hooks/roadmap_hook.py", "codex-
 
 ## Layer 3: the rules
 
-The skill's lifecycle and the development-loop skill carry the rules: no worker
-before the roadmap is agreed, work only from it, and orchestrators run `sync`
-at every update (read-only, then `--write` and `render` when it shows changes),
-so every short update matches the forge.
+The skill's lifecycle and the development-loop skill carry the program rules.
+Start workers only from the agreed roadmap. At each update, run read-only
+`sync`. Root reconciles supported changes in the canonical JSON, renders it,
+and reports any forge discrepancy and remaining gates.

@@ -11,7 +11,6 @@ Dry run by default: the report lists every change and nothing is written.
 
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 
 from . import blocks, forge, model, validate
@@ -129,7 +128,7 @@ def publish(raw: dict, fg, apply: bool = False, allow_draft: bool = False) -> Re
         raise PublishRefused(f'these issues have no project to be created in: {", ".join(homeless)}. Set '
                              'forge "project" in roadmap.json, or each issue\'s "project", or name its "ref"')
 
-    out = copy.deepcopy(raw)
+    out = model.copy_json(raw)
     where = f"{fg.kind} ({fg.host or 'default host'}), project {fg.project or 'not set'}"
     report = Report(applied=apply, forge=where, roadmap=out)
     try:

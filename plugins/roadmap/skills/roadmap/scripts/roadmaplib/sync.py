@@ -7,18 +7,17 @@ requests and their pipelines, ticks gates that have evidence, and reports
 drift: open issues in an epic that the roadmap does not list, merge requests
 and Orca tasks with no roadmap issue, Orca tasks started before their issue's
 dependencies were Done, and roadmap issues with nothing behind them or no
-recent activity (active work only). With --write it saves the new status and gate ticks into
+recent activity (active work only). With --write it saves status, gate ticks and Orca observations into
 roadmap.json; it never writes to the forge or Orca.
 """
 
 from __future__ import annotations
 
-import copy
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
-from . import blocks, forge, model, orca, render, validate
+from . import blocks, forge, model, observation, orca, render, validate
 
 BLOCKED_LABELS = {"blocked", "status::blocked", "status: blocked", "workflow::blocked"}
 PROGRESS_LABELS = {"in progress", "doing", "status::in progress", "status::doing", "workflow::in progress",
@@ -85,10 +84,15 @@ class SyncReport:
     errors: list[str] = field(default_factory=list)   # forge reads that failed: the report is incomplete
     write_errors: list[str] = field(default_factory=list)  # epic writes that failed after every read succeeded
     cleared: list[str] = field(default_factory=list)  # issues whose recorded merge requests are gone
+    orca_complete: bool | None = None
+    orca_requested_complete: bool | None = None
+    orca_observation: dict | None = None
+    observation_changed: bool = False
 
     @property
     def changed(self) -> bool:
-        return bool(self.status_changes or self.gate_ticks or self.merge_requests or self.cleared)
+        return bool(self.status_changes or self.gate_ticks or self.merge_requests or self.cleared
+                    or self.observation_changed)
 
     def as_dict(self) -> dict:
         return {"status_changes": [asdict(c) for c in self.status_changes],
@@ -97,11 +101,14 @@ class SyncReport:
                 "drift": [asdict(d) for d in self.drift],
                 "notes": self.notes,
                 "errors": self.errors,
-                "write_errors": self.write_errors}
+                "write_errors": self.write_errors,
+                "orca_complete": self.orca_complete,
+                "orca_requested_complete": self.orca_requested_complete,
+                "orca_observation": self.orca_observation}
 
     def text(self) -> str:
         lines = ["Sync is read-only on the forge and Orca unless --update-epics is given. "
-                 "Use --write to save status and gates into roadmap.json.", ""]
+                 "Use --write to save status, gates and the Orca observation into roadmap.json.", ""]
         if self.errors:
             lines += ["Incomplete: these forge calls failed, so the report below misses what they would have "
                       "shown. Nothing is saved; run sync again once the forge answers."]
@@ -123,6 +130,17 @@ class SyncReport:
                 draft = " (draft)" if mr.get("draft") else ""
                 rows.append(f"  {iid}: {mr['ref']} {mr['state']}{draft}{pipe} {mr.get('url') or ''}".rstrip())
         lines += rows or ["  none"]
+        if self.orca_observation is not None:
+            snapshot = self.orca_observation
+            captured = snapshot["observed_at"] or "Unknown"
+            requested = "complete" if self.orca_requested_complete else "Unknown"
+            lines += ["", "Orca worker observation",
+                      f"  Capture started {captured} ({snapshot['source']}). {observation.summary(snapshot)}.",
+                      f"  Requested task coverage is {requested}."]
+            for worker in snapshot["workers"]:
+                run = worker["run"] or "Unknown run"
+                at = worker["observed_at"] or "Unknown time"
+                lines.append(f"  {run}/{worker['task']}: {worker['activity'].capitalize()} ({at})")
         lines += ["", "Drift"]
         lines += [f"  [{d.kind}] {d.target}: {d.message}" for d in self.drift] or ["  none"]
         if self.notes:
@@ -260,7 +278,7 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     if update_epics and findings:
         raise SyncRefused("--update-epics writes to the forge; fix these first:\n"
                           + "\n".join(str(f) for f in findings))
-    out = copy.deepcopy(raw)
+    out = model.copy_json(raw)
     data = model.normalize(raw)
     items = model.issues_by_id(data)
     raw_items = {i["id"]: i for i in out["issues"]}
@@ -273,15 +291,27 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     stale_before = today - timedelta(days=stale_days)
 
     tasks = orca_tasks if isinstance(orca_tasks, list) else None
-    if isinstance(orca_tasks, str):
-        report.notes.append(orca_tasks)
-    elif orca_tasks is None:
-        report.notes.append("Orca not checked.")
-    task_issue = {}
     if tasks is not None:
-        for t in orca.active(tasks):
-            task_issue[t["id"]] = orca.match(t, items)
-    started = {t["id"] for t in orca.started(tasks)} if tasks is not None else set()
+        report.orca_complete = True
+        report.orca_requested_complete = True
+        if isinstance(tasks, orca.TaskCollection):
+            report.orca_complete = tasks.complete
+            report.orca_requested_complete = tasks.requested_complete
+            report.orca_observation = tasks.observation
+            if tasks.observation is not None:
+                report.observation_changed = out.get("orca_observation") != tasks.observation
+                out["orca_observation"] = model.copy_json(tasks.observation)
+            report.notes.extend(tasks.notes)
+            if not tasks.complete:
+                report.notes.append("Orca coverage is incomplete. Checks for missing work and stalled issues were skipped.")
+    elif isinstance(orca_tasks, str):
+        report.notes.append(orca_tasks)
+    else:
+        report.notes.append("Orca not checked.")
+    active_tasks = orca.active(tasks or [])
+    task_issue = {orca.task_key(t): orca.match(t, items) for t in active_tasks}
+    issues_with_tasks = set(task_issue.values())
+    started = {orca.task_key(t) for t in orca.started(active_tasks)}
 
     projects = roadmap_projects(data, cfg)
     lead = model.lead_gates(data)
@@ -371,14 +401,14 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
             raw_items[iid]["gates"] = new_gates
 
         # Activity: only work that has started can go stale.
-        if it["status"] in model.ACTIVE:
+        if it["status"] in model.ACTIVE and report.orca_complete is not False:
             times = [_parse_time(fi.get("updated_at"))] + [_parse_time(m.get("updated_at")) for m in mrs]
             latest = max((t for t in times if t), default=None)
             if latest and latest < stale_before:
                 report.drift.append(Drift("no-recent-activity", iid,
                                           f"no forge activity since {latest.date().isoformat()} "
                                           f"(more than {stale_days} days)"))
-        if it["status"] in model.ACTIVE and not mrs and tasks is not None and iid not in task_issue.values():
+        if it["status"] in model.ACTIVE and not mrs and report.orca_complete and iid not in issues_with_tasks:
             report.drift.append(Drift("nothing-behind", iid,
                                       f"{model.STATUSES[it['status']]} but no merge request and no Orca task"))
 
@@ -452,19 +482,24 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
                                       f'open merge request with no roadmap issue: "{mr["title"]}"'))
 
     # Orca tasks.
-    if tasks is not None:
-        for t in orca.active(tasks):
-            iid = task_issue.get(t["id"])
-            if not iid:
-                report.drift.append(Drift("unlinked-orca-task", t["id"],
-                                          f'Orca task "{t["title"]}" does not start with a roadmap issue name'))
-                continue
-            if t["id"] not in started:
-                continue   # queued or waiting in Orca: not started yet
-            waiting = [d for d in items[iid]["depends_on"] if raw_items[d]["status"] != "done"]
-            if waiting:
-                report.drift.append(Drift("started-early", iid,
-                                          f'Orca task {t["id"]} started before these were Done: {", ".join(waiting)}'))
+    for task in active_tasks:
+        key = orca.task_key(task)
+        run, task_id = key
+        target = f"{run}/{task_id}" if run else task_id
+        iid = task_issue[key]
+        if not iid:
+            if task.get("kind") != "coordination":
+                report.drift.append(Drift("unlinked-orca-task", target,
+                                          f'Orca task "{task["title"]}" does not start with a roadmap issue name'))
+            continue
+        if key not in started:
+            continue   # queued or waiting in Orca: not started yet
+        waiting = [d for d in items[iid]["depends_on"] if raw_items[d]["status"] != "done"]
+        if waiting:
+            issue_context = f" for {iid}" if run else ""
+            report.drift.append(Drift("started-early", target if run else iid,
+                                      f'Orca task {target}{issue_context} started before these were Done: '
+                                      f'{", ".join(waiting)}'))
 
     # Epic sections, only when the report is complete.
     for ep, epic, body in epic_writes:

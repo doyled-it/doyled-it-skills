@@ -42,7 +42,7 @@ def cmd_validate(args) -> int:
 def cmd_render(args) -> int:
     data = _load(args.roadmap)
     try:
-        page = render.render_page(data)
+        page = render.render_page(data, author_icon_dir=args.author_icon_dir)
     except render.RenderError as exc:
         print(exc)
         return 1
@@ -62,7 +62,7 @@ def cmd_epic_preview(args) -> int:
         print(f'error: no epic "{args.epic}" in {args.roadmap}')
         return 1
     try:
-        page = render.render_page(data)
+        page = render.render_page(data, author_icon_dir=args.author_icon_dir)
     except render.RenderError as exc:
         print(exc)
         return 1
@@ -131,8 +131,11 @@ def cmd_sync(args) -> int:
         return 1
     if args.write and report.changed:
         model.save(args.roadmap, report.roadmap)
-        print(f"updated status and gates in {args.roadmap}; re-render the page next")
+        print(f"saved sync updates in {args.roadmap}. Re-render the page next.")
     if args.update_drift_issue:
+        if report.orca_complete is False:
+            print("Orca coverage is incomplete. The drift issue was left as it is.", file=sys.stderr)
+            return 1
         # The drift issue is written from this same report, so a scheduled run syncs once.
         from datetime import date
 
@@ -196,6 +199,12 @@ def cmd_drift_issue(args) -> int:
         fg = forge.from_args(data, args)
         tasks = orca.tasks_from_args(data, args)
         report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now)
+        if isinstance(tasks, orca.TaskCollection):
+            for note in tasks.notes:
+                print(f"note: {note}")
+        if report.orca_complete is False:
+            print("Orca coverage is incomplete. The drift issue was left as it is.")
+            return 1
         result = driftissue.run(data, fg, report, apply=args.apply, today=args.now or date.today().isoformat())
     except (sync.SyncRefused, forge.ForgeError, ValueError) as exc:
         print(f"error: {exc}")
@@ -233,6 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("render", help="write the one-page HTML roadmap")
     r.add_argument("roadmap")
     r.add_argument("-o", "--out", help="output HTML path (default: roadmap path with .html)")
+    r.add_argument("--author-icon-dir", type=Path, help="directory with optional claude.svg and codex.svg")
     r.set_defaults(func=cmd_render)
 
     ep = sub.add_parser("epic-preview",
@@ -240,6 +250,7 @@ def build_parser() -> argparse.ArgumentParser:
     ep.add_argument("roadmap")
     ep.add_argument("--epic", required=True, help="epic id")
     ep.add_argument("-o", "--out", help="output HTML path (default: <roadmap>-epic-<id>.html)")
+    ep.add_argument("--author-icon-dir", type=Path, help="directory with optional claude.svg and codex.svg for the full page")
     ep.set_defaults(func=cmd_epic_preview)
 
     pb = sub.add_parser("publish", help="create or update forge epics and issues (dry run by default)")
@@ -266,7 +277,7 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--apply", action="store_true", help="create, update or close the drift issue")
     d.add_argument("--stale-days", type=int, default=14, help="no activity for this many days is drift")
     d.add_argument("--now", type=_iso_date, help="ISO date to measure staleness from (default: today)")
-    d.add_argument("--orca-run", help="Orca run id to read tasks from (default: roadmap orca.run)")
+    d.add_argument("--orca-run", help="read only this live Orca run (default: coordinator runs and roadmap orca.run)")
     d.add_argument("--orca-json", help="read Orca tasks from this JSON file instead of the orca CLI")
     d.add_argument("--no-orca", action="store_true", help="skip the Orca check")
     _forge_args(d)
@@ -275,7 +286,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("sync", help="read status, merge requests, pipelines and Orca tasks; report drift")
     s.add_argument("roadmap")
     s.add_argument("--write", action="store_true",
-                   help="update status and gate ticks in roadmap.json (never writes to the forge or Orca)")
+                   help="save status, gates and worker observation in roadmap.json")
     s.add_argument("--update-epics", action="store_true",
                    help="rewrite the generated roadmap section in each epic (the only forge write sync makes)")
     s.add_argument("--update-drift-issue", action="store_true",
@@ -284,7 +295,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--json", action="store_true", help="print the report as JSON")
     s.add_argument("--stale-days", type=int, default=14, help="no activity for this many days is drift")
     s.add_argument("--now", type=_iso_date, help="ISO date to measure staleness from (default: today)")
-    s.add_argument("--orca-run", help="Orca run id to read tasks from (default: roadmap orca.run)")
+    s.add_argument("--orca-run", help="read only this live Orca run (default: coordinator runs and roadmap orca.run)")
     s.add_argument("--orca-json", help="read Orca tasks from this JSON file instead of the orca CLI")
     s.add_argument("--no-orca", action="store_true", help="skip the Orca check")
     s.add_argument("--only", metavar="IDS",

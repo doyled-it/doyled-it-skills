@@ -1,0 +1,154 @@
+{
+  "pointer": {
+    "canonical": "canonical/roadmap.json",
+    "url": "http://localhost:8080/roadmap.html",
+    "aliases": ["http://127.0.0.1:8080/roadmap.html"],
+    "browser_host": "display-host",
+    "title": "Search service roadmap",
+    "writer": "root"
+  },
+  "area_deltas": [
+    {
+      "owner": "ranking",
+      "issue": "ranking-model",
+      "old": "in_progress",
+      "new": "in_review",
+      "review_gate": "R",
+      "evidence": "https://gitlab.example.com/acme/search/-/merge_requests/31#note_7",
+      "event": {
+        "id": "ranking-review-passed",
+        "date": "Nov 18",
+        "title": "Ranking review passed",
+        "text": "The ranking change can proceed to release verification. M is open.",
+        "author": "claude",
+        "children": [
+          {
+            "date": "Nov 18",
+            "text": "The reviewer confirmed the fix after a failed result-order check.",
+            "author": "codex"
+          }
+        ]
+      }
+    },
+    {
+      "owner": "design",
+      "issue": "page-design",
+      "old": "in_review",
+      "new": "blocked",
+      "event": {
+        "id": "design-approval-blocked",
+        "date": "Nov 18",
+        "title": "Design approval waits on access",
+        "text": "The lead needs preview access before U can pass.",
+        "author": "claude"
+      }
+    }
+  ],
+  "closure": {
+    "issue": "click-signals",
+    "dependent": "ranking-model",
+    "release_evidence": "Unknown",
+    "u_approval": "Unknown",
+    "actions": ["record_merge_link", "hold_dispatch"]
+  },
+  "activity": [
+    {
+      "name": "lifecycle only with incomplete Run access",
+      "lifecycle": [
+        {"run": "search", "id": "task-1", "status": "completed"},
+        {"run": "root", "id": "task-1", "status": "failed"}
+      ],
+      "unread_runs": ["release"],
+      "reports": [
+        {"scope": "readable Runs", "observed_at": null, "count": "Unknown"},
+        {"scope": "program", "observed_at": null, "count": "Unknown"}
+      ]
+    },
+    {
+      "name": "timestamped worker observations",
+      "lifecycle": [{"run": "search", "id": "task-2", "status": "dispatched"}],
+      "unread_runs": ["release"],
+      "reports": [
+        {
+          "scope": "search",
+          "observed_at": "2026-11-18T10:00:00Z",
+          "worker_states": ["waiting", "idle", "queued"],
+          "count": 0
+        },
+        {
+          "scope": "root",
+          "observed_at": "2026-11-18T10:00:00Z",
+          "worker_states": ["working", "idle"],
+          "count": 1
+        },
+        {"scope": "program", "observed_at": null, "count": "Unknown"}
+      ]
+    }
+  ],
+  "previews": [
+    {
+      "name": "adjacent alias at startup and resume",
+      "host": "display-host",
+      "tabs": [
+        {"id": "preview-1", "url": "http://127.0.0.1:8080/roadmap.html", "title": "Search service roadmap", "adjacent": true},
+        {"id": "preview-2", "url": "http://localhost:8080/other.html", "title": "Other program", "adjacent": false}
+      ],
+      "actions": [
+        {"operation": "reload", "id": "preview-1"},
+        {"operation": "reload", "id": "preview-1"}
+      ],
+      "final_ids": ["preview-1", "preview-2"]
+    },
+    {
+      "name": "missing at startup and adjacent on resume",
+      "host": "display-host",
+      "tabs": [],
+      "actions": [
+        {"operation": "create", "id": "preview-3", "split": "right", "focus": "terminal"},
+        {"operation": "reload", "id": "preview-3"}
+      ],
+      "final_ids": ["preview-3"]
+    },
+    {
+      "name": "loopback on a different host",
+      "host": "execution-host",
+      "tabs": [
+        {"id": "other-host-page", "url": "http://localhost:8080/roadmap.html", "title": "Search service roadmap", "adjacent": true}
+      ],
+      "actions": [
+        {"operation": "unknown", "reason": "display-host is unavailable from execution-host"}
+      ],
+      "final_ids": ["other-host-page"]
+    },
+    {
+      "name": "first render without a supported private route",
+      "host": "display-host",
+      "initial_url": null,
+      "tabs": [],
+      "route_error": "no private project preview is reachable from display-host",
+      "actions": [
+        {"operation": "unknown", "reason": "no private project preview is reachable from display-host"}
+      ],
+      "final_url": null,
+      "final_ids": []
+    },
+    {
+      "name": "first render with a verified private route",
+      "host": "display-host",
+      "initial_url": null,
+      "tabs": [],
+      "private_route": {
+        "url": "http://127.0.0.1:8080/roadmap.html",
+        "authorized": true,
+        "verified_host": "display-host"
+      },
+      "actions": [
+        {"operation": "record_route", "url": "http://127.0.0.1:8080/roadmap.html", "browser_host": "display-host"},
+        {"operation": "create", "id": "preview-4", "split": "right", "focus": "terminal"},
+        {"operation": "reload", "id": "preview-4"}
+      ],
+      "final_url": "http://127.0.0.1:8080/roadmap.html",
+      "final_ids": ["preview-4"]
+    }
+  ]
+}

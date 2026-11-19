@@ -10,8 +10,8 @@ such issues, the oldest is kept current, whatever text is outside its markers,
 and one note names every other open issue with that title, whoever opened it.
 It is the only issue the tool ever closes, and the close re-reads the
 issue and checks its title, marker block and author first. When the sync report
-is incomplete (a forge call failed), nothing is written: an incomplete report
-must not close the issue or rewrite it.
+is incomplete (a forge read failed or Orca task coverage is unknown), the issue
+is left as it is.
 """
 
 from __future__ import annotations
@@ -91,6 +91,9 @@ def run(raw: dict, fg, report, apply: bool = False, today: str = "") -> Result:
     result = Result(applied=apply)
     if report.errors:
         result.notes.append("the sync report is incomplete, so the drift issue was left as it is")
+        return result
+    if report.orca_complete is False:
+        result.notes.append("Orca coverage is incomplete. The drift issue was left as it is.")
         return result
     project = fg.project
     if not project:

@@ -115,7 +115,74 @@
       "properties": {
         "run": {
           "type": "string",
-          "description": "Orca run whose tasks sync checks."
+          "description": "Legacy Orca run included alongside runs from orchestration.coordinators."
+        }
+      }
+    },
+    "orca_observation": {
+      "type": "object",
+      "description": "Optional snapshot saved by sync --write. Worker activity reflects the recorded observation times.",
+      "required": ["source", "observed_at", "coverage_complete", "workers"],
+      "properties": {
+        "source": {
+          "enum": ["live", "recorded"]
+        },
+        "observed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Capture start time, or null when Unknown."
+        },
+        "coverage_complete": {
+          "type": "boolean",
+          "description": "Task coverage across all configured roadmap runs."
+        },
+        "workers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["run", "task", "dispatch", "activity", "observed_at", "owners"],
+            "properties": {
+              "run": { "type": ["string", "null"], "pattern": "\\S" },
+              "task": { "type": "string", "pattern": "\\S" },
+              "dispatch": { "type": ["string", "null"], "pattern": "\\S" },
+              "activity": {
+                "enum": ["working", "waiting", "idle", "queued", "stopped", "unknown"]
+              },
+              "observed_at": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "owners": {
+                "type": "object",
+                "propertyNames": { "pattern": "\\S" },
+                "additionalProperties": { "type": ["string", "null"], "pattern": "\\S" }
+              }
+            },
+            "if": {
+              "properties": { "activity": { "not": { "const": "unknown" } } }
+            },
+            "then": {
+              "properties": {
+                "run": { "type": "string" },
+                "dispatch": { "type": "string" },
+                "observed_at": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "orchestration": {
+      "type": "object",
+      "properties": {
+        "coordinators": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/coordinatorKey"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/coordinator"
+          }
         }
       }
     },
@@ -171,20 +238,9 @@
     },
     "timeline": {
       "type": "array",
+      "description": "Roadmap history in source order, oldest top-level event first. Related children are shown in their recorded order.",
       "items": {
-        "type": "object",
-        "required": [
-          "date",
-          "text"
-        ],
-        "properties": {
-          "date": {
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          }
-        }
+        "$ref": "#/$defs/timelineEvent"
       }
     },
     "page_url": {
@@ -193,10 +249,89 @@
     }
   },
   "$defs": {
+    "timelineEvent": {
+      "type": "object",
+      "required": [
+        "date",
+        "text"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Original timestamp or date as recorded."
+        },
+        "text": {
+          "type": "string",
+          "description": "Full original event record."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short outcome shown in the collapsed timeline."
+        },
+        "author": {
+          "type": "string",
+          "pattern": "[^ ]",
+          "not": {
+            "pattern": "[A-Z]|[^ -~]"
+          },
+          "description": "Non-blank printable ASCII author text without uppercase letters. The renderer recognizes claude and codex."
+        },
+        "id": {
+          "type": "string",
+          "description": "Stable identity for this event when supplied."
+        },
+        "provenance": {
+          "type": "object",
+          "description": "Recorded source or attribution evidence."
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timelineEvent"
+          }
+        }
+      }
+    },
     "slug": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
       "description": "Short readable name: lowercase words joined by hyphens. Never a code like A1 or T1.1."
+    },
+    "coordinatorKey": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "coordinator": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "scope": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "run": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Orca run to include in sync."
+        },
+        "role": {
+          "enum": ["meta", "area", "worker"]
+        },
+        "parent": {
+          "$ref": "#/$defs/coordinatorKey",
+          "description": "Key of the parent coordinator. Parent chains must be acyclic."
+        }
+      }
+    },
+    "orchestrators": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coordinatorKey"
+      },
+      "description": "Keys in orchestration.coordinators for the coordinators responsible for this work."
     },
     "epic": {
       "type": "object",
@@ -213,6 +348,9 @@
         },
         "note": {
           "type": "string"
+        },
+        "orchestrators": {
+          "$ref": "#/$defs/orchestrators"
         },
         "parent": {
           "$ref": "#/$defs/slug",
@@ -284,6 +422,9 @@
         },
         "epic": {
           "$ref": "#/$defs/slug"
+        },
+        "orchestrators": {
+          "$ref": "#/$defs/orchestrators"
         },
         "status": {
           "enum": [

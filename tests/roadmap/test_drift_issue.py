@@ -11,7 +11,6 @@ from unittest import mock
 
 from fakeforge import FakeGitHub, github
 from helpers import example, issue
-
 from roadmaplib import blocks, driftissue, forge, sync
 
 REPO = "example-org/search-service"
@@ -116,6 +115,19 @@ class OneDriftIssue(unittest.TestCase):
         result = driftissue.run(quiet(), fg, report, apply=True, today=NOW)
         self.assertEqual(len(fake.writes), n)
         self.assertTrue(result.notes)
+
+    def test_partial_orca_coverage_keeps_the_drift_issue_open_even_through_shared_writer(self):
+        fake = fresh_forge()
+        run(drifting(), fake)
+        fg = github(fake)
+        report = sync.sync(quiet(), fg, orca_tasks=None, now=NOW)
+        report.orca_complete = False
+        n = len(fake.writes)
+        result = driftissue.run(quiet(), fg, report, apply=True, today=NOW)
+        self.assertEqual(result.actions, [])
+        self.assertEqual(len(fake.writes), n)
+        self.assertEqual(drift_issues(fake)[0]["state"], "open")
+        self.assertIn("Orca coverage", result.text())
 
     def test_an_issue_a_person_titled_roadmap_drift_is_not_touched(self):
         fake = fresh_forge()
