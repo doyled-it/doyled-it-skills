@@ -239,7 +239,8 @@ def _worker_observation(snapshot: dict | None, *, configured: bool) -> str:
     if rows:
         columns = ("Task", "Run", "Dispatch", "Owners", "Activity", "Observed at")
         head = "".join(f'<th scope="col">{column}</th>' for column in columns)
-        table = (f'<div class="tablewrap"><table aria-labelledby="orca-observation-title">'
+        table = ('<div class="tablewrap" role="region" aria-label="Orca worker activity table" tabindex="0">'
+                 '<table aria-labelledby="orca-observation-title">'
                  f'<thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
     return (
         f'{heading}'
@@ -281,7 +282,8 @@ def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool, owners:
     ref = f' <span class="ref">{_link(ep.get("url"), ep["ref"])}</span>' if ep.get("ref") else ""
     return (f'<div class="track"><h3><span class="tid">Epic</span>{title}{ref}</h3>'
             f'<p class="tnote">{esc(ep.get("note", ""))}{_owner_context(ep, owners)}</p>'
-            f'<div class="tablewrap"><table><thead><tr>{head}</tr></thead>'
+            f'<div class="tablewrap" role="region" aria-label="{esc(ep["name"])} issues" tabindex="0">'
+            f'<table><thead><tr>{head}</tr></thead>'
             f'<tbody>{body}</tbody></table></div></div>')
 
 
@@ -358,7 +360,7 @@ CSS = """
 body { margin:0; background:var(--canvas); color:var(--ink); font:400 15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-variant-numeric:tabular-nums; }
 a { color:var(--action); }
-a:focus-visible, .scroller:focus-visible { outline:2.5px solid var(--action); outline-offset:2px; }
+a:focus-visible, .scroller:focus-visible, .tablewrap:focus-visible { outline:2.5px solid var(--action); outline-offset:2px; }
 .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .wrap { max-width:1320px; margin:0 auto; padding:36px 24px 72px; }
 header.top { display:grid; grid-template-columns:1fr auto; gap:6px 28px; align-items:end; border-bottom:1px solid var(--rule);
@@ -413,19 +415,20 @@ a:focus .node .box, .node:focus .box, .node:hover .box { stroke:var(--action); s
 .now div { background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:14px 18px; }
 .now h3 { margin:0 0 6px; font-size:14px; color:var(--ink2); font-weight:600; }
 .now p { margin:0; font-size:15px; }
-.tracks { display:grid; gap:18px; }
+.tracks { display:grid; grid-template-columns:minmax(0, 1fr); gap:18px; }
 .track { background:var(--surface); border:1px solid var(--rule); border-radius:12px; padding:18px 20px 8px; }
 .track h3 { margin:0; font-size:17px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .tid { display:inline-grid; place-items:center; padding:0 8px; height:24px; font-size:12px; color:var(--ink3);
   border-radius:7px; background:var(--canvas); font-weight:700; }
 .tnote { margin:4px 0 10px; color:var(--ink3); font-size:14px; }
 .tablewrap { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; font-size:14px; }
+table { width:100%; min-width:40rem; border-collapse:collapse; font-size:14px; }
 th, td { text-align:left; padding:10px 8px; border-top:1px solid var(--rule); vertical-align:top; }
 thead th { border-top:0; color:var(--ink3); font-weight:500; font-size:13px; }
 tbody th { font-weight:600; color:var(--ink3); white-space:nowrap; font-size:13px; }
 .ref { display:block; font-weight:500; }
 .track h3 .ref { display:inline; font-size:13px; }
+.track td:nth-child(2) { min-width:16rem; }
 .det { display:block; color:var(--ink2); font-size:13.5px; }
 .xlink, .mr { display:block; font-size:13px; }
 td.gates { white-space:nowrap; } td.gates .g { margin-right:4px; }

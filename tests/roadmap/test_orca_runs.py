@@ -311,6 +311,44 @@ class SyncWithNestedRuns(unittest.TestCase):
             {"run_other/task_same", "run_storage/task_same"},
         )
 
+    def test_root_wrapper_scope_holds_conflicting_task_and_worker_evidence(self):
+        data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
+        payload = {
+            "runId": "run_other",
+            "result": {
+                "runId": "run_storage",
+                "tasks": [task("page-ranking: repair", id="task_probe", dispatchId="d")],
+                "result": {},
+            },
+            "workers": {"d": {**worker("task_probe", "d", "working"), "observed_at": OBSERVED}},
+        }
+        report = report_for(data, collect_recorded(data, payload))
+        self.assertFalse(report.orca_complete)
+        self.assertFalse(report.orca_requested_complete)
+        self.assertNotIn("started-early", {d.kind for d in report.drift})
+        self.assertEqual(report.orca_observation["workers"], [])
+        self.assertIn("conflicting run scope", report.text())
+
+    def test_ambiguous_wrapped_run_map_keeps_only_agreeing_rows_and_sibling_containers(self):
+        data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
+        payload = {
+            "run": "run_storage",
+            "result": {
+                "tasks": [task("Storage evidence", id="task_flat")],
+                "runs": {
+                    "run_storage": [task("Storage history", id="task_named")],
+                    "run_other": [task("Other run", id="task_other")],
+                },
+            },
+        }
+        report = report_for(data, collect_recorded(data, payload))
+        self.assertFalse(report.orca_complete)
+        self.assertFalse(report.orca_requested_complete)
+        self.assertEqual(
+            {d.target for d in report.drift if d.kind == "unlinked-orca-task"},
+            {"run_storage/task_flat", "run_storage/task_named"},
+        )
+
     def test_failed_recording_envelopes_cannot_certify_a_run(self):
         data = {**sync_roadmap(), "orca": {"run": "run_root"}}
         for payload in (
@@ -578,8 +616,53 @@ class WorkerObservation(unittest.TestCase):
         self.assertTrue(report.orca_complete)
         workers = report.orca_observation["workers"]
         self.assertEqual([(row["dispatch"], row["activity"]) for row in workers], [("dispatch_partial", "unknown")])
-        self.assertIn("0 confirmed working, 1 Unknown", report.text())
+        self.assertIn("Worker activity is Unknown", report.text())
+        self.assertIn("1 Unknown", report.text())
+        self.assertNotIn("0 confirmed working", report.text())
         self.assertNotIn("started-early", {d.kind for d in report.drift})
+
+    def test_lifecycle_only_recording_keeps_activity_unknown_in_text_and_saved_render(self):
+        data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
+        for recording in (
+            [],
+            [task("Earlier work", status="completed")],
+            [task("Future work", status="queued")],
+            {"observed_at": OBSERVED, "runs": {"run_storage": []}, "workers": {}},
+        ):
+            with self.subTest(recording=recording):
+                report = report_for(data, collect_recorded(data, recording))
+                self.assertTrue(report.orca_complete)
+                self.assertTrue(report.orca_requested_complete)
+                self.assertEqual(report.orca_observation["workers"], [])
+                saved = json.loads(json.dumps(report.roadmap))
+                self.assertEqual(
+                    saved["orca_observation"]["observed_at"], OBSERVED if isinstance(recording, dict) else None
+                )
+                for output in (report.text(), render.render_page(saved)):
+                    self.assertIn("Worker activity is Unknown", output)
+                    self.assertNotIn("0 confirmed working", output)
+
+    def test_zero_requires_timestamped_idle_observations_and_full_coverage(self):
+        data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
+        payload = {
+            "runs": {"run_storage": [dispatched("task_idle", "dispatch_idle")]},
+            "workers": {
+                "dispatch_idle": {**worker("task_idle", "dispatch_idle", "idle"), "observed_at": OBSERVED},
+            },
+        }
+        for capture_time, missing_run, label in (
+            (None, False, "Worker activity is Unknown"),
+            (OBSERVED, True, "Worker activity is Unknown"),
+            (OBSERVED, False, "0 confirmed working"),
+        ):
+            with self.subTest(capture_time=capture_time, missing_run=missing_run):
+                data["orchestration"] = {"coordinators": {"extra": {"run": "run_missing"}}} if missing_run else {}
+                report = report_for(data, collect_recorded(data, {**payload, "observed_at": capture_time}))
+                self.assertEqual(report.orca_complete, not missing_run)
+                self.assertEqual(report.orca_observation["workers"][0]["activity"], "idle")
+                for output in (report.text(), render.render_page(report.roadmap)):
+                    self.assertIn(label, output)
+                    self.assertEqual("0 confirmed working" in output, label == "0 confirmed working")
 
     def test_recorded_activity_rejects_invalid_timezone_offsets(self):
         data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
@@ -720,6 +803,72 @@ class WorkerObservation(unittest.TestCase):
             },
         )
         self.assertIn(OBSERVED, render.render_page(report.roadmap))
+        self.assertIn("1 confirmed working", report.text())
+        self.assertIn("1 confirmed working", render.render_page(report.roadmap))
+
+    def test_only_skips_collection_and_preserves_global_observation_on_save(self):
+        data = owned_roadmap()
+        evidence = {
+            "runs": {"run_storage": [dispatched("task_work", "dispatch_work")]},
+            "workers": {
+                "dispatch_work": {**worker("task_work", "dispatch_work", "working"), "observed_at": OBSERVED},
+            },
+        }
+        data["orca_observation"] = collect_recorded(data, evidence).observation
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "roadmap.json"
+            recording = Path(tmp) / "orca.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            recording.write_text("[]", encoding="utf-8")
+            initial = path.read_bytes()
+            args = [
+                "sync",
+                str(path),
+                "--only",
+                "ranking-model",
+                "--recorded",
+                str(FIXTURES / "gitlab_sync.json"),
+                "--orca-json",
+                str(recording),
+                "--now",
+                "2026-11-17",
+                "--json",
+            ]
+            for extra in ([], ["--write"]):
+                with (
+                    self.subTest(extra=extra),
+                    redirect_stdout(io.StringIO()) as output,
+                    mock.patch("roadmaplib.orca.tasks_from_args", wraps=orca.tasks_from_args) as collect,
+                    mock.patch("roadmaplib.model.save") as save,
+                ):
+                    self.assertEqual(cli.main([*args, *extra]), 0)
+                    report, _ = json.JSONDecoder().raw_decode(output.getvalue())
+                    self.assertEqual(report["status_changes"][0]["issue"], "ranking-model")
+                    self.assertIsNone(report["orca_observation"])
+                    self.assertIsNone(report["orca_complete"])
+                    self.assertIsNone(report["orca_requested_complete"])
+                    collect.assert_not_called()
+                    if extra:
+                        save.assert_called_once()
+                        self.assertEqual(save.call_args.args[1]["orca_observation"], data["orca_observation"])
+                    else:
+                        save.assert_not_called()
+                    self.assertEqual(path.read_bytes(), initial)
+
+    def test_library_issue_scope_ignores_supplied_orca_collection(self):
+        data = {**sync_roadmap(), "orca": {"run": "run_storage"}}
+        data["orca_observation"] = collect_recorded(
+            data, {"observed_at": OBSERVED, "runs": {"run_storage": []}}
+        ).observation
+        tasks = collect_recorded(data, [])
+        fg = forge.GitLab(
+            NoWrites(fixture("gitlab_sync.json")), host="gitlab.example.com", project="acme/search", group="acme"
+        )
+        report = sync.sync(data, fg, orca_tasks=tasks, only={"ranking-model"}, now="2026-11-17")
+        self.assertEqual(report.roadmap["orca_observation"], data["orca_observation"])
+        self.assertIsNone(report.orca_observation)
+        self.assertIsNone(report.orca_complete)
+        self.assertFalse(report.observation_changed)
 
     def test_sync_write_persists_snapshot_without_other_changes_and_no_orca_preserves_it(self):
         with tempfile.TemporaryDirectory() as tmp:

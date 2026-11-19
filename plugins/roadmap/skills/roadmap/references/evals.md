@@ -83,7 +83,9 @@ verification and explicit U approval are still pending.
   separate informational notice and retains any actionable drift notice.
   Repeat with a long issue ID and check that the capped notice still names the
   open gates and gives the read-only and dependent-dispatch directions. Record
-  the outputs and verify that the checks preserved the canonical file.
+  the outputs and verify that the checks preserved the canonical file. Verify
+  that an issue-scoped sync skips Orca and a local save preserves the
+  program-wide observation.
 
 ## Scenario 9: a merge request off the roadmap
 
@@ -126,7 +128,9 @@ without an action journal or expected answer.
   override. A successful override can have complete requested task coverage
   while full coverage remains incomplete. A failed worker read leaves that
   worker Unknown even when task coverage is complete. A timestamped matching
-  working record can support a confirmed observation for its own scope.
+  working record can support a confirmed observation for its own scope. Run
+  sync and render from a saved lifecycle-only recording and check that both
+  report Unknown activity without a numeric zero.
 - **Pass:** the area reuses the existing adjacent preview on its own host if
   available. Otherwise it identifies the host limitation and preserves the
   page identity.
@@ -141,6 +145,12 @@ from the browser host and once with no reachable supported route.
   recording the URL and host in the shared pointer. Opens that page beside the
   orchestrator and reuses it on resume. When no such route is available, keeps
   the local HTML, reports the missing access or route, and leaves tabs alone.
+
+- **Render check:** at 390 px in light and dark mode, the page fits its
+  viewport. Use Tab to focus each named issue and worker table region and
+  scroll its columns independently. Check that the delivery text is readable
+  and the flow can scroll in its own frame. Confirm that at desktop width
+  both tables and timeline disclosures remain readable.
 
 For offline checks use the synthetic `tests/roadmap/fixtures/coordination.json`.
 The replay runs recorded read-only sync and render on disposable files. It

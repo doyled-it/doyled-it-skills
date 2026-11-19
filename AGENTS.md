@@ -53,6 +53,9 @@
   tasks. Track requested and full task coverage separately. Hold absence-based
   drift checks and shared drift issue writes on incomplete full coverage.
   Missing worker evidence stays Unknown and leaves task coverage independent.
+  Treat a recorded wrapper's run scope as binding on enclosed evidence.
+  Issue-scoped sync skips Orca and preserves the program-wide snapshot.
+  Keep roadmap tables readable inside named, keyboard-focusable scroll regions.
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.

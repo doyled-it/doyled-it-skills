@@ -107,8 +107,13 @@ class SyncReport:
                 "orca_observation": self.orca_observation}
 
     def text(self) -> str:
-        lines = ["Sync is read-only on the forge and Orca unless --update-epics is given. "
-                 "Use --write to save status, gates and the Orca observation into roadmap.json.", ""]
+        lines = [
+            "Sync is read-only by default. Forge writes require --update-epics or --update-drift-issue.",
+            "Review proposed updates before root saves them locally with --write.",
+            ("If a proposed closure has open required gates, keep sync read-only, record only supported evidence "
+             "through root, and hold dependent dispatch."),
+            "",
+        ]
         if self.errors:
             lines += ["Incomplete: these forge calls failed, so the report below misses what they would have "
                       "shown. Nothing is saved; run sync again once the forge answers."]
@@ -265,6 +270,8 @@ def sync(raw: dict, fg, orca_tasks=None, stale_days: int = 14, now: str | None =
     """
     if only is not None and update_epics:
         raise SyncRefused("--only checks a few issues; it cannot rewrite epics")
+    if only is not None:
+        orca_tasks = "Orca not checked (--only)."
     findings = validate.errors(validate.check(raw))
     structural = [f for f in findings if f.code in render.BLOCKING]
     if structural:

@@ -325,7 +325,9 @@ def _collect(
         tasks.notes.append(f"{context}: read {len(tasks) - before} task(s).")
 
 
-def _recorded_runs(tasks: TaskCollection, recorded, owners: dict, *, require_all: bool) -> None:
+def _recorded_runs(
+    tasks: TaskCollection, recorded, owners: dict, *, require_all: bool, scoped_run: str | None = None
+) -> None:
     if not isinstance(recorded, dict) or not (recorded or owners):
         raise TaskReadError('"runs" must map run identifiers to task lists or responses')
     invalid = getattr(recorded, "duplicates", set()).copy()
@@ -342,6 +344,8 @@ def _recorded_runs(tasks: TaskCollection, recorded, owners: dict, *, require_all
         return recorded[run]
 
     runs = owners | recorded if require_all else recorded
+    if scoped_run:
+        runs = (scoped_run,)
     _collect(tasks, (run for run in runs if run not in invalid), owners, read, "recorded", recorded=True)
 
 
@@ -356,18 +360,20 @@ def _recorded_tasks(path, owners: dict) -> TaskCollection:
         result = _result(raw)
         containers, problem = _task_containers(raw, result)
         scope = None
+        # A wrapper without a task container still governs the enclosed evidence.
+        binds_result = raw is not result and not _containers(raw)
         if problem:
             tasks.unknown(context, problem)
-        else:
+        if not problem or binds_result:
             scope = _scoped_run(raw, result, recorded=True)
-            if scope and containers[0][0] == "runs":
-                raise TaskReadError("use either a single run identifier or a runs map")
+        if not problem and scope and containers[0][0] == "runs":
+            raise TaskReadError("use either a single run identifier or a runs map")
         for kind, container, layer in containers:
             try:
+                local_run = _scoped_run(layer, None, recorded=True) if problem and not binds_result else scope
                 if kind == "runs":
-                    _recorded_runs(tasks, container, owners, require_all=problem is None)
+                    _recorded_runs(tasks, container, owners, require_all=problem is None, scoped_run=local_run)
                     continue
-                local_run = _scoped_run(layer, None, recorded=True) if problem else scope
                 scopes = _append_rows(
                     tasks,
                     _rows(container),

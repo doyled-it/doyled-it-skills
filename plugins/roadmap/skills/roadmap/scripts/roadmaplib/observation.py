@@ -67,9 +67,18 @@ def problems(snapshot):
 
 def summary(snapshot: dict) -> str:
     workers = snapshot["workers"]
-    working = {row["dispatch"] for row in workers if row["activity"] == "working"}
-    unknown = sum(row["activity"] == "unknown" for row in workers)
-    text = f"{len(working)} confirmed working, {unknown} Unknown"
+    observed = [row for row in workers if row["activity"] != "unknown" and is_timestamp(row["observed_at"])]
+    working = {row["dispatch"] for row in observed if row["activity"] == "working"}
+    unknown = len(workers) - len(observed)
+    can_count_zero = (
+        bool(observed) and not unknown and snapshot["coverage_complete"] and is_timestamp(snapshot["observed_at"])
+    )
+    if working or can_count_zero:
+        text = f"{len(working)} confirmed working, {unknown} Unknown"
+    else:
+        text = "Worker activity is Unknown"
+        if unknown:
+            text += f" ({unknown} Unknown worker observations)"
     if not snapshot["coverage_complete"]:
         text += ". Coverage of all roadmap runs is Unknown"
     return text

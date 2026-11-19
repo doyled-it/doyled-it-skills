@@ -115,9 +115,9 @@ def cmd_sync(args) -> int:
     except forge.ForgeError as exc:
         print(f"error: {exc}")
         return 2
-    tasks = orca.tasks_from_args(data, args)
+    only = {key.strip() for key in args.only.split(",") if key.strip()} if args.only is not None else None
+    tasks = orca.tasks_from_args(data, args) if only is None else None
     try:
-        only = {x.strip() for x in args.only.split(",") if x.strip()} if args.only else None
         report = sync.sync(data, fg, orca_tasks=tasks, stale_days=args.stale_days, now=args.now,
                            update_epics=args.update_epics, only=only)
     except (sync.SyncRefused, forge.ForgeError) as exc:
@@ -286,9 +286,9 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("sync", help="read status, merge requests, pipelines and Orca tasks; report drift")
     s.add_argument("roadmap")
     s.add_argument("--write", action="store_true",
-                   help="save status, gates and worker observation in roadmap.json")
+                   help="save proposed updates to local roadmap.json after root review")
     s.add_argument("--update-epics", action="store_true",
-                   help="rewrite the generated roadmap section in each epic (the only forge write sync makes)")
+                   help="rewrite each generated epic section on the forge (requires --write)")
     s.add_argument("--update-drift-issue", action="store_true",
                    help="also create, update or close the one Roadmap drift issue from this same report "
                         "(what drift-issue --apply does, without a second sync)")
@@ -300,7 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--no-orca", action="store_true", help="skip the Orca check")
     s.add_argument("--only", metavar="IDS",
                    help="check only these roadmap issues (comma-separated short names); skips epics, "
-                        "open merge requests and Orca")
+                        "the scan for unlinked open merge requests, and Orca")
     _forge_args(s)
     s.set_defaults(func=cmd_sync)
     return p
