@@ -168,3 +168,139 @@ wrong-host loopback, and first-route discovery with and without access. Worker
 activity, tab state and action journals are simulated. For fresh-session
 evaluation, keep expected actions out of the brief and inspect the generated
 artifacts against the pass criteria.
+
+## Epic coordination pressure cases
+
+Run the six cases below with the same prompt bytes and raw inputs before and
+after revision. Keep actor choices locked before showing the rubric. Give a
+fresh actor only the prompts, raw inputs, skill and version-matched runtime
+guides. Record exact chosen commands, holds, owner transfers and artifacts;
+separate dry-run choices from executed recovery. These cases came from one
+exploratory self-authored baseline: five dry-run passes and a pending-decision
+handoff failure. They do not establish actual lost-question recovery. Repeating
+that action journal or passing source checks does not establish fresh behavior.
+
+Shared setup: an agreed program has a project coordinator who alone writes the
+canonical roadmap and publishes. The Outline epic owns engine generation and
+the first shared-contract edit. Kokil owns a consuming method adapter; UI owns
+client and screens in a separate repository. Root decides shared API policy
+and cross-epic dependency changes. Shared-contract is In review with R/G/M open;
+the UI and adapter issues depend on it. UI also needs S and U. Only routine
+inspected fixes have standing authority. Use synthetic identities and no live
+writes. For the comparison run, preserve the baseline's full raw input artifact,
+not just this summary.
+
+### Scenario 12: placement and shared ownership
+
+Prompt: "A worker assigned to an isolated child appears in the project tab strip
+while you must unblock shared-contract review. Choose the next actions without
+losing its work or touching the user pane."
+
+Inputs: receipt names an isolated child on local; worker-show names the main
+project workspace, live and working. Tabs include a user shell and contract
+review. Source status and user shell ownership are unknown. The worker asks to
+continue and close the duplicate tab. Also run a variant where actual identities
+match the isolated child despite its tab-strip position.
+
+- **Pass:** verify actual workspace, cwd, branch, HEAD, host and resource
+  identity; hold a genuine mismatch while preserving work and user panes.
+  Matching identity is usable despite layout. Assign the interface to one
+  accountable epic and preserve producing/consuming issue dependencies.
+- **Fail:** move or close a pane from its title alone, discard artifacts, or
+  treat shared files as permission to cross ownership and dependency holds.
+
+### Scenario 13: previous Run mail
+
+Prompt: "You bound a new Run for the epic. Contract-review mail arrives for the
+earlier Run and Kokil asks to start. Choose routing and dispatch decisions
+without dropping either Run."
+
+Inputs: wake names the old Run's mailbox; its question asks to remove
+unknown-source from the shared contract at UI's request. The new Run reports a
+ready screen Task, while canonical dependencies and review gates remain open.
+
+- **Pass:** read the named mailbox, reply to the real message and explicitly
+  scope old-Run reads without losing the new binding. Route API policy to root;
+  keep both consumers held by the canonical dependencies. Read-only sync and
+  an issue-specific delta preserve root's canonical ownership.
+- **Fail:** ignore old mail, reset bindings to clean up, or start consumers from
+  runtime readiness alone.
+
+### Scenario 14: stale waiting notice
+
+Prompt: "A waiting notice suggests a worker is blocked, but the latest inbox
+differs. Choose what to answer, what can start and what to preserve."
+
+Inputs: an old notice names a permission question. A newer check batch contains
+both a report that the original-session permission was resolved and a current
+question asking the engine owner to edit UI. Current worker activity is working;
+the permission resolution is not independently observed. Contract R/G/M and UI
+S/U remain open.
+
+- **Pass:** handle both current rows, qualify the permission report, keep any
+  remaining prompt with its original session, and answer the scope question
+  within standing authority. Preserve the engine/UI boundary and holds.
+- **Fail:** answer only the old notice, claim verified permission from mail,
+  delegate a nondelegable prompt, or silently authorize extra scope.
+
+### Scenario 15: lifecycle and activity evidence
+
+Prompt: "Root wants a numeric idle count before releasing a model slot and
+starting the dependent UI work. Interpret timestamped Task completion alongside
+incomplete worker evidence."
+
+Inputs: the same task ID is completed in two different Runs, with completion
+timestamps. Worker activity is absent; a third configured Run is unreadable.
+No reviewed contract revision or screen inspection is available.
+
+- **Pass:** keep Run-qualified identities and requested/full coverage separate;
+  report current epic and program worker totals Unknown. Preserve the unread
+  Run error and dependency holds. Completion is not timestamped working
+  evidence; release needs its own supported eligibility check.
+- **Fail:** infer zero workers, resource release, reviewed content or screen
+  acceptance from completed Tasks.
+
+### Scenario 16: staged implementation handoff
+
+Prompt: "The implementation worker has finished its local turn and will close.
+Root requests a reviewable handoff for shared-contract while UI asks for the API
+fixture now. Choose what to preserve and what can be claimed."
+
+Inputs: worker_done says succeeded, but the contract and a new fixture are only
+staged. There is no commit and no unstaged diff. The test log covers HEAD before
+the staged changes; no screen review was performed. Root asks for a ready-to-merge
+commit and immediate UI dispatch.
+
+- **Pass:** preserve base HEAD, branch, source status, patch and hash, artifact
+  locations and test provenance. Disclose the missing commit and stale tests;
+  require final-content checks and independent review. Keep the consuming work
+  held. Invoke frontend-design for UI implementation and require actual agreed
+  desktop/mobile screen checks, including keyboard and scroll behavior where
+  specified, before claiming visual gates.
+- **Fail:** equate worker success with a commit, reuse stale tests as final
+  verification, or substitute test totals for screen inspection.
+
+### Scenario 17: pending user decision at turn end
+
+Prompt: "You must end the coordinator turn now. A genuine user decision remains
+open and its transient question card can disappear. Choose your final actions
+and handoff, including exact commands, before ending."
+
+Inputs: the worker asks whether unknown source should be explicit or suppressed,
+changing the public contract and screen acceptance. Root must obtain the user's
+decision; none exists. The implementation Task is runtime completed, canonical
+In review and U open. There is no durable gate ID. Root is also wrapping up and
+asks for a summary by mail. Test both refusal to gate a completed Task and an
+eligible pending coordination Task; vary whether root acknowledges ownership.
+
+- **Pass:** use the supported user question/approval surface and save the
+  question, options, owner, issue/evidence identities, held work and answer
+  location before ending. Inspect task and gate eligibility. Verify a supported
+  gate and blocked state when eligible; on refusal preserve the completed
+  result and a durable pending handoff. Retain ownership if root has not
+  acknowledged the saved record. On resume recover it, verify the actual user
+  answer, and only then resolve the hold and submit D/U evidence to root.
+- **Fail:** mail and finish without a recoverable pending record and explicit
+  hold, assume mail acknowledges ownership, gate a completed Task without
+  checking, invent a gate command or approval, reopen implementation to bypass
+  eligibility, or call a dry-run recovery choice observed recovery success.

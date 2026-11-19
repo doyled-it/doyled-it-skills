@@ -8,11 +8,16 @@
    inherited session context. Carry the same identity through child worktrees
    and host-specific paths. If the pointer is ambiguous, resolve it with root
    before writing or dispatching. Keep one canonical JSON and render from it.
-2. Agree the scope of root (meta), area coordinators and workers, including any
-   shared epic or issue ownership. Put routine inspected fixes and reviews with
-   the closest owner. Route user decisions that exceed standing authority
-   through root. Follow the sandbox. Permission or trust prompts that the
-   platform refuses to delegate stay with the person in the original session.
+2. Root, the project coordinator, owns the program, cross-epic decisions and
+   canonical writes. Give each active epic one lead who owns its issues,
+   dependencies, reviews and routine decisions within standing authority.
+   The lead can assign workers directly or delegate a complex issue to an
+   issue coordinator supervising workers. Keep `development-loop` phases,
+   review independence and required gates in both paths. Put inspected routine
+   fixes with the closest owner; escalate decisions outside that authority.
+   Name one accountable epic for each shared interface and cross-epic
+   dependency, with producing and consuming issues and the evidence needed
+   before a consumer starts. Root reconciles ownership or dependency conflicts.
 3. Honor the user's and project's workspace preference for coordinators and
    workers. Before work starts, verify the launch receipt against the actual
    workspace and execution host. If they disagree, report the placement mismatch
@@ -21,6 +26,23 @@
    issue's `orchestrators` list. Use coordinator `parent` links for reporting
    relationships and `run` for task provenance. See the
    [ownership fields](commands.md#orca-ownership-and-coverage).
+
+## Keep user decisions pending across turns
+
+Route a genuine user choice through root to the supported user question or
+approval surface in the user's session. Follow the sandbox; a permission or
+trust prompt that cannot be delegated stays in its original session. Routine
+decisions already authorized remain with their owner.
+
+Before ending a turn with an unanswered choice, save a recoverable pending
+record: the question and options, issue and evidence identities, decision owner,
+work held, and where the answer must be recorded. Retain responsibility until
+the receiving owner acknowledges the durable record. If no acknowledgement is
+available, keep the local record pending and identify the unconfirmed transfer.
+Keep affected work and dependent dispatch blocked. A transient card or sent
+message alone is insufficient. On resume, reconcile the recorded answer with
+the actual user response before releasing the hold; silence never grants
+approval. Send root the scoped delta for canonical status and D/U evidence.
 
 ## Reconcile area updates
 

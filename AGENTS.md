@@ -49,6 +49,10 @@
   require timestamped activity evidence. Keep fixture replay, fresh-session
   workflow evaluation and native installation acceptance separate in release
   evidence.
+- Keep epic ownership and delegation in roadmap coordination guidance; load
+  its operating reference only in Orca. Pending user choices require a durable
+  owner and blocked-work record across turn end. Verify runtime gate eligibility
+  and preserve completed results when a gate cannot attach.
 - Preserve legacy Orca run inputs and use run-qualified identities for scoped
   tasks. Track requested and full task coverage separately. Hold absence-based
   drift checks and shared drift issue writes on incomplete full coverage.

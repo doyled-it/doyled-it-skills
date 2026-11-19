@@ -11,8 +11,11 @@ Keep one `roadmap.json` agreed with the program lead. The JSON holds the plan,
 the forge tracks real issues, and Orca records execution. On an existing program,
 resolve the canonical file from an explicit program pointer or session context.
 Carry that pointer across worktrees and hosts. Root (also called meta) is the
-canonical writer. For area ownership, Orca previews or cross-host work, read
-[coordination.md](references/coordination.md).
+canonical writer and project coordinator. Give each active epic one lead for
+its issues, dependencies, reviews and routine decisions. For delegated issue
+coordination and shared ownership, read [coordination.md](references/coordination.md).
+In Orca, also read [orca-operation.md](references/orca-operation.md) for placement,
+mail and pending user decisions across turns.
 
 | Word | Meaning |
 | --- | --- |
@@ -67,6 +70,9 @@ Start work only when the issue is on the agreed roadmap and every dependency
 is Done. Begin the task title and worker brief with the issue's short name and
 link, such as `checked-citations acme/search#412`. Use `development-loop` for
 design and implementation, resuming approved design and standing authority.
+Keep its phases and gates at every delegation level. For UI work, use
+`frontend-design` and record actual screen checks against the agreed acceptance
+criteria; test results alone do not pass visual or screen gates.
 Record D and U only from explicit lead approval in the JSON (`approved_by`,
 `approved_on`, `passed`). A worker stopping or completing is a runtime event.
 Use gate evidence to decide the issue's status.

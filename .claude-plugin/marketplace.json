@@ -44,7 +44,7 @@
     },
     {
       "name": "roadmap",
-      "description": "Coordinate from one agreed roadmap.json, with a standalone HTML timeline, guidance for area handoffs and Orca previews, read-only drift reporting, and dry-run-first publishing to GitLab, GitHub or Forgejo. The tool never deletes and closes only its own drift issue. Includes a merge request check, scheduled drift reporting and Claude Code hooks. Start with the roadmap skill.",
+      "description": "Coordinate from one agreed roadmap.json, with a standalone HTML timeline, epic ownership and handoffs, conditional Orca operating guidance, read-only drift reporting, and dry-run-first publishing to GitLab, GitHub or Forgejo. The tool never deletes and closes only its own drift issue. Includes a merge request check, scheduled drift reporting and Claude Code hooks. Start with the roadmap skill.",
       "author": {
         "name": "doyled-it"
       },
