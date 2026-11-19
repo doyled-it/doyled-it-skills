@@ -1,183 +1,130 @@
 ---
 name: roadmap
-description: Use when orchestrating a program of work across several issues, workers or sessions (Claude or Codex), before starting any worker; when kicking off a program, finishing an issue, sending a program update, taking on new work, or handing a program to the next session; or when asked to draft, render, publish or sync a roadmap.
-compatibility: Reads the Agent Skills standard (Claude Code, Codex, opencode). The roadmap command needs Python 3.11 or newer (standard library only); publish and sync use glab for GitLab, gh for GitHub, and the REST API for Forgejo, Gitea and Codeberg. Sync reads Orca tasks through the orca CLI when it is present.
+description: Use when orchestrating a program across issues, workers or sessions, before starting workers, or when asked to draft, render, publish, sync, update or hand off a roadmap.
 ---
+
+<!-- diataxis: how-to -->
 
 # Roadmap
 
-## Overview
-
-An orchestrator keeps one roadmap agreed with the program lead and works only
-from it. It diverges only with the lead's approval, or for a genuinely good
-reason stated in the next update. Updates are short and come when an issue is
-done or a gate result arrives.
-
-**Core principle: the roadmap is agreed before any worker starts, and every
-piece of work traces back to one issue on it.** The failures this prevents are
-workers started on unplanned work, plans that drift silently, and updates that
-nobody can map back to a plan.
-
-## Glossary (use these words exactly)
+Keep one `roadmap.json` agreed with the program lead. The JSON holds the plan,
+the forge tracks real issues, and Orca records execution. On an existing program,
+resolve the canonical file from an explicit program pointer or session context.
+Carry that pointer across worktrees and hosts. Root (also called meta) is the
+canonical writer and project coordinator. Give each active epic one lead for
+its issues, dependencies, reviews and routine decisions. For delegated issue
+coordination and shared ownership, read [coordination.md](references/coordination.md).
+In Orca, also read [orca-operation.md](references/orca-operation.md) for placement,
+mail and pending user decisions across turns.
 
 | Word | Meaning |
 | --- | --- |
-| Roadmap | The agreed plan, on one page. |
-| Epic | A stream of related work that runs in parallel with other epics. On GitLab a group epic; on GitHub a parent issue with sub-issues; on Forgejo a parent issue whose generated section lists its issues. |
-| Issue | One deliverable, two weeks of work or less. Anything bigger becomes a child epic with its own issues. |
-| Depends on | This issue cannot start until those are Done. The forge calls it "blocked by". |
-| Gate | A check that must pass before an issue is Done. A checklist line in the issue. |
-| Merge request | A reviewed change. GitHub and Forgejo call it a pull request. |
+| Roadmap | The agreed plan on one page. |
+| Epic | A stream of related issues. |
+| Issue | A deliverable of two weeks or less. |
+| Depends on | Start only after these issues are Done. |
+| Gate | A check required before Done. |
+| Merge request | A reviewed change, called a pull request on GitHub and Forgejo. |
 | Status | To do, In progress, In review, Blocked, Done. |
-| Iteration | A fixed two-week period of work. |
+| Iteration | A fixed two-week period. |
 
-Default gates (a project may define its own set in `roadmap.json`): **D**
-design agreed, **R** independent review, **G** quality gate with a recorded
-visual inspection, **S** screen gate, **M** merged and released, **U** explicit
-approval from the program lead.
+Never say "milestone". Give work short readable names and genuine issue links
+once published. The default gates are D (design agreed), R (independent review),
+G (quality gate with recorded visual inspection), S (screen gate), M (merged
+and released), and U (explicit lead approval). [Glossary](references/glossary.md)
 
-Never say "milestone". Never use codes such as A1, T1.1 or E2 for work: give
-each epic and issue a short readable name (`checked-citations`), and once it is
-published, its real forge link. `roadmap validate` enforces both. Details:
-[references/glossary.md](references/glossary.md).
+## Run the command
 
-## Where things live
-
-- **`roadmap.json` is the source of truth** for the agreed plan
-  ([schema](references/roadmap.schema.json), [example](references/example-roadmap.json)).
-- **The forge** (GitLab, GitHub, Forgejo) is where the team tracks the work.
-- **Orca** is where the work runs.
-
-There is no two-way sync. `publish` pushes an agreed version out; `sync` reads
-the forge and Orca back and reports what changed and what drifted. The full
-roadmap page stays on the program lead's machine, and every issue, epic, merge
-request and gate evidence item on it links to the forge.
-
-## The command
-
-One standard-library Python 3.11+ CLI, `scripts/roadmap.py`, in this skill's
-own directory (next to this SKILL.md), not in the project. Run it by its full
-path from the project directory: the path is the base directory this skill was
-loaded from (Claude Code prints it when the skill loads; Codex shows the
-SKILL.md path). If neither is shown, find it with
+Use Python 3.11+ and run `scripts/roadmap.py` by its full path in this skill's
+own directory, from the project checkout that supplies the forge context. If
+the skill path is unavailable, look up the active installation with
 `find ~/.claude ~/.codex ~/.agents -path '*roadmap/scripts/roadmap.py' 2>/dev/null`.
-The examples below write it as `scripts/roadmap.py`.
+Use the loaded copy when several versions exist.
 
-```bash
-python3 scripts/roadmap.py validate roadmap.json          # schema, cycles, dangling dependencies, glossary
-python3 scripts/roadmap.py render roadmap.json            # writes roadmap.html next to it
-python3 scripts/roadmap.py epic-preview roadmap.json --epic <id>   # local preview of an epic's section
-python3 scripts/roadmap.py publish roadmap.json           # dry run: lists every change, writes nothing
-python3 scripts/roadmap.py publish roadmap.json --apply   # only for an agreed version
-python3 scripts/roadmap.py sync roadmap.json              # read-only report: status, merge requests, drift
-python3 scripts/roadmap.py sync roadmap.json --write      # also save status and gate ticks into roadmap.json
-```
+- `validate` checks the JSON. `render` makes the standalone roadmap page.
+  `epic-preview` shows the generated forge section before its first write.
+- `sync` reports drift read-only by default. `sync --write` saves derived
+  status, gates, merge request links and worker observations locally. Inspect
+  proposed changes before saving them.
+- `publish` is a dry run by default. Use explicit authorization for forge writes
+  such as `publish --apply`, `sync --update-epics` or `sync --update-drift-issue`.
+  Authorization for the plan does not grant publication, merge or installation.
 
-- `publish` refuses a draft (`"agreed": false`) and a roadmap with errors. It
-  links issues and epics the roadmap names, and links an open issue or epic with
-  the same title instead of creating a duplicate. It sets epic membership,
-  blocked-by links and the gate checklist, writes forge links back into
-  `roadmap.json`, and never closes or deletes anything.
-- `sync` is read-only on the forge and Orca. Its only forge writes are the two
-  opt-in flags: `--update-epics` rewrites only the generated section in each
-  epic description, and `--update-drift-issue` keeps the one "Roadmap drift"
-  issue current.
-- Each epic description carries a generated section between hidden markers: a
-  link to the full roadmap page, a Mermaid flowchart of the epic's issues with
-  arrows to and from other epics, and a status table. Hand-written text outside
-  the markers is never touched. Show the program lead `epic-preview` before the
-  first write to a real epic.
-
-Forge choice, the per-forge mapping and every flag:
-[references/forges.md](references/forges.md) and
-[references/commands.md](references/commands.md).
+[Command reference](references/commands.md) · [Forge mapping](references/forges.md)
 
 ## Lifecycle
 
 ### 1. Program kickoff
 
-1. **REQUIRED SUB-SKILL:** invoke `superpowers:brainstorming` on the program's
-   goal with the program lead. Settle the epics, the issues, their dependencies
-   and the gate each issue needs.
-2. Draft `roadmap.json` with `"agreed": false`. Run `validate` until it reports
-   0 errors.
-3. Run `render` and show the lead the page (and `epic-preview` for an epic when
-   publishing is planned).
-4. Get explicit agreement. Only then set `"agreed": true`, `"agreed_by"`, bump
-   `"version"`, and add a timeline entry. **No worker starts before this.**
-5. If the team tracks work on a forge, run `publish` (dry run), show the plan,
-   then `publish --apply` once the lead approves the writes.
+Invoke `superpowers:brainstorming` with the lead to agree the goal, epics, issues,
+dependencies and gates. Draft with `"agreed": false`, validate, and show the
+rendered page. After agreement, record `agreed`, `agreed_by`, the new version
+and a timeline entry. Share the canonical path and preview with coordinators.
+No worker starts before this. If publication is requested,
+show the dry run and an epic preview before applying the authorized writes.
+[Schema](references/roadmap.schema.json) · [Example](references/example-roadmap.json)
 
 ### 2. Each issue
 
-- Start an issue only when every issue it depends on is Done. The "Ready to
-  start" panel on the page lists exactly those.
-- An issue with a **D** gate goes through the development loop: invoke
-  `development-loop` (native name `development-loop:development-loop`) for
-  brainstorm, design, plan and build. Pass D only after the lead agrees the
-  design, by recording it in `roadmap.json` (`"passed": true`, `"approved_by"`,
-  `"approved_on"`). D and U never pass from a forge checkbox.
-- Orca: begin every task title and worker brief with the issue's short name and
-  link, for example `checked-citations acme/search#412: ...`. `sync`
-  flags any active Orca task that does not, and any task started before its
-  issue's dependencies were Done.
+Start work only when the issue is on the agreed roadmap and every dependency
+is Done. Begin the task title and worker brief with the issue's short name and
+link, such as `checked-citations acme/search#412`. Use `development-loop` for
+design and implementation, resuming approved design and standing authority.
+Keep its phases and gates at every delegation level. For UI work, use
+`frontend-design` and record actual screen checks against the agreed acceptance
+criteria; test results alone do not pass visual or screen gates.
+Record D and U only from explicit lead approval in the JSON (`approved_by`,
+`approved_on`, `passed`). A worker stopping or completing is a runtime event.
+Use gate evidence to decide the issue's status.
 
 ### 3. Issue done
 
-Orchestrators run `sync` at every update: read-only first, then `--write` and
-`render` when it shows changes, so the update matches the forge.
+Orchestrators run `sync` at every update, read-only first. Root re-reads the
+canonical JSON, applies supported changes and incoming deltas to that revision,
+then validates, renders and checks the served page when reachable. Keep
+independent progress and report missing forge or preview evidence as unknown.
+Show what finished, which gates remain open, what is blocked, and what can
+start next.
 
-1. Every gate passed, with evidence (a link) for each.
-2. Update `roadmap.json` (status, gates, a one-line timeline entry), or run
-   `sync --write` to pull status and gate ticks from the forge.
-3. Run `render` again.
-4. Send a short update: what finished, the gate results, what is ready to start
-   next, and any divergence with its reason.
+Check every required gate before setting Done. If a required gate remains open
+on an issue affected by sync, keep that run read-only. Root saves only supported
+changes, such as review evidence or a merge request link, in the latest JSON.
+Keep the issue short of Done and dependent dispatch on hold. A project that
+requires release for M needs release evidence before that gate can pass. Record
+end-to-end acceptance and release separately from tests and review.
 
 ### 4. New work
 
-- Inside an agreed issue's scope: just do it.
-- Anything else: propose a roadmap change (new issue, changed dependency, new
-  epic), show it rendered, and wait for agreement before starting. Bump the
-  version once agreed.
+Carry out work covered by an agreed issue. For a scope or dependency change,
+show the proposed roadmap revision and get agreement before starting. Record
+the agreed version.
 
 ### 5. Handoff
 
-The roadmap is the first thing the next session reads. Hand over the path to
-`roadmap.json` and the rendered page, run `sync` and include its drift report,
-and name the issues in progress and ready to start.
+Start with the canonical path and preview, the latest drift report, active and
+ready issues, blockers and open gates. Include source and evidence identities
+such as issue link, reviewed revision, Run and task, and artifact paths. Keep
+the original failures and regression evidence accessible.
 
-## Short updates
+## Write the timeline
 
-Run `sync` before each one. Plain language a program lead who does not know the
-code can follow. Name work
-by what it does and give its short name and link once. Example:
+Add an event when an outcome, decision, blocker, scope or gate changes. Give it
+a short `title` that names the result and a brief `text` explaining what it
+changes for the program and which gate is open. Put related repair, review or
+test details in `children` when they explain the outcome. For example, title the
+group "Export review passed" and say "The export can be staged. Release
+verification is pending." A child can record the fix that addressed a failed
+review and point to the recheck. Link bulky evidence and leave routine commit
+chronology and unchanged benchmark results in those records.
 
-> `checked-citations` (acme/search#412) is Done: review passed (R), merged and
-> released (M). `branch-citations` is now ready to start. No divergence.
+Set explicit `author` on every new entry, including children and synthetic
+summaries. Record who wrote each entry, independently of who did the work or
+was mentioned. Preserve original text, failures, source markers, raw data and
+unknowns when adding a summary. Keep old unattributed history neutral.
+[Timeline fields](references/commands.md#timeline-fields)
 
-## Enforcement
+## Enforcement and evaluation
 
-The forge checks every merge request names an issue on the agreed roadmap
-(`check-mr` in CI, with merge request templates) and a scheduled pipeline keeps
-one "Roadmap drift" issue current. In Claude Code, the plugin's hooks run a
-read-only sync after a merge or close and block the end of a turn that leaves
-drift the agent can fix on work the session changed; other drift is shown, not
-blocked. Setup, and what Codex supports:
-[references/enforcement.md](references/enforcement.md).
-
-## Red flags
-
-| Thought | Reality |
-| --- | --- |
-| "The plan is obvious; I'll start the workers and write it down later." | No worker starts before the roadmap is agreed. |
-| "This small extra fix doesn't need to be on the roadmap." | Inside an agreed issue: fine. Otherwise propose it and wait. |
-| "I'll call it T3.2 for now." | Short readable names only; validate rejects codes. |
-| "Sync can just update the forge too." | sync is read-only; only `publish --apply`, `sync --update-epics` and `sync --update-drift-issue` write, and only with approval. |
-| "I'll close the stale issues while publishing." | Nothing is ever deleted, and the only thing ever closed is the tool's own "Roadmap drift" issue once drift is zero. |
-
-## Evaluation
-
-[references/evals.md](references/evals.md) lists baseline-vs-with-skill
-scenarios. Deterministic tests (`tests/roadmap/`) cover the command; they do not
-prove that a fresh agent follows the lifecycle.
+See [enforcement.md](references/enforcement.md) for the merge request check,
+scheduled drift issue and read-only hooks. Use [evals.md](references/evals.md)
+to measure fresh-session behavior separately from command tests.

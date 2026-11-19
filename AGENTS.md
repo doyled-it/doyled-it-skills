@@ -38,6 +38,31 @@
   own "Roadmap drift" issue (opened by the token's own user). The plugin's
   hooks never write, fail open, stay silent without a roadmap, and block a
   turn only on drift the agent can fix for issues that turn changed.
+- Keep the standalone roadmap timeline offline and free of installed-app
+  assets. Author icon overrides come from an explicit local option and render
+  in an isolated image context. Preserve literal legacy attribution and raw
+  history. New entries and synthetic summaries record their writer.
+- Keep canonical mutations with the root orchestrator. Area coordinators
+  reconcile through read-only sync and scoped deltas. Keep sync read-only while
+  required gates are open. Hooks report proposed closures in that case as
+  informational. Current worker counts, including scoped counts and zero,
+  require timestamped activity evidence. Keep fixture replay, fresh-session
+  workflow evaluation and native installation acceptance separate in release
+  evidence.
+- Keep epic ownership and delegation in roadmap coordination guidance; load
+  its operating reference only in Orca. Pending user choices require a durable
+  owner and blocked-work record across turn end. Verify runtime gate eligibility
+  and preserve completed results when a gate cannot attach.
+- Preserve legacy Orca run inputs and use run-qualified identities for scoped
+  tasks. Track requested and full task coverage separately. Hold absence-based
+  drift checks and shared drift issue writes on incomplete full coverage.
+  Missing worker evidence stays Unknown and leaves task coverage independent.
+  Treat a recorded wrapper's run scope as binding on enclosed evidence.
+  Require timestamped worker evidence in every run configured at capture time
+  for a program-wide zero. Issue-scoped sync skips Orca, preserves the global
+  snapshot and cannot update the shared drift issue.
+  Keep wide tables and positioned gate labels inside named scroll regions.
+  Verify visible focus, local keyboard scrolling and zero root scroll at 390 px.
 - Follow the evaluation references for behavioral validation. Report which
   scenarios actually ran and distinguish deterministic checks, real CLI smoke
   checks, and fresh-agent behavior. Do not claim the last from the first two.

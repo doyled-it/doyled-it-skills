@@ -19,6 +19,8 @@ STATUSES = {
     "blocked": "Blocked",
     "done": "Done",
 }
+
+COORDINATOR_ROLES = ("meta", "area", "worker")
 # Short CSS class per status, used by the renderer.
 STATUS_CLASS = {
     "to_do": "todo",
@@ -91,6 +93,8 @@ def load(path: str | Path) -> dict:
         raise RoadmapError(f"{path} does not exist") from exc
     except json.JSONDecodeError as exc:
         raise RoadmapError(f"{path} is not valid JSON: {exc}") from exc
+    except RecursionError as exc:
+        raise RoadmapError(f"{path} exceeds the JSON decoder's nesting limit") from exc
     if not isinstance(raw, dict):
         raise RoadmapError(f"{path} must hold one JSON object")
     return raw
@@ -140,6 +144,62 @@ def unchecked_gates(data: dict) -> set[str]:
     return lead_gates(data) | {g for g, rule in gate_rules(data).items() if rule in EVIDENCE_RULES}
 
 
+TIMELINE_AUTHOR_PREFIXES = {"(Claude)": "claude", "(Codex)": "codex"}
+
+
+def timeline_prefix(text: str) -> str:
+    """Return only a literal author prefix at the start of the record."""
+    return next((prefix for prefix in TIMELINE_AUTHOR_PREFIXES if text.startswith(prefix)), "")
+
+
+def copy_json(data):
+    """Deep-copy raw roadmap values without consuming the stack on JSON containers."""
+    memo = {}
+    containers = []
+
+    def clone(value):
+        if not isinstance(value, (dict, list)):
+            return copy.deepcopy(value, memo)
+        identity = id(value)
+        if identity not in memo:
+            result = {} if isinstance(value, dict) else []
+            memo[identity] = result
+            containers.append((value, result))
+        return memo[identity]
+
+    copied = clone(data)
+    while containers:
+        value, result = containers.pop()
+        if isinstance(value, dict):
+            result.update((key, clone(child)) for key, child in value.items())
+        else:
+            result.extend(clone(child) for child in value)
+    return copied
+
+
+def _attribute_timeline(events: list) -> None:
+    pending = list(events)
+    seen = set()
+    while pending:
+        entry = pending.pop()
+        if not isinstance(entry, dict) or id(entry) in seen:
+            continue
+        seen.add(id(entry))
+        if "author" not in entry and isinstance(entry.get("text"), str):
+            prefix = timeline_prefix(entry["text"])
+            if prefix:
+                entry["author"] = TIMELINE_AUTHOR_PREFIXES[prefix]
+        if isinstance(entry.get("children"), list):
+            pending.extend(entry["children"])
+
+
+def normalize_timeline(events: list) -> list:
+    """Copy the timeline, filling only absent authors with literal prefix evidence."""
+    copied = copy_json(events)
+    _attribute_timeline(copied)
+    return copied
+
+
 def normalize(data: dict) -> dict:
     """Return a copy with defaults filled in and older field names mapped.
 
@@ -147,11 +207,13 @@ def normalize(data: dict) -> dict:
     become "ref" and "url". Gates become objects so every reader can see
     whether each one passed.
     """
-    data = copy.deepcopy(data)
+    data = copy_json(data)
     data.setdefault("gates", dict(DEFAULT_GATES))
     data.setdefault("epics", [])
     data.setdefault("issues", [])
-    data.setdefault("timeline", [])
+    events = data.setdefault("timeline", [])
+    if isinstance(events, list):
+        _attribute_timeline(events)
     data.setdefault("iterations", [])
     for ep in data["epics"]:
         if isinstance(ep, dict):
@@ -180,6 +242,13 @@ def normalize(data: dict) -> dict:
 
 def issues_by_id(data: dict) -> dict:
     return {i["id"]: i for i in data["issues"]}
+
+
+def coordinators(data: dict) -> dict:
+    orchestration = data.get("orchestration", {})
+    if isinstance(orchestration, dict) and isinstance(orchestration.get("coordinators"), dict):
+        return orchestration["coordinators"]
+    return {}
 
 
 def label(it: dict) -> str:

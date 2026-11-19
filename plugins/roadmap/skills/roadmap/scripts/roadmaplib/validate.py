@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from itertools import chain
 
-from . import blocks, model
+from . import blocks, model, observation
 
 READABLE_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 # Codes such as A1, T1.1, E1.4 or TE2 used instead of a readable name.
@@ -24,6 +25,7 @@ TECH_TERMS = {t.casefold() for t in (
 GATE_LETTER = re.compile(r"^[A-Z]$")
 CODE_ID = re.compile(r"^[a-z]{1,3}\d+(?:[.-]\d+)*$")
 MILESTONE = re.compile(r"\bmilestones?\b", re.IGNORECASE)
+BAD_AUTHOR_CHAR = re.compile(r"[A-Z]|[^ -~]")
 # Words the glossary replaces, and what to say instead.
 SYNONYMS = {
     r"\bsprints?\b": "Iteration",
@@ -91,7 +93,12 @@ def check(raw: dict) -> list[Finding]:
             err("bad-gate", f"gates.{letter}", "each gate is one capital letter with a plain description")
 
     raw = _well_typed(raw, err)
-    data = model.normalize(raw)
+    _check_ownership(raw, err)
+    if "orca_observation" in raw:
+        for location, problem in observation.problems(raw["orca_observation"]):
+            err("bad-type", f"orca_observation{location}", problem)
+    timeline_text = list(_timeline_text_fields(raw.get("timeline", []), err))
+    data = model.normalize({key: value for key, value in raw.items() if key != "timeline"})
     forge = data.get("forge")
     if forge is not None:
         if not isinstance(forge, dict) or forge.get("kind") not in FORGES:
@@ -231,7 +238,8 @@ def check(raw: dict) -> list[Finding]:
         err("cycle", f"issues[{cyc[0]}]", "dependencies loop: " + " -> ".join(cyc))
 
     # Glossary: never "milestone"; prefer the agreed words.
-    for where, text in _strings(data):
+    timeline_prose = ((where, text) for where, text, _ in timeline_text)
+    for where, text in chain(_strings(data), timeline_prose):
         plain = URL.sub("", text)
         if MILESTONE.search(plain):
             err("glossary-milestone", where,
@@ -243,7 +251,7 @@ def check(raw: dict) -> list[Finding]:
 
     # Text the tool writes to the forge: one-line fields stay on one line, and
     # no field may carry text that looks like a generated-section marker.
-    for where, text, multiline in _text_fields(data):
+    for where, text, multiline in chain(_text_fields(data), timeline_text):
         bad = blocks.CONTROL.findall(text.replace("\n", "").replace("\t", "") if multiline else text)
         if bad:
             err("control-character", where, "must be one line with no control characters" if not multiline
@@ -275,6 +283,49 @@ def check(raw: dict) -> list[Finding]:
 
 def errors(findings: list[Finding]) -> list[Finding]:
     return [f for f in findings if f.level == "error"]
+
+
+def _check_ownership(data: dict, err) -> None:
+    where = "orchestration.coordinators"
+    orchestration = data.get("orchestration", {})
+    if not isinstance(orchestration, dict):
+        err("bad-type", "orchestration", '"orchestration" must be an object')
+    elif not isinstance(orchestration.get("coordinators", {}), dict):
+        err("bad-type", where, '"coordinators" must map coordinator keys to objects')
+    owners = set()
+    parents = {}
+    for key, owner in model.coordinators(data).items():
+        location = f"{where}.{key}"
+        if not isinstance(key, str) or not key.strip() or not isinstance(owner, dict):
+            err("bad-type", location, "each coordinator needs a nonblank key and an object")
+            continue
+        owners.add(key)
+        for field in ("name", "run", "scope", "parent"):
+            if field in owner and (not isinstance(owner[field], str) or not owner[field].strip()):
+                err("bad-type", f"{location}.{field}", f'"{field}" must be nonblank text')
+        if "role" in owner and owner["role"] not in model.COORDINATOR_ROLES:
+            err("bad-coordinator-role", f"{location}.role", 'use "meta", "area" or "worker"')
+        parent = owner.get("parent")
+        if isinstance(parent, str) and parent.strip():
+            parents[key] = parent
+    for key, parent in parents.items():
+        if parent not in owners:
+            err("unknown-coordinator", f"{where}.{key}.parent", f'parent coordinator "{parent}" does not exist')
+    for cycle in _cycles({key: {"depends_on": [parent]} for key, parent in parents.items()}):
+        err("cycle", where, "coordinator parents form a cycle: " + " -> ".join(cycle))
+
+    for kind in ("epics", "issues"):
+        for index, item in enumerate(data.get(kind, [])):
+            refs = item.get("orchestrators", [])
+            location = f"{kind}[{item.get('id') or index}].orchestrators"
+            if not isinstance(refs, list):
+                err("bad-type", location, '"orchestrators" must be a list of coordinator keys')
+                continue
+            for n, key in enumerate(refs):
+                if not isinstance(key, str) or not key.strip():
+                    err("bad-type", f"{location}[{n}]", "each coordinator key must be nonblank text")
+                elif key not in owners:
+                    err("unknown-coordinator", f"{location}[{n}]", f'coordinator "{key}" does not exist')
 
 
 def _cycles(items: dict) -> list[list[str]]:
@@ -327,9 +378,6 @@ def _strings(data: dict):
         for key in ("title", "detail"):
             if isinstance(it.get(key), str):
                 yield f"issues[{it.get('id')}].{key}", it[key]
-    for n, ev in enumerate(data.get("timeline", [])):
-        if isinstance(ev, dict) and isinstance(ev.get("text"), str):
-            yield f"timeline[{n}]", ev["text"]
 
 
 SINGLE_TOP = ("title", "version", "date", "agreed_by", "page_url")
@@ -360,20 +408,68 @@ def _text_fields(data: dict):
             for key, value in (lk.items() if isinstance(lk, dict) else [("url", lk)]):
                 if isinstance(value, str):
                     yield f"issues[{it.get('id')}].links[{n}].{key}", value, False
-    for n, ev in enumerate(data.get("timeline", [])):
-        if isinstance(ev, dict) and isinstance(ev.get("text"), str):
-            yield f"timeline[{n}]", ev["text"], True
+
+
+def _timeline_text_fields(events, err):
+    """Check event shapes at their original paths and yield the valid text fields."""
+    if not isinstance(events, list):
+        err("bad-type", "timeline", '"timeline" must be a list of events')
+        return
+    active = set()
+    pending = [(f"timeline[{n}]", event) for n, event in reversed(list(enumerate(events)))]
+    while pending:
+        where, event = pending.pop()
+        if where is None:
+            active.remove(id(event))
+            continue
+        if not isinstance(event, dict) or id(event) in active:
+            err("bad-type", where, "each timeline event must be a non-circular object")
+            continue
+        for field in ("date", "text", "title", "author", "id"):
+            path = f"{where}.{field}"
+            if field not in event:
+                if field in ("date", "text"):
+                    err("missing-field", path, f'missing required field "{field}"')
+                continue
+            value = event[field]
+            if not isinstance(value, str):
+                err("bad-type", path, f'"{field}" must be text')
+                continue
+            if field == "author" and (not value.strip(" ") or BAD_AUTHOR_CHAR.search(value)):
+                err("bad-type", path, '"author" must be non-blank printable ASCII text without uppercase letters')
+            if field in ("text", "title"):
+                yield path, value, field == "text"
+        if "provenance" in event and not isinstance(event["provenance"], dict):
+            err("bad-type", f"{where}.provenance", '"provenance" must be an object')
+        if "children" in event:
+            children = event["children"]
+            if not isinstance(children, list):
+                err("bad-type", f"{where}.children", '"children" must be a list of events')
+                continue
+            active.add(id(event))
+            pending.append((None, event))
+            pending.extend(
+                (f"{where}.children[{n}]", child)
+                for n, child in reversed(list(enumerate(children)))
+            )
 
 
 def _all_strings(value, where: str):
-    if isinstance(value, str):
-        yield where, value
-    elif isinstance(value, dict):
-        for k, v in value.items():
-            yield from _all_strings(v, f"{where}.{k}")
-    elif isinstance(value, list):
-        for n, v in enumerate(value):
-            yield from _all_strings(v, f"{where}[{n}]")
+    active = set()
+    pending = [(where, value)]
+    while pending:
+        path, value = pending.pop()
+        if path is None:
+            active.remove(id(value))
+        elif isinstance(value, str):
+            yield path, value
+        elif isinstance(value, (dict, list)) and id(value) not in active:
+            active.add(id(value))
+            pending.append((None, value))
+            if isinstance(value, dict):
+                pending.extend((f"{path}.{key}", value[key]) for key in reversed(value))
+            else:
+                pending.extend((f"{path}[{n}]", value[n]) for n in reversed(range(len(value))))
 
 
 def _url_fields(data: dict):
@@ -413,26 +509,24 @@ def _codes(text: str, allowed: set[str]) -> list[str]:
 def _well_typed(raw: dict, err) -> dict:
     """A copy with wrongly typed entries reported and dropped, so the other checks cannot crash."""
     raw = dict(raw)
-    for key, what, fields in (("iterations", 'objects with a "name"', ("name", "start", "end")),
-                              ("timeline", 'objects with a "date" and "text"', ("date", "text"))):
-        if key not in raw:
-            continue
-        if not isinstance(raw[key], list):
-            err("bad-type", key, f'"{key}" must be a list of {what}')
-            raw[key] = []
-            continue
+    if "iterations" in raw:
+        iterations = raw["iterations"]
+        if not isinstance(iterations, list):
+            err("bad-type", "iterations", '"iterations" must be a list of objects with a "name"')
+            iterations = []
         kept = []
-        for n, x in enumerate(raw[key]):
+        for n, x in enumerate(iterations):
+            where = f"iterations[{n}]"
             if not isinstance(x, dict):
-                err("bad-type", f"{key}[{n}]", f'each entry in "{key}" must be an object')
+                err("bad-type", where, 'each entry in "iterations" must be an object')
                 continue
             x = dict(x)
-            for field in fields:
+            for field in ("name", "start", "end"):
                 if x.get(field) is not None and not isinstance(x[field], str):
-                    err("bad-type", f"{key}[{n}].{field}", f'"{field}" must be text')
+                    err("bad-type", f"{where}.{field}", f'"{field}" must be text')
                     x.pop(field)
             kept.append(x)
-        raw[key] = kept
+        raw["iterations"] = kept
     if "allowed_terms" in raw and not (isinstance(raw["allowed_terms"], list)
                                        and all(isinstance(t, str) for t in raw["allowed_terms"])):
         err("bad-type", "allowed_terms", '"allowed_terms" must be a list of words (text), such as ["GP3"]')

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
-import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -183,6 +183,25 @@ class OrcaParsing(unittest.TestCase):
 
 
 class SyncCommand(unittest.TestCase):
+    def test_report_explains_root_saves_and_the_gate_hold_after_a_forge_closure(self):
+        from test_hooks import pending_release_roadmap
+
+        report = run_sync(pending_release_roadmap("M", "U"))
+        self.assertIn("click-signals", {c.issue for c in report.status_changes if c.new == "done"})
+        guidance = report.text().split("Status changes", 1)[0]
+        self.assertIn("read-only by default", guidance)
+        self.assertIn("--update-epics", guidance)
+        self.assertIn("--update-drift-issue", guidance)
+        self.assertRegex(guidance, r"Review proposed updates before root saves them locally with --write")
+        self.assertRegex(guidance, r"open required gates.*keep sync read-only")
+
+    def test_sync_help_describes_each_write_switch_without_claiming_exclusivity(self):
+        out = subprocess.run([sys.executable, str(CLI), "sync", "--help"], capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("--update-drift-issue", out.stdout)
+        self.assertIn("--update-epics", out.stdout)
+        self.assertNotIn("only forge write", out.stdout)
+
     def test_cli_report_and_write_touch_only_the_roadmap_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "roadmap.json"

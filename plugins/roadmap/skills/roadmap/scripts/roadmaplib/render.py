@@ -9,13 +9,15 @@ box is reachable by keyboard with a text description for screen readers.
 from __future__ import annotations
 
 import html
+from pathlib import Path
 
-from . import model, validate
+from . import model, observation, orca, validate
+from .timeline import TIMELINE_CSS, render_timeline
 
 # Findings that make a diagram impossible to draw. Glossary problems do not stop
 # rendering: a draft has to be shown before it can be agreed and fixed.
 BLOCKING = {"missing-field", "duplicate-id", "unknown-epic", "bad-status", "dangling-dependency",
-            "cycle", "bad-type", "unknown-gate"}
+            "cycle", "bad-type", "unknown-gate", "unknown-coordinator", "bad-coordinator-role"}
 
 COL_W, NODE_W, NODE_H = 300, 248, 112
 LANE_PAD, LABEL_W, ROW_GAP = 22, 150, 18
@@ -178,7 +180,77 @@ def _gate_chips(data: dict, it: dict) -> str:
     return " ".join(chips) or "none"
 
 
-def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool) -> str:
+def _owner_context(item: dict, owners: dict) -> str:
+    names = [esc(owners[key].get("name") or key) for key in dict.fromkeys(item.get("orchestrators", []))]
+    if not names:
+        return ""
+    label = "Owner" if len(names) == 1 else "Owners"
+    return f'<span class="det">{label}: {", ".join(names)}</span>'
+
+
+def _ownership(owners: dict, items: dict, ready: list[str]) -> str:
+    if not owners:
+        return ""
+    assigned = {key: [] for key in owners}
+    for iid in ready:
+        for key in dict.fromkeys(items[iid].get("orchestrators", [])):
+            assigned[key].append(items[iid])
+    cards = []
+    for key, owner in owners.items():
+        details = [esc(owner[field]) for field in ("role", "scope") if field in owner]
+        if parent := owner.get("parent"):
+            details.append(f'Reports to {esc(owners[parent].get("name") or parent)}')
+        metadata = f'<p>{" · ".join(details)}</p>' if details else ""
+        rows = []
+        for it in assigned[key]:
+            gates = model.open_gates(it)
+            open_gates = f' (Open gates: {esc(", ".join(gates))})' if gates else ""
+            rows.append(f'<li>{_short(it)}{open_gates}</li>')
+        next_up = f'<p>Ready to start</p><ul>{"".join(rows)}</ul>' if rows else ""
+        cards.append(f'<div><h3>{esc(owner.get("name") or key)}</h3>{metadata}{next_up}</div>')
+    return ('<section id="ownership" aria-labelledby="ownership-title"><h2 id="ownership-title">Ownership</h2>'
+            f'<div class="now">{"".join(cards)}</div></section>')
+
+
+def _observation_time(timestamp: str | None) -> str:
+    if timestamp is None:
+        return "Unknown"
+    stamp = esc(timestamp)
+    return f'<time datetime="{stamp}">{stamp}</time>'
+
+
+def _worker_observation(snapshot: dict | None, *, configured: bool) -> str:
+    heading = ('<section id="orca-observation" aria-labelledby="orca-observation-title">'
+               '<h2 id="orca-observation-title">Orca worker observation</h2>')
+    if snapshot is None:
+        return f"{heading}<p>Worker activity is Unknown. No observation recorded.</p></section>" if configured else ""
+    rows = []
+    for row in snapshot["workers"]:
+        owners = ", ".join(
+            f"{esc(key)} (reports to {esc(parent)})" if parent else esc(key)
+            for key, parent in row["owners"].items()
+        )
+        rows.append(
+            f'<tr><th scope="row">{esc(row["task"])}</th><td>{esc(row["run"] or "Unknown")}</td>'
+            f'<td>{esc(row["dispatch"] or "Unknown")}</td><td>{owners or "None recorded"}</td>'
+            f'<td>{esc(row["activity"].capitalize())}</td><td>{_observation_time(row["observed_at"])}</td></tr>'
+        )
+    table = ""
+    if rows:
+        columns = ("Task", "Run", "Dispatch", "Owners", "Activity", "Observed at")
+        head = "".join(f'<th scope="col">{column}</th>' for column in columns)
+        table = ('<div class="tablewrap" role="region" aria-label="Orca worker activity table" tabindex="0">'
+                 '<table aria-labelledby="orca-observation-title">'
+                 f'<thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
+    return (
+        f'{heading}'
+        f'<p>{esc(observation.summary(snapshot))}.</p>'
+        f'<p>Capture started {_observation_time(snapshot["observed_at"])} ({esc(snapshot["source"])}).</p>'
+        f'{table}</section>'
+    )
+
+
+def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool, owners: dict) -> str:
     rows = []
     for iid, it in items.items():
         if it["epic"] != ep["id"]:
@@ -198,7 +270,8 @@ def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool) -> str:
         extra += mrs
         iteration = f'<td>{esc(it.get("iteration", ""))}</td>' if with_iteration else ""
         rows.append(f'<tr><th scope="row">{esc(iid)}{ref}</th><td><strong>{esc(it["title"])}</strong>'
-                    f'<span class="det">{esc(it["detail"])}</span>{extra}</td><td>{esc(after)}</td>'
+                    f'<span class="det">{esc(it["detail"])}</span>{_owner_context(it, owners)}{extra}</td>'
+                    f'<td>{esc(after)}</td>'
                     f'<td class="gates">{_gate_chips(data, it)}</td>{iteration}'
                     f'<td><span class="pill {cls}">{esc(status)}</span></td></tr>')
     head = ("<th scope=\"col\">Issue</th><th scope=\"col\">What it delivers</th><th scope=\"col\">Depends on</th>"
@@ -208,11 +281,13 @@ def _epic_table(data: dict, ep: dict, items: dict, with_iteration: bool) -> str:
     title = _link(ep.get("url"), ep["name"])
     ref = f' <span class="ref">{_link(ep.get("url"), ep["ref"])}</span>' if ep.get("ref") else ""
     return (f'<div class="track"><h3><span class="tid">Epic</span>{title}{ref}</h3>'
-            f'<p class="tnote">{esc(ep.get("note", ""))}</p><div class="tablewrap"><table><thead><tr>{head}</tr></thead>'
+            f'<p class="tnote">{esc(ep.get("note", ""))}{_owner_context(ep, owners)}</p>'
+            f'<div class="tablewrap" role="region" aria-label="{esc(ep["name"])} issues" tabindex="0">'
+            f'<table><thead><tr>{head}</tr></thead>'
             f'<tbody>{body}</tbody></table></div></div>')
 
 
-def render_page(raw: dict) -> str:
+def render_page(raw: dict, *, author_icon_dir: Path | None = None) -> str:
     """Return the full HTML page, or raise RenderError on structural errors."""
     blocking = [f for f in validate.errors(validate.check(raw)) if f.code in BLOCKING]
     if blocking:
@@ -241,16 +316,16 @@ def render_page(raw: dict) -> str:
     gate_legend = "".join(f'<li><span class="g">{esc(k)}</span>{esc(v)}</li>' for k, v in data["gates"].items())
     status_legend = "".join(f'<li><span class="pill {model.STATUS_CLASS[k]}">{esc(v)}</span></li>'
                             for k, v in model.STATUSES.items())
-    timeline = "".join(f'<li><time>{esc(e.get("date", ""))}</time><p>{esc(e.get("text", ""))}</p></li>'
-                       for e in data["timeline"])
+    timeline = render_timeline(data["timeline"], author_icon_dir=author_icon_dir)
     with_iteration = any(it.get("iteration") for it in items.values())
-    tables = "".join(_epic_table(data, ep, items, with_iteration) for ep in data["epics"])
+    owners = model.coordinators(data)
+    tables = "".join(_epic_table(data, ep, items, with_iteration, owners) for ep in data["epics"])
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="roadmap render">
 <title>{esc(data["title"])}</title>
-<style>{CSS}</style></head><body><main class="wrap">
+<style>{CSS}{TIMELINE_CSS}</style></head><body><main class="wrap">
 <header class="top"><h1>{esc(data["title"])}</h1>
 <div class="state{" ok" if data.get("agreed") else ""}"><b>{esc(state)}</b>{esc(data.get("version", ""))}, {esc(data.get("date", ""))}</div>
 <p class="meta">Epics run in parallel. Arrows mean "depends on"; dashed amber arrows cross epics. Boxes list their gates; filled gates have passed.</p></header>
@@ -266,8 +341,10 @@ def render_page(raw: dict) -> str:
 <div><h3>Blocked</h3><p>{names(blocked)}</p></div>
 <div><h3>Ready to start</h3><p>{names(ready)}</p></div>
 <div><h3>Waiting on dependencies</h3><p>{waiting_text}</p></div></div></section>
+{_ownership(owners, items, ready)}
+{_worker_observation(data.get("orca_observation"), configured=bool(orca.run_owners(data)))}
 <h2>Issues by epic</h2><div class="tracks">{tables}</div>
-<h2>Timeline</h2><ol class="timeline">{timeline}</ol>
+<h2>Timeline</h2>{timeline}
 </main></body></html>
 """
 
@@ -283,7 +360,7 @@ CSS = """
 body { margin:0; background:var(--canvas); color:var(--ink); font:400 15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-variant-numeric:tabular-nums; }
 a { color:var(--action); }
-a:focus-visible, .scroller:focus-visible { outline:2.5px solid var(--action); outline-offset:2px; }
+a:focus-visible, .scroller:focus-visible, .tablewrap:focus-within { outline:2.5px solid var(--action); outline-offset:2px; }
 .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .wrap { max-width:1320px; margin:0 auto; padding:36px 24px 72px; }
 header.top { display:grid; grid-template-columns:1fr auto; gap:6px 28px; align-items:end; border-bottom:1px solid var(--rule);
@@ -338,28 +415,23 @@ a:focus .node .box, .node:focus .box, .node:hover .box { stroke:var(--action); s
 .now div { background:var(--surface); border:1px solid var(--rule); border-radius:10px; padding:14px 18px; }
 .now h3 { margin:0 0 6px; font-size:14px; color:var(--ink2); font-weight:600; }
 .now p { margin:0; font-size:15px; }
-.tracks { display:grid; gap:18px; }
+.tracks { display:grid; grid-template-columns:minmax(0, 1fr); gap:18px; }
 .track { background:var(--surface); border:1px solid var(--rule); border-radius:12px; padding:18px 20px 8px; }
 .track h3 { margin:0; font-size:17px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .tid { display:inline-grid; place-items:center; padding:0 8px; height:24px; font-size:12px; color:var(--ink3);
   border-radius:7px; background:var(--canvas); font-weight:700; }
 .tnote { margin:4px 0 10px; color:var(--ink3); font-size:14px; }
-.tablewrap { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; font-size:14px; }
+.tablewrap { position:relative; overflow-x:auto; }
+table { width:100%; min-width:40rem; border-collapse:collapse; font-size:14px; }
 th, td { text-align:left; padding:10px 8px; border-top:1px solid var(--rule); vertical-align:top; }
 thead th { border-top:0; color:var(--ink3); font-weight:500; font-size:13px; }
 tbody th { font-weight:600; color:var(--ink3); white-space:nowrap; font-size:13px; }
 .ref { display:block; font-weight:500; }
 .track h3 .ref { display:inline; font-size:13px; }
+.track td:nth-child(2) { min-width:16rem; }
 .det { display:block; color:var(--ink2); font-size:13.5px; }
 .xlink, .mr { display:block; font-size:13px; }
 td.gates { white-space:nowrap; } td.gates .g { margin-right:4px; }
-ol.timeline { list-style:none; margin:0; padding:0; border-left:2px solid var(--rule); }
-ol.timeline li { position:relative; padding:0 0 16px 22px; }
-ol.timeline li::before { content:""; position:absolute; left:-7px; top:6px; width:12px; height:12px; border-radius:50%;
-  background:var(--surface); border:2px solid var(--action); }
-ol.timeline time { font-weight:600; font-size:14px; }
-ol.timeline p { margin:2px 0 0; color:var(--ink2); max-width:90ch; }
 @media (max-width: 1000px) { .now { grid-template-columns:1fr 1fr; } }
 @media (max-width: 860px) { .legend, .now { grid-template-columns:1fr; } header.top { grid-template-columns:1fr; }
   .state { grid-column:1; grid-row:auto; text-align:left; } .wrap { padding:24px 16px 48px; } }

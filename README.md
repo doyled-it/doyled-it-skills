@@ -85,6 +85,8 @@ as its per-repo engine.
 
 ### roadmap
 
+<!-- diataxis: explanation -->
+
 For program work (several issues, workers or sessions toward one goal): keep one roadmap agreed
 with the program lead and work only from it. `roadmap.json` is the source of truth; the forge
 tracks the work for the team and Orca runs it. One standard-library Python 3.11+ command
@@ -102,6 +104,20 @@ after a merge and block a turn that leaves drift the agent can fix on work it ch
 a notifier); and the rule that orchestrators run sync at every update. **development-loop** calls it at step 0
 (program check) and step 6 (issue done). The forge mapping, including why Forgejo epics are
 parent issues rather than Projects, is in the skill's `references/forges.md`.
+
+The roadmap skill guides authors to group related events under short outcome
+titles. The standalone renderer displays the supplied titles, nested events and
+writer labels. It works offline with built-in geometric marks, and
+`--author-icon-dir` opts into local SVG overlays. A roadmap can record shared
+ownership and coordinator hierarchy. Sync reads configured Orca runs and
+reports task coverage and timestamped worker activity. The skill covers
+root-only canonical writes, area deltas and preview reuse in Orca. See the
+[command reference](plugins/roadmap/skills/roadmap/references/commands.md) and
+[coordination guide](plugins/roadmap/skills/roadmap/references/coordination.md).
+
+Source checks, fresh-session workflow evaluation and native installation
+acceptance each need their own evidence. Fresh-session and per-account host
+acceptance for this workflow remain pending.
 
 ## Fabrication
 

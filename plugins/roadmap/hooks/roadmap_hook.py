@@ -202,33 +202,45 @@ def run_sync(path: Path, ids: list[str]) -> tuple[dict | None, str | None]:
     return report, None
 
 
-def findings(report: dict, ids: list[str], changed: list[str], data: dict) -> tuple[list[str], list[str]]:
-    """(to fix now, to show only): drift the agent can fix on issues it changed, and the rest."""
-    from roadmaplib import sync
+def findings(report: dict, ids: list[str], changed: list[str], data: dict) -> tuple[list[str], list[str], list[str]]:
+    """Return actionable drift, held closures, and other informational notes."""
+    from roadmaplib import model, sync
 
-    refs = {it.get("ref"): it["id"] for it in data.get("issues", []) if isinstance(it, dict) and it.get("ref")}
-    fix, show = [], []
-    behind = sorted({c["issue"] for c in report.get("status_changes", [])} |
-                    {t["issue"] for t in report.get("gate_ticks", [])})
-    for group, out in (([b for b in behind if b in changed], fix), ([b for b in behind if b not in changed], show)):
+    items = model.issues_by_id(model.normalize({"issues": data["issues"]}))
+    refs = {it["ref"]: iid for iid, it in items.items() if it.get("ref")}
+    fix, held, show = [], [], []
+    changes = report.get("status_changes", [])
+    behind = {c["issue"] for c in changes} | {t["issue"] for t in report.get("gate_ticks", [])}
+    behind.intersection_update(ids)
+    for change in changes:
+        iid = change["issue"]
+        if change["new"] != "done" or iid not in behind:
+            continue
+        gates = model.open_gates(items[iid])
+        if gates:
+            behind.remove(iid)
+            held.append("Keep sync read-only, record supported evidence through root, and hold dependent dispatch. "
+                        f"Required gates {', '.join(gates)} are open for a proposed Done status on {iid}.")
+    for group, out in ((sorted(behind.intersection(changed)), fix), (sorted(behind.difference(changed)), show)):
         if group:
-            out.append(f"roadmap.json is behind the forge for {', '.join(group)}: run `roadmap.py sync roadmap.json "
-                       "--write`, re-render, and send the short update")
+            out.append(f"roadmap.json is behind the forge for {', '.join(group)}. "
+                       "Have root reconcile supported updates from read-only sync, re-render, and send the short update.")
     for d in report.get("drift", []):
         target = refs.get(d["target"], d["target"])
         if target not in ids:
             continue
         line = f"[{d['kind']}] {target}: {d['message']}"
         (fix if d["kind"] in sync.AGENT_DRIFT and target in changed else show).append(line)
-    return fix, show
+    return fix, held, show
 
 
-def check(cwd: str, text: str, ids_if_none: str = "",
-          limit: int | None = None) -> tuple[list[str], list[str], str | None, list[str]]:
+def check(cwd: str, text: str, ids_if_none: str = "", limit: int | None = None, *,
+          include_other_notes: bool = True) -> tuple[list[str], list[str], str | None, list[str]]:
     """(to fix, to show, warning, issues checked) for the work the text names.
 
     Everything the text names counts as changed. limit caps how many issues
-    are synced; the rest are named in a note.
+    are synced; the rest are named in a note. A caller can limit informational
+    notes to held closures.
     """
     path = find_roadmap(cwd)
     if path is None:
@@ -253,11 +265,11 @@ def check(cwd: str, text: str, ids_if_none: str = "",
     report, why = run_sync(path, ids)
     if report is None:
         return [], [], f"roadmap check skipped: {why}", ids
-    fix, show = findings(report, ids, ids, data)
+    fix, held, show = findings(report, ids, ids, data)
     if skipped:
         show.append(f"{len(skipped)} more changed issue(s) not checked here ({', '.join(skipped[:8])}); "
                     "run `roadmap.py sync roadmap.json` for all of them")
-    return fix, show, None, ids
+    return fix, held + show if include_other_notes else held, None, ids
 
 
 def _transcript_text(path: str | None) -> str:
@@ -353,10 +365,13 @@ def codex_notify(raw: str) -> None:
     if payload.get("type") != "agent-turn-complete":
         return
     text = "\n".join(map(str, payload.get("input-messages") or [])) + "\n" + str(payload.get("last-assistant-message"))
-    found, _, warning, _ = check(payload.get("cwd") or os.getcwd(), text, limit=MAX_STOP_ISSUES)
+    found, held, warning, _ = check(
+        payload.get("cwd") or os.getcwd(), text, limit=MAX_STOP_ISSUES, include_other_notes=False)
     message = warning or ("Roadmap drift: " + "; ".join(found) if found else "")
     if message:
         notify(message[:300])
+    for hold in held:
+        notify(("Roadmap hold: " + hold)[:300])
 
 
 def notify(message: str) -> None:

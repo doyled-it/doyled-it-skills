@@ -15,14 +15,26 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from helpers import FIXTURES, ROOT, fixture, issue
+from helpers import FIXTURES, ROOT, example, fixture, issue
+from roadmaplib import forge, sync
 from test_publish import NoWrites
 from test_sync import sync_roadmap
 
-from roadmaplib import forge, sync
-
 HOOK = ROOT / "plugins" / "roadmap" / "hooks" / "roadmap_hook.py"
 HOOKS_JSON = ROOT / "plugins" / "roadmap" / "hooks" / "hooks.json"
+
+
+def pending_release_roadmap(*pending):
+    data = sync_roadmap()
+    complete_gates = issue(example(), "click-signals")["gates"]
+    item = issue(data, "click-signals")
+    item["status"] = "in_review"
+    item["gates"] = [gate for gate in complete_gates if gate["gate"] not in pending] + list(pending)
+    item["merge_requests"] = [{
+        "url": "https://gitlab.example.com/acme/search/-/merge_requests/30",
+        "ref": "acme/search!30", "state": "merged",
+    }]
+    return data
 
 
 class Hook(unittest.TestCase):
@@ -95,11 +107,54 @@ class StopHook(Hook):
         self.assertLess(len(out["reason"]), 900)
 
     def test_a_roadmap_behind_the_forge_blocks_a_turn_that_changed_the_issue(self):
-        self.roadmap()
+        path = self.roadmap()
+        original = path.read_bytes()
         res = self.stop("Merge it.", commands=["glab mr merge 31 --squash  # ranking-model"])
+        self.assertEqual(res.returncode, 0, res.stderr)
         out = json.loads(res.stdout)
         self.assertEqual(out["decision"], "block")
-        self.assertIn("--write", out["reason"])
+        self.assertIn("ranking-model", out["reason"])
+        self.assertIn("read-only", out["reason"])
+        self.assertNotIn("--write", out["reason"])
+        self.assertEqual(path.read_bytes(), original)
+
+    def test_closure_with_open_required_gates_is_informational(self):
+        for gates in (("M", "U"), ("M",)):
+            with self.subTest(gates=gates):
+                path = self.roadmap(pending_release_roadmap(*gates))
+                original = path.read_bytes()
+                res = self.stop("The release merged.", commands=["glab mr merge 30  # click-signals"])
+                self.assertEqual(res.returncode, 0, res.stderr)
+                out = json.loads(res.stdout)
+                self.assertNotIn("decision", out)
+                self.assertIn("click-signals", out["systemMessage"])
+                self.assertIn(", ".join(gates), out["systemMessage"])
+                self.assertIn("hold dependent", out["systemMessage"])
+                self.assertNotIn("--write", out["systemMessage"])
+                self.assertEqual(path.read_bytes(), original)
+
+    def test_completed_gates_leave_changed_issue_closure_actionable(self):
+        path = self.roadmap(pending_release_roadmap())
+        original = path.read_bytes()
+        res = self.stop("The release shipped.", commands=["glab mr merge 30  # click-signals"])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        out = json.loads(res.stdout)
+        self.assertEqual(out["decision"], "block")
+        self.assertIn("click-signals", out["reason"])
+        self.assertNotIn("--write", out["reason"])
+        self.assertEqual(path.read_bytes(), original)
+
+    def test_held_closure_does_not_hide_actionable_drift_on_another_changed_issue(self):
+        self.roadmap(pending_release_roadmap("M", "U"))
+        res = self.stop("Reconcile both issues.", commands=[
+            "glab mr merge 30  # click-signals", "git commit -m 'Update ranking-model'",
+        ])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        out = json.loads(res.stdout)
+        self.assertEqual(out["decision"], "block")
+        self.assertIn("ranking-model", out["reason"])
+        self.assertNotIn("click-signals", out["reason"])
+        self.assertNotIn("--write", out["reason"])
 
     def test_an_issue_only_mentioned_is_not_checked(self):
         """Reading roadmap.json or asking about an issue names it; that is not work on it, so nothing is synced."""
@@ -251,6 +306,17 @@ class PostToolUseHook(Hook):
         res = self.post("gh issue close 20")
         self.assertIn("hookSpecificOutput", res.stdout)
 
+    def test_a_merge_with_open_gates_reports_the_hold_without_write_advice(self):
+        path = self.roadmap(pending_release_roadmap("M", "U"))
+        original = path.read_bytes()
+        res = self.post("glab mr merge 30  # click-signals")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        context = json.loads(res.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("M, U", context)
+        self.assertIn("hold dependent", context)
+        self.assertNotIn("--write", context)
+        self.assertEqual(path.read_bytes(), original)
+
     def test_other_commands_do_nothing(self):
         self.roadmap()
         for command in ("ls -la", "echo 'glab mr merge 31'", "grep 'gh issue close' notes.md"):
@@ -298,19 +364,78 @@ class EveryHookIsCapped(Hook):
 
 
 class CodexNotify(Hook):
+    def notifications(self, *issue_ids):
+        seen = self.dir / "seen.txt"
+        seen.unlink(missing_ok=True)
+        notifier = self.dir / "notify.sh"
+        notifier.write_text('#!/bin/sh\nprintf "%s\\n" "$1" >> "$ROADMAP_TEST_NOTICES"\n')
+        notifier.chmod(0o755)
+        payload = json.dumps({"type": "agent-turn-complete", "cwd": str(self.dir),
+                              "input-messages": [" ".join(issue_ids)], "last-assistant-message": "Done."})
+        res = self.run_hook("codex-notify", {}, argv=(payload,), extra_env={
+            "ROADMAP_HOOK_NOTIFIER": str(notifier),
+            "ROADMAP_TEST_NOTICES": str(seen),
+        })
+        self.assertEqual(res.returncode, 0, res.stderr)
+        return seen.read_text().splitlines() if seen.exists() else []
+
     def test_drift_is_sent_to_the_notifier(self):
         data = sync_roadmap()
         issue(data, "page-design")["status"] = "done"
         self.roadmap(data)
-        seen = self.dir / "seen.txt"
-        notifier = self.dir / "notify.sh"
-        notifier.write_text(f'#!/bin/sh\nprintf "%s" "$1" > "{seen}"\n')
-        notifier.chmod(0o755)
-        payload = json.dumps({"type": "agent-turn-complete", "cwd": str(self.dir),
-                              "input-messages": ["finish page-design"], "last-assistant-message": "Done."})
-        res = self.run_hook("codex-notify", {}, argv=(payload,), extra_env={"ROADMAP_HOOK_NOTIFIER": str(notifier)})
-        self.assertEqual(res.returncode, 0, res.stderr)
-        self.assertIn("page-design", seen.read_text())
+        message, = self.notifications("page-design")
+        self.assertIn("done-but-open", message)
+        self.assertIn("page-design", message)
+
+    def test_held_closure_is_sent_without_replacing_actionable_drift(self):
+        path = self.roadmap(pending_release_roadmap("M", "U"))
+        original = path.read_bytes()
+        actionable, = self.notifications("ranking-model")
+        for issue_ids, expected_drift in (
+            (("click-signals",), []),
+            (("click-signals", "ranking-model"), [actionable]),
+        ):
+            with self.subTest(issue_ids=issue_ids):
+                messages = self.notifications(*issue_ids)
+                self.assertEqual(messages[:-1], expected_drift)
+                self.assertEqual(len(messages), len(expected_drift) + 1)
+                hold = messages[-1]
+                self.assertIn("click-signals", hold)
+                self.assertIn("M, U", hold)
+                self.assertIn("read-only", hold)
+                self.assertIn("hold dependent dispatch", hold)
+                self.assertNotIn("--write", hold)
+                self.assertEqual(path.read_bytes(), original)
+
+    def test_other_informational_notes_stay_quiet(self):
+        data = sync_roadmap()
+        issue(data, "page-design")["status"] = "to_do"
+        self.roadmap(data)
+        self.assertEqual(self.notifications("page-design"), [])
+
+    def test_long_issue_id_leaves_room_for_gate_hold_directions(self):
+        data = pending_release_roadmap("M", "U")
+        issue_id = "click-signals-" + "details" * 40
+        issue(data, "click-signals")["id"] = issue_id
+        for item in data["issues"]:
+            if "click-signals" in item.get("depends_on", []):
+                item["depends_on"] = [
+                    issue_id if dep == "click-signals" else dep for dep in item["depends_on"]
+                ]
+        path = self.roadmap(data)
+        original = path.read_bytes()
+
+        hold, = self.notifications(issue_id)
+
+        self.assertLessEqual(len(hold), 300)
+        self.assertIn("Roadmap hold:", hold)
+        self.assertIn("M, U", hold)
+        self.assertIn("read-only", hold)
+        self.assertIn("record supported evidence through root", hold)
+        self.assertIn("hold dependent dispatch", hold)
+        self.assertIn("click-signals-", hold)
+        self.assertNotIn("--write", hold)
+        self.assertEqual(path.read_bytes(), original)
 
 
 class HooksJson(unittest.TestCase):

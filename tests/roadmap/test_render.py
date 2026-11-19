@@ -108,6 +108,39 @@ class RenderStructure(unittest.TestCase):
         self.assertIn('scope="row"', self.html)
         self.assertIn("Iteration 2", self.html)
 
+    def test_issue_and_activity_tables_have_named_keyboard_scroll_regions(self):
+        data = example()
+        data["epics"][0]["name"] = "Ranking & retrieval"
+        data["orca_observation"] = {
+            "source": "recorded", "observed_at": "2026-11-19T19:15:40Z", "coverage_complete": True,
+            "workers": [
+                {
+                    "run": "run_search", "task": "task_rank", "dispatch": "dispatch_rank", "owners": {},
+                    "activity": "working", "observed_at": "2026-11-19T19:15:41Z",
+                }
+            ],
+        }
+        doc = parse(render.render_page(data))
+        regions = doc.having("div", "tablewrap")
+        self.assertEqual(
+            [region.get("aria-label") for region in regions],
+            ["Orca worker activity table", "Ranking & retrieval issues", "New search page issues",
+             "Safe weekly releases issues"],
+        )
+        for index, (tag, attrs) in enumerate(doc.tags):
+            if tag == "div" and attrs in regions:
+                self.assertEqual(attrs["role"], "region")
+                self.assertEqual(attrs["tabindex"], "0")
+                self.assertEqual(doc.tags[index + 1][0], "table")
+        self.assertRegex(render.CSS, r"\.tablewrap:focus-within\s*\{[^}]*outline:")
+
+    def test_epic_grid_allocates_available_width_and_table_controls_its_own_overflow(self):
+        self.assertRegex(render.CSS, r"\.tracks\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)")
+        self.assertRegex(render.CSS, r"\.tablewrap\s*\{[^}]*overflow-x:\s*auto")
+        self.assertRegex(render.CSS, r"\.tablewrap\s*\{[^}]*position:\s*relative")
+        self.assertRegex(render.CSS, r"table\s*\{[^}]*min-width:\s*[1-9]")
+        self.assertRegex(render.CSS, r"\.track td:nth-child\(2\)\s*\{[^}]*min-width:\s*[1-9]")
+
     def test_epic_link_when_published(self):
         self.assertIn('href="https://github.com/example-org/search-service/issues/10"', self.html)
 

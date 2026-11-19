@@ -1,3 +1,5 @@
+<!-- diataxis: reference -->
+
 # The roadmap command
 
 `scripts/roadmap.py`, standard library only, Python 3.11 or newer. It lives in
@@ -21,7 +23,7 @@ object) is a `bad-type` error, never a crash, and `publish`, `sync` and
 ## render
 
 ```bash
-roadmap.py render roadmap.json [-o page.html]
+roadmap.py render roadmap.json [-o page.html] [--author-icon-dir DIR]
 ```
 
 Writes the one-page roadmap (default: `roadmap.html` next to the JSON). The page
@@ -32,15 +34,41 @@ issue table per epic (with merge requests, pipelines and gate evidence once sync
 has recorded them), and the timeline. It works in light and dark mode and at
 phone width, and every box is reachable by keyboard. Published issues, epics,
 merge requests, pipelines and gate evidence all link to the forge.
+Tab to a named table region to see its focus outline. Use the arrow keys to
+scroll wide columns within that region.
+
+With configured coordinators, the page shows ownership, parent and scope
+details, and each owner's ready issues and open gates. Orca worker observations
+have their own panel. If runs are configured and no snapshot is stored, that
+panel shows Unknown.
 
 Structural errors (missing fields, unknown epics, loops, dangling dependencies)
 stop rendering. Glossary errors do not, so a draft can be shown before it is
 fixed; they are printed as notes.
 
+### Timeline fields
+
+| Field | Meaning |
+| --- | --- |
+| `date`, `text` | Required strings. The date stays as recorded and the full text appears when expanded. Roots are stored oldest first and shown newest first. |
+| `title` | Optional short text shown when collapsed. The renderer uses an excerpt when absent. |
+| `author` | Optional writer identifier. The supported display labels are Claude (`claude`) and Codex (`codex`). On legacy records without the field, a literal leading `(Claude)` or `(Codex)` can supply attribution. Unknown writers display as Unattributed. The original text is preserved. |
+| `children` | Related events of the same shape, displayed in recorded order. |
+| `id`, `provenance` | Optional event identity and source metadata. |
+
+`--author-icon-dir DIR` looks for `claude.svg` and `codex.svg` only in the supplied
+directory. Relative paths resolve from the working directory. The renderer
+validates the bytes it embeds. Each file must be UTF-8 XML with a namespaced SVG
+root and no document type declaration. If the XML declaration names an
+encoding, use UTF-8. Valid files become isolated data images. The 4 KiB file
+limit keeps each repeated image small in long timelines. Missing, unreadable,
+oversized or invalid files use the built-in marks. Labels stay visible. The
+standalone page makes no automatic network requests.
+
 ## epic-preview
 
 ```bash
-roadmap.py epic-preview roadmap.json --epic <epic-id> [-o preview.html]
+roadmap.py epic-preview roadmap.json --epic <epic-id> [-o preview.html] [--author-icon-dir DIR]
 ```
 
 Writes a local page with the epic's generated section (rendered with mermaid.js)
@@ -50,7 +78,8 @@ a file at either path that the command did not write is never replaced.
 Nothing is written to the forge. The preview loads mermaid.js from jsdelivr,
 pinned to version 11.4.1 and to the file's hash; it is the only third-party
 request (the roadmap page itself makes none). Use it to show the program lead the
-section before the first write to a real epic.
+section before the first write to a real epic. The icon option applies to the
+companion full roadmap.
 
 ## publish
 
@@ -141,7 +170,8 @@ change which issue is the drift issue. When the token's user has several, the
 oldest is kept current, and one note names every other open issue titled
 "Roadmap drift", whoever opened it. When a forge call fails,
 the report is incomplete and the drift issue is left as it is (exit 1). Takes
-the Orca and forge options of `sync`. The scheduled pipelines run it with
+the Orca and forge options of `sync`. Incomplete Orca task coverage leaves
+the drift issue as it is. The scheduled pipelines run it with
 `--no-orca`, so their drift issue never lists the kinds that need Orca; see
 [enforcement.md](enforcement.md).
 
@@ -153,25 +183,103 @@ roadmap.py sync roadmap.json [--write] [--json] [--update-epics] [--update-drift
 
 | Option | Meaning |
 | --- | --- |
-| `--write` | Save status, gate ticks and merge request links into `roadmap.json`. Never writes to the forge or Orca. |
-| `--update-drift-issue` | Also create, update or close the one "Roadmap drift" issue from this same sync report (what `drift-issue --apply` does, without a second sync). The only other forge write sync makes, and the only issue it may close. |
-| `--update-epics` | Rewrite the generated section in each published epic. A forge write sync makes only when asked. Needs `--write`, an agreed roadmap and no validate errors. |
+| `--write` | Save reviewed status, gate ticks, merge request links and any changed Orca observation into the local `roadmap.json`. Root saves after review. |
+| `--update-drift-issue` | Opt into creating, updating or closing the one "Roadmap drift" issue from this report, as in `drift-issue --apply`. Requires a program-wide sync. Combining it with `--only` exits 2 before any forge reads or writes. |
+| `--update-epics` | Opt into rewriting the generated section in each published epic on the forge. Needs `--write`, an agreed roadmap and no validate errors. |
 | `--json` | Print the report as JSON. |
 | `--stale-days N` | No forge activity for N days is drift (default 14). |
 | `--now DATE` | Measure staleness from this ISO date (default today). |
-| `--orca-run RUN` | Orca run to read tasks from (default `orca.run` in the roadmap). |
-| `--orca-json FILE` | Read Orca tasks from a file instead of the orca CLI. |
-| `--no-orca` | Skip the Orca check. |
+| `--orca-run RUN` | Read only this live run. By default, read the union of coordinator runs and the legacy `orca.run`. |
+| `--orca-json FILE` | Read recorded Orca tasks and optional worker evidence offline. Takes precedence over `--orca-run`. |
+| `--no-orca` | Skip Orca even if a file or run was supplied. Preserves a stored observation. |
+| `--only IDS` | Check the comma-separated issue IDs. Skips epics, the scan for unlinked open merge requests, and Orca. Preserves the program-wide observation when saving. |
 | `--forge`, `--repo`, `--recorded` | As for publish. |
 
-sync refuses a roadmap with structural errors (a dangling dependency, a loop,
-a missing field). When a forge read or write fails (a rate limit, a server
-error), the report starts with "Incomplete" and lists the failures, nothing is
-saved, and the command exits 1; an issue that does not exist is
-`missing-on-forge` drift instead. With `--write`, merge requests no longer
-linked to an issue are removed from its record. Only Orca tasks a worker is
-running (`dispatched`, `running`) count as started; `ready`, `blocked` and
-other queued tasks are waiting.
+Sync refuses a roadmap with structural errors (a dangling dependency, a loop,
+a missing field). A failed forge read makes the report incomplete, prevents
+saving, and exits 1. A missing issue is reported as `missing-on-forge` drift.
+An epic write failure is reported separately and also exits 1. In that case
+`--write` can still save the local updates. With `--write`, merge requests no
+longer linked to an issue are removed from its record.
+
+A closed forge issue can yield `Done`, and a qualifying merged request can
+yield an M tick. When a required gate is open, including unverified release or
+lead approval, root keeps this sync read-only and saves only supported updates
+in the canonical JSON. Dependent dispatch stays on hold until the issue is Done
+with all required gates met.
+
+### Orca ownership and coverage
+
+`orchestration.coordinators` maps local keys to optional `name`, `scope`, `run`,
+`role` (`meta`, `area`, or `worker`) and `parent` fields. A parent names another
+coordinator and parent chains must be acyclic. Epic and issue `orchestrators`
+lists can each name one or more keys. Coordinators may share a run. Task
+provenance uses the run and task ID where known. Legacy unqualified recordings
+retain bare task IDs.
+
+In `sync --json`, `orca_requested_complete` covers the requested task reads
+and `orca_complete` covers all configured runs. Both are null when Orca is
+skipped. A successful one-run override can have requested coverage while
+full coverage is incomplete. Missing, failed or ambiguous reads can leave
+coverage incomplete while other positive evidence still appears. A recorded
+wrapper's run scope still governs its enclosed task evidence. Incomplete
+full coverage suppresses `nothing-behind` and `no-recent-activity` and holds
+all updates to the shared drift issue. Explicitly skipping Orca keeps the
+forge-only drift check available.
+
+### Worker observations
+
+Live sync reads tasks with `orca orchestration task-list --run RUN --json`.
+For started tasks carrying a `dispatchId`, it reads
+`orca orchestration worker-show --dispatch ID --json` using the same executable.
+Each dispatch is read at most once, with up to 5 seconds per read and a shared
+15-second budget. A successful matching worker read receives a UTC timestamp.
+Task lifecycle determines `started-early` drift. A working count requires
+explicit `working` activity on a timestamped, nonterminal worker record.
+
+`--orca-json` accepts a legacy task array, a task response, or a `runs` map
+(at the root or in a successful `result`). Each run key maps to a task array
+or task response. A flat recording can cover at most one configured run.
+An optional `workers` map sits beside `runs` or the task list. Each key is a
+dispatch ID. This example adds `observed_at` to the worker-show response.
+
+```json
+{
+  "runs": {
+    "run_search": [{"id": "task_rank", "status": "running", "dispatchId": "dispatch_rank"}]
+  },
+  "observed_at": "2026-11-19T19:15:40Z",
+  "workers": {
+    "dispatch_rank": {
+      "observed_at": "2026-11-19T19:15:41Z",
+      "ok": true,
+      "result": {
+        "runId": "run_search", "taskId": "task_rank", "dispatchId": "dispatch_rank",
+        "state": "ready", "activity": "working"
+      }
+    }
+  }
+}
+```
+
+The report's `orca_observation` holds `source` (`live` or `recorded`),
+capture-start `observed_at` (timestamp or null), `coverage_complete` (full
+task coverage), `configured_runs` (the roadmap's run IDs at capture time),
+and `workers`. Each worker has `run`, `task`, `dispatch`,
+`activity`, `observed_at` and `owners` (coordinator keys mapped to parent
+keys or null). Activity is `working`, `waiting`, `idle`, `queued`,
+`stopped` or `unknown`. Missing or invalid worker evidence leaves activity
+Unknown without changing task coverage. Run, dispatch and timestamp can
+be null on Unknown rows. Capture and worker timestamps include a timezone.
+With `--write`, the snapshot is stored at `orca_observation` in the roadmap.
+Render displays that saved evidence at its recorded times. The confirmed
+working count covers only timestamped working observations. A zero requires a
+capture timestamp, full task coverage, at least one configured run and a known
+timestamped worker observation from each configured run, with no Unknown worker
+rows. Other runs retain their observations. Older snapshots without
+`configured_runs` still display their timestamped evidence. Their program-wide
+zero remains Unknown. See
+[coordination.md](coordination.md#reconcile-area-updates) for reporting totals.
 
 Drift kinds:
 
