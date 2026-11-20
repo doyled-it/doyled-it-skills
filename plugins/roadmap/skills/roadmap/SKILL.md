@@ -42,7 +42,8 @@ the project checkout that supplies the forge context, through the launcher:
 `sh <skill dir>/scripts/python.sh <skill dir>/scripts/roadmap.py <command>`.
 It uses `uv run --no-project --python 3.12 python` when uv is on PATH, else
 `python3` only when it is 3.11 or newer (macOS ships 3.9), and otherwise says
-what to install. If the skill path is unavailable, look up the active installation with
+what to install. If the skill path is unavailable, look up the active
+installation with
 `find ~/.claude ~/.codex ~/.agents -path '*roadmap/scripts/roadmap.py' 2>/dev/null`.
 Use the loaded copy when several versions exist.
 
@@ -66,8 +67,9 @@ dependencies and gates. Draft with `"agreed": false`, validate, and show the
 rendered page. After agreement, record `agreed`, `agreed_by`, the new version
 and a timeline entry. Ask the level question (model and effort per level, the
 parallel epic cap) and record the answer as `orchestration.levels`. Share the
-canonical path and preview with coordinators. No worker starts before this. If publication is requested,
-show the dry run and an epic preview before applying the authorized writes.
+canonical path and preview with coordinators. No worker starts before this.
+If publication is requested, show the dry run and an epic preview before
+applying the authorized writes.
 [Schema](references/roadmap.schema.json) · [Example](references/example-roadmap.json)
 
 ### 2. Each issue

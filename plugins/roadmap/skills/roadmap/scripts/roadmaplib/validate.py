@@ -375,7 +375,7 @@ def _check_levels(data: dict, err) -> None:
                 if role not in worker:
                     err("missing-field", where, f'missing the "{role}" role')
             for role, tier in worker.items():
-                if not model.ROLE_KEY.match(str(role)):
+                if not model.ROLE_KEY.fullmatch(str(role)):
                     err("bad-type", f"{where}.{role}", "role names are lowercase words joined by underscores")
                     continue
                 _check_tier(tier, f"{where}.{role}", err)
@@ -385,7 +385,6 @@ def _check_levels(data: dict, err) -> None:
     for field in ("answered_by", "answered_on"):
         if field in levels and not _nonblank(levels[field]):
             err("bad-type", f"{WHERE_LEVELS}.{field}", f'"{field}" must be nonblank text')
-
 
 
 def _cycles(items: dict) -> list[list[str]]:

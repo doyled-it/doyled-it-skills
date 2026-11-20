@@ -20,14 +20,23 @@ if [ "${1:-}" = "--hook" ]; then
   shift
 fi
 
+# A roadmap of this tool's shape names "epics" and "issues"; another tool's
+# roadmap.json stays silent, as the hook itself does.
+ours() {
+  [ -f "$1" ] && grep -q '"epics"' "$1" 2>/dev/null && grep -q '"issues"' "$1" 2>/dev/null
+}
+
 roadmap_present() {
   if [ -n "${ROADMAP_FILE:-}" ]; then
-    [ -f "$ROADMAP_FILE" ]
+    ours "$ROADMAP_FILE"
     return
   fi
-  [ -f roadmap.json ] && return 0
+  if [ -f roadmap.json ]; then
+    ours roadmap.json
+    return
+  fi
   top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
-  [ -n "$top" ] && [ -f "$top/roadmap.json" ]
+  [ -n "$top" ] && ours "$top/roadmap.json"
 }
 
 skip() {
@@ -43,7 +52,7 @@ run() {
   fi
   "$@"
   status=$?
-  [ "$status" = 0 ] || skip "the hook could not run on Python 3.11 or newer through uv or python3 (exit $status)"
+  [ "$status" = 0 ] || skip "the hook did not run (exit $status); run the roadmap command by hand to see why"
   exit 0
 }
 

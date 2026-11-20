@@ -113,6 +113,8 @@ class LevelsRejected(unittest.TestCase):
                            f"{WHERE}.worker.Final Reviewer")
         self.check_rejects(lambda lv: lv["worker"].update(mechanical={"effort": "low"}), "missing-field",
                            f"{WHERE}.worker.mechanical")
+        self.check_rejects(lambda lv: lv["worker"].update({"tester\n": {"model": "x"}}), "bad-type",
+                           f"{WHERE}.worker.tester\n")
 
     def test_parallel_epics_is_a_positive_whole_number(self):
         for bad in (0, -1, 1.5, "2", True, None):

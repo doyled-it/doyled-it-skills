@@ -39,7 +39,7 @@ class Launcher(unittest.TestCase):
             "import json, sys\n"
             "print(json.dumps({'version': list(sys.version_info[:2]), 'argv': sys.argv[1:],"
             " 'stdin': sys.stdin.read()}))\n")
-        for tool in ("git", "tr"):
+        for tool in ("git", "grep", "tr"):
             found = shutil.which(tool)
             if found:
                 (self.bin / tool).symlink_to(found)
@@ -109,6 +109,12 @@ class Launcher(unittest.TestCase):
     def test_hook_mode_stays_silent_without_a_roadmap(self):
         self.old_python3()
         res = self.run_launcher("--hook", str(self.probe), "post-tool-use", stdin="{}")
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+
+    def test_hook_mode_stays_silent_for_another_tools_roadmap_json(self):
+        self.old_python3()
+        (self.work / "roadmap.json").write_text(json.dumps({"milestones": []}))
+        res = self.run_launcher("--hook", str(self.probe), "stop", stdin="{}")
         self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
 
     def test_hook_mode_fails_open_with_one_warning_when_a_roadmap_is_present(self):
