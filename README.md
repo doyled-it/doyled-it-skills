@@ -64,8 +64,9 @@ and cross-repo or cross-epic interfaces keep fresh workers and the most capable
 reviewer, small or mechanical tasks are done by the lead or batched with targeted
 tests and a cheaper review, and the full check runs once per issue. Program work
 goes through **roadmap** and its levels reference (root, epic leads, workers). A
-real external tool runs only as one `env -i HOME=<scratch> ...` command, and a
-worker's "nothing changed" claim is checked against file times before it is
+real external tool runs only from one `env -i HOME=<scratch> ...` command that
+refuses to start without a real scratch HOME, and a worker's "nothing changed"
+claim is checked against a listing of newer files at any depth before it is
 accepted.
 
 ### codegraph

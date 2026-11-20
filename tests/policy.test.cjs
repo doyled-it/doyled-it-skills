@@ -90,9 +90,17 @@ test('development loop fits ceremony to risk, routes programs to levels and sand
     assert.match(text, /full\s+check[^.]{0,40}once\s+per\s+issue/iu, `${file}: no once-per-issue check`);
     assert.match(text, /(?:`roadmap`|\*\*roadmap\*\*)[\s\S]{0,400}levels\s+reference/u, `${file}: programs do not use the levels reference`);
     assert.ok(text.includes('env -i HOME='), `${file}: no sandbox rule for real tools`);
+    assert.match(text, /(?:stop before it|refuses to start)/iu, `${file}: the sandbox does not fail closed`);
     assert.match(text, /"nothing\s+changed"/u, `${file}: does not verify nothing-changed claims`);
   }
   assert.match(read(skillPaths[1]), /## 0\. Program check[\s\S]{0,900}levels\s+reference/u);
+  assert.match(read(skillPaths[1]), /roadmap\s+skill's\s+`references\/levels\.md`/u);
+  assert.match(read(skillPaths[1]), /at any depth/u);
+  assert.match(block, /at any depth/u);
+  assert.match(read('plugins/development-loop/skills/development-loop/references/evals.md'),
+    /## Scenario 12:[\s\S]{0,1500}scratch setup fails/u);
+  assert.match(read('plugins/roadmap/skills/roadmap/references/evals.md'),
+    /### Scenario 21:[\s\S]{0,1800}scratch setup fails/u);
   const evals = read('plugins/development-loop/skills/development-loop/references/evals.md');
   for (const title of ['ceremony fits the risk', 'program runs in levels', 'nothing changed']) {
     assert.match(evals, new RegExp(`^## Scenario[^\\n]*${title}`, 'imu'), `development-loop evals miss ${title}`);

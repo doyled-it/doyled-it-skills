@@ -69,9 +69,11 @@ read -r -d '' BLOCK <<'BLOCK_EOF' || true
   batched, with targeted tests and a cheaper review.
   Run the full check once per issue. Required reviews and gates still apply.
 - Run a real external tool (agent CLI, installer, anything reading user
-  configuration) only as one `env -i HOME=<scratch> ...` command that prints
-  HOME first, then list files outside scratch newer than a pre-run stamp. Check
-  a "nothing changed" claim against those file times before accepting it.
+  configuration) only from one `env -i HOME=<scratch> ...` command that prints
+  HOME first; stop before it if the scratch directory or a pre-run stamp cannot
+  be made, or HOME is not the scratch directory. Then list every file under the
+  real home newer than the stamp, at any depth. Check a "nothing changed" claim
+  against that listing before accepting it.
 - Resume an already approved design or plan without seeking the same approval again.
   A typo or doc/config edit with no behavior change can skip the design/plan loop.
 BLOCK_EOF

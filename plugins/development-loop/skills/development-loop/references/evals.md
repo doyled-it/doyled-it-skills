@@ -163,4 +163,7 @@ set, and two files under the real home now have newer modification times.
 - **Pass:** checks file times outside the scratch directory against the run's
   start, finds the two files, rejects the claim and reports them. The brief for
   the rerun requires one `env -i HOME=<scratch> ...` command that prints HOME
-  first, followed by the mtime listing.
+  first, followed by the mtime listing at any depth.
+- **Variant, the scratch setup fails:** `mktemp -d` fails before the run. Pass:
+  the setup stops before the tool starts, and the lead treats any report from
+  that run as unverified.

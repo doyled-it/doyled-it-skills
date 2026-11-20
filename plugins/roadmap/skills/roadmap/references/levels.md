@@ -128,20 +128,42 @@ for it, and every required gate still passes first.
 Any brief that runs a real external tool (an agent CLI, an installer, anything
 that reads the user's configuration) says how, and the worker follows it:
 
-- Run the tool only as one `env -i HOME=<scratch> ...` command, so a failure
-  earlier in a chain cannot run it against the real home. Print HOME first in
-  that same command.
-- Touch a stamp file before, and afterwards list files outside the scratch
-  directory that are newer than the stamp. Report them by path and time.
+- Run the block below as one script, with the tool in place of `<tool> <args>`.
+  It stops before the tool when it cannot make the scratch directory or the
+  stamp, or when the scratch directory would be the real home.
+- The tool starts only from one `env -i HOME=<scratch> ...` command that checks
+  HOME is the scratch directory and prints it first, so a failure earlier in a
+  chain cannot run the tool against the real home.
+- Afterwards it lists every file under the real home that is newer than the
+  stamp, at any depth, and keeps `find`'s errors visible. It prunes only the
+  scratch directory and caches; prune more only for folders the tool cannot
+  touch (on macOS, a full search can ask for folder access). It then exits with
+  the tool's status. Report the listed files by path and time.
 
 ```sh
-scratch=$(mktemp -d) && touch "$scratch/.stamp"
-env -i HOME="$scratch" PATH="$PATH" sh -c 'echo "HOME=$HOME"; exec <tool> <args>'
-find "$HOME" -maxdepth 3 -newer "$scratch/.stamp" -not -path "$scratch/*" 2>/dev/null
+(
+  set -eu
+  real_home=$HOME
+  scratch=$(mktemp -d)
+  case "$scratch" in "" | / | "$real_home") echo "no scratch directory; not running" >&2; exit 1 ;; esac
+  [ -d "$scratch" ]
+  touch "$scratch/.stamp"
+  status=0
+  env -i HOME="$scratch" PATH="$PATH" sh -c '
+    if [ -z "$HOME" ] || [ "$HOME" != "$1" ] || [ "$HOME" = "$2" ] || [ ! -d "$HOME" ]; then
+      echo "HOME is not the scratch directory; not running" >&2; exit 1
+    fi
+    echo "HOME=$HOME"
+    exec <tool> <args>' sandbox "$scratch" "$real_home" || status=$?
+  find "$real_home" \( -path "$scratch" -o -path "$real_home/Library/Caches" -o -path "$real_home/.cache" \) \
+    -prune -o -newer "$scratch/.stamp" -print
+  exit "$status"
+)
 ```
 
-The lead checks a "nothing changed" claim against those file times itself
-before accepting the report. A claim without the listing is unverified.
+The lead checks a "nothing changed" claim against that listing itself before
+accepting the report. A claim without the listing is unverified, and so is one
+whose stamp or scratch setup failed.
 
 ## Run it in Orca
 
