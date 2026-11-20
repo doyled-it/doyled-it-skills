@@ -4,8 +4,13 @@
 
 `scripts/roadmap.py`, standard library only, Python 3.11 or newer. It lives in
 the skill's directory, not in the project: run it by its full path from the
-project directory, `python3 <skill dir>/scripts/roadmap.py <command>
-roadmap.json [options]` (SKILL.md says how to find the skill directory).
+project directory through the launcher, `sh <skill dir>/scripts/python.sh
+<skill dir>/scripts/roadmap.py <command> roadmap.json [options]` (SKILL.md says
+how to find the skill directory). The launcher runs
+`uv run --no-project --python 3.12 python <script>` when uv is on PATH, else
+`python3 <script>` only when that is 3.11 or newer. With neither it prints what
+to install and exits 1. The hooks use the same launcher with `--hook`, which
+always exits 0. The examples below write `roadmap.py` for the whole command.
 
 ## validate
 

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/roadmap_hook.py\" post-tool-use",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/skills/roadmap/scripts/python.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/roadmap_hook.py\" post-tool-use",
             "timeout": 30
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/roadmap_hook.py\" stop",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/skills/roadmap/scripts/python.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/roadmap_hook.py\" stop",
             "timeout": 30
           }
         ]

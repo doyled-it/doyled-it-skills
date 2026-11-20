@@ -112,7 +112,9 @@ and show the lead what it would write.
 ### Claude Code
 
 The roadmap plugin registers two hooks (`hooks/hooks.json`, script
-`hooks/roadmap_hook.py`); installing the plugin turns them on.
+`hooks/roadmap_hook.py`); installing the plugin turns them on. Each runs
+through `skills/roadmap/scripts/python.sh --hook`: uv when it is on PATH, else
+`python3` only when it is 3.11 or newer.
 
 - **PostToolUse** (Bash): after a command that merges a merge request or
   closes an issue (`glab mr merge`, `gh pr merge`, `glab issue close`,
@@ -146,7 +148,8 @@ actionable finding on changed work can still block the turn.
 Both look for `ROADMAP_FILE`, else `roadmap.json` in the working directory or
 at the git root, and do nothing and say nothing without one (a `roadmap.json`
 without `epics` and `issues` lists belongs to another tool and is ignored).
-Only with a roadmap present do they warn that Python is older than 3.11. They never write, never block
+Only with a roadmap present do they warn that neither uv nor Python 3.11 or
+newer is available, and the launcher never exits with the blocking status. They never write, never block
 twice in a row, skip Orca, and stop after `ROADMAP_HOOK_TIMEOUT` seconds
 (default 20). When the forge is slow or unreachable, or anything else fails,
 they fail open: a one-line warning and no block.
@@ -165,7 +168,7 @@ The desktop notifier is
 `~/.codex/config.toml` (Codex appends its JSON payload as the last argument):
 
 ```toml
-notify = ["python3", "<roadmap plugin directory>/hooks/roadmap_hook.py", "codex-notify"]
+notify = ["sh", "<roadmap plugin directory>/skills/roadmap/scripts/python.sh", "--hook", "<roadmap plugin directory>/hooks/roadmap_hook.py", "codex-notify"]
 ```
 
 ## Layer 3: the rules

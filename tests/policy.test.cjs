@@ -292,6 +292,20 @@ test('roadmap: orchestrators sync at every update, and the enforcement layers ar
   assert.match(plugin.description, /closes only its own drift issue/u);
 });
 
+test('roadmap: the command and hooks run through the uv-first launcher', () => {
+  const uv = 'uv run --no-project --python 3.12 python';
+  const run = rmSkill().split('## Run the command')[1].split('## Lifecycle')[0];
+  assert.ok(run.includes('scripts/python.sh'), 'Run the command does not name the launcher');
+  assert.ok(run.includes(uv), 'Run the command does not name the uv invocation');
+  assert.match(run, /`python3` only when it is 3\.11 or newer/u);
+  const commands = read('plugins/roadmap/skills/roadmap/references/commands.md');
+  assert.ok(commands.includes(uv) && commands.includes('scripts/python.sh'));
+  assert.doesNotMatch(commands, /`python3 <skill dir>/u);
+  const enforcement = read('plugins/roadmap/skills/roadmap/references/enforcement.md');
+  assert.match(enforcement, /notify = \["sh", "[^"]*\/scripts\/python\.sh", "--hook"/u);
+  assert.doesNotMatch(read('plugins/roadmap/hooks/hooks.json'), /"python3 /u);
+});
+
 test('roadmap: no em dashes in the plugin or its tests', () => {
   for (const file of [...walkFiles('plugins/roadmap'), ...walkFiles('tests/roadmap')]) {
     if (/\.(md|json|py|sh)$/u.test(file)) assert.ok(!read(file).includes('—'), `em dash in ${file}`);
