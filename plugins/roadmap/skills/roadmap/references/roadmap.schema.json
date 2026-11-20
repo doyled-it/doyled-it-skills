@@ -259,7 +259,7 @@
   "$defs": {
     "levels": {
       "type": "object",
-      "description": "The lead's answer to the kickoff level question (references/levels.md): the model and effort for each orchestration level and the parallel epic cap. Every later session and handoff reuses it.",
+      "description": "The program lead's (the user's) answer to the kickoff level question (references/levels.md): the model and effort for each orchestration level and the parallel epic cap. Every later session and handoff reuses it.",
       "required": [
         "program",
         "epic",
@@ -318,7 +318,7 @@
         "model": {
           "type": "string",
           "pattern": "\\S",
-          "description": "The model id or alias the agent accepts, for example with --model."
+          "description": "The model id or alias the agent accepts, for example with --model. Tier words in the example are placeholders."
         },
         "effort": {
           "type": "string",

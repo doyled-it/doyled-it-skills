@@ -27,8 +27,9 @@ object) is a `bad-type` error, never a crash, and `publish`, `sync` and
 
 ### Orchestration levels
 
-`orchestration.levels` records the lead's answer to the kickoff level question
-in [levels.md](levels.md). It is optional; once present, validate checks it.
+`orchestration.levels` records the program lead's (the user's) answer to the
+kickoff level question in [levels.md](levels.md). It is optional; once present,
+validate checks it.
 
 | Field | Meaning |
 | --- | --- |
@@ -38,9 +39,13 @@ in [levels.md](levels.md). It is optional; once present, validate checks it.
 | `answered_by`, `answered_on` | Optional nonblank text: who answered, and when. |
 
 Each choice is an object with a nonblank `model` (the id or alias the agent
-accepts) and optional nonblank `effort`, `agent` and `note`. A missing field is
-`missing-field`, a misspelled key is `unknown-field`, and a wrong shape is
-`bad-type`.
+accepts) and optional nonblank `effort`, `agent` and `note`. The example
+roadmap's tier words (`most-capable`, `mid-tier`, `cheapest`) are placeholders;
+record the real ids from the kickoff answer.
+
+The record is advisory, so each problem in it (a missing or misspelled field,
+or a wrong shape) is a `bad-levels` warning. validate names it, and render,
+sync, publish and the hooks keep working.
 
 ## render
 

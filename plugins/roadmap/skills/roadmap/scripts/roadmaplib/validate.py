@@ -95,7 +95,7 @@ def check(raw: dict) -> list[Finding]:
 
     raw = _well_typed(raw, err)
     _check_ownership(raw, err)
-    _check_levels(raw, err)
+    _check_levels(raw, lambda where, msg: warn("bad-levels", where, msg))
     if "orca_observation" in raw:
         for location, problem in observation.problems(raw["orca_observation"]):
             err("bad-type", f"orca_observation{location}", problem)
@@ -334,57 +334,61 @@ def _nonblank(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _check_tier(tier: object, where: str, err) -> None:
+def _check_tier(tier: object, where: str, report) -> None:
     """One model choice: {"model": ..., optional "effort", "agent", "note"}."""
     if not isinstance(tier, dict):
-        err("bad-type", where, 'must be an object with a "model"')
+        report(where, 'must be an object with a "model"')
         return
     if "model" not in tier:
-        err("missing-field", where, 'missing "model"')
+        report(where, 'missing "model"')
     for field, value in tier.items():
         if field not in model.TIER_FIELDS:
-            err("unknown-field", f"{where}.{field}", "use " + ", ".join(model.TIER_FIELDS))
+            report(f"{where}.{field}", "use " + ", ".join(model.TIER_FIELDS))
         elif not _nonblank(value):
-            err("bad-type", f"{where}.{field}", f'"{field}" must be nonblank text')
+            report(f"{where}.{field}", f'"{field}" must be nonblank text')
 
 
-def _check_levels(data: dict, err) -> None:
-    """orchestration.levels, recorded once from the kickoff level question."""
+def _check_levels(data: dict, report) -> None:
+    """orchestration.levels, recorded once from the kickoff level question.
+
+    The record is advisory, so each problem is a warning: validate shows it, and
+    render, sync, publish and the hooks keep working.
+    """
     orchestration = data.get("orchestration")
     if not isinstance(orchestration, dict) or "levels" not in orchestration:
         return
     levels = orchestration["levels"]
     if not isinstance(levels, dict):
-        err("bad-type", WHERE_LEVELS, '"levels" must be an object')
+        report(WHERE_LEVELS, '"levels" must be an object')
         return
     for key in model.REQUIRED_LEVEL_FIELDS:
         if key not in levels:
-            err("missing-field", WHERE_LEVELS, f'missing "{key}"; ask the level question at kickoff')
+            report(WHERE_LEVELS, f'missing "{key}"; ask the level question at kickoff')
     for key in levels:
         if key not in model.LEVEL_FIELDS:
-            err("unknown-field", f"{WHERE_LEVELS}.{key}", "use " + ", ".join(model.LEVEL_FIELDS))
+            report(f"{WHERE_LEVELS}.{key}", "use " + ", ".join(model.LEVEL_FIELDS))
     for level in ("program", "epic"):
         if level in levels:
-            _check_tier(levels[level], f"{WHERE_LEVELS}.{level}", err)
+            _check_tier(levels[level], f"{WHERE_LEVELS}.{level}", report)
     if "worker" in levels:
         worker, where = levels["worker"], f"{WHERE_LEVELS}.worker"
         if not isinstance(worker, dict):
-            err("bad-type", where, '"worker" must map role names to model choices')
+            report(where, '"worker" must map role names to model choices')
         else:
             for role in model.REQUIRED_WORKER_ROLES:
                 if role not in worker:
-                    err("missing-field", where, f'missing the "{role}" role')
+                    report(where, f'missing the "{role}" role')
             for role, tier in worker.items():
                 if not model.ROLE_KEY.fullmatch(str(role)):
-                    err("bad-type", f"{where}.{role}", "role names are lowercase words joined by underscores")
+                    report(f"{where}.{role}", "role names are lowercase words joined by underscores")
                     continue
-                _check_tier(tier, f"{where}.{role}", err)
+                _check_tier(tier, f"{where}.{role}", report)
     cap = levels.get("parallel_epics")
     if "parallel_epics" in levels and (isinstance(cap, bool) or not isinstance(cap, int) or cap < 1):
-        err("bad-type", f"{WHERE_LEVELS}.parallel_epics", '"parallel_epics" must be a whole number, 1 or more')
+        report(f"{WHERE_LEVELS}.parallel_epics", '"parallel_epics" must be a whole number, 1 or more')
     for field in ("answered_by", "answered_on"):
         if field in levels and not _nonblank(levels[field]):
-            err("bad-type", f"{WHERE_LEVELS}.{field}", f'"{field}" must be nonblank text')
+            report(f"{WHERE_LEVELS}.{field}", f'"{field}" must be nonblank text')
 
 
 def _cycles(items: dict) -> list[list[str]]:
