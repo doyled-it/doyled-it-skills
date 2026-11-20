@@ -29,8 +29,11 @@ If this work is part of a program (several issues, workers or sessions toward
 one goal), invoke `roadmap` (native name `roadmap:roadmap`) first. The roadmap
 must exist and be agreed with the program lead before any worker starts, and
 this work must be an issue on it whose dependencies are Done. If it is not on
-the roadmap, propose the change, show it rendered, and wait for agreement. Work
-that is not part of a program skips this step.
+the roadmap, propose the change, show it rendered, and wait for agreement.
+Orchestrate the program through the roadmap's levels reference
+(`references/levels.md`): root, one epic lead per active epic, and workers, with
+the model and effort per level recorded at kickoff. Work that is not part of a
+program skips this step.
 
 ## 1. Understand
 
@@ -92,6 +95,19 @@ RED-GREEN-REFACTOR. Use each repo's actual test runner.
   `superpowers:subagent-driven-development` with its task reviews.
 - When delegation is unavailable or the user requests inline work, invoke
   `superpowers:executing-plans`. Do not spawn agents against a user restriction.
+
+Fit ceremony to risk. Risky tasks (security, credentials, data migrations,
+user-facing UI, cross-repo or cross-epic interfaces) keep a fresh worker per
+task, the most capable reviewer and a re-review after fixes. Do small or
+mechanical tasks yourself or batch them into one worker, with targeted tests
+and a cheaper review. Run the full check once per issue, before its review
+gate. Required reviews and gates still apply at every size.
+
+Run a real external tool (an agent CLI, an installer, anything that reads the
+user's configuration) only as one `env -i HOME=<scratch> ...` command that
+prints HOME first. Afterwards list files outside the scratch directory newer
+than a stamp made before the run. Check a worker's "nothing changed" claim
+against those file times before accepting it.
 
 Invoke `superpowers:requesting-code-review` for the review gate. If no independent
 reviewer is available, perform a separate self-review pass and disclose that

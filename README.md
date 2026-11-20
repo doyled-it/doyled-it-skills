@@ -59,6 +59,14 @@ change's full cross-repo surface. Invoke **development-loop** explicitly; it rou
 understanding to **using-codegraph**, multi-repo design and finish to
 **cross-repo-completeness**, and the implementation stages to upstream Superpowers.
 It includes inline execution when delegation is unavailable or prohibited.
+Its effort rule is to fit ceremony to risk: security, credentials, data migrations, user-facing UI
+and cross-repo or cross-epic interfaces keep fresh workers and the most capable
+reviewer, small or mechanical tasks are done by the lead or batched with targeted
+tests and a cheaper review, and the full check runs once per issue. Program work
+goes through **roadmap** and its levels reference (root, epic leads, workers). A
+real external tool runs only as one `env -i HOME=<scratch> ...` command, and a
+worker's "nothing changed" claim is checked against file times before it is
+accepted.
 
 ### codegraph
 

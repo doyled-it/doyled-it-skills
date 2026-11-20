@@ -1,7 +1,7 @@
 {
   "name": "development-loop",
   "description": "A disciplined development loop for any feature or bugfix, single-repo or multi-repo: ground understanding in codegraph, compose the superpowers phases (brainstorm, plan, TDD, finish), and verify the full cross-repo surface. Start with the development-loop skill.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "doyled-it"
   },

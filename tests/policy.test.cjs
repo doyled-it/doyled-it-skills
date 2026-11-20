@@ -82,9 +82,26 @@ test('development loop explicitly routes bug diagnosis, reviews and inline execu
   assert.match(text, /(?:push|remote writes)[\s\S]{0,70}authoriz/iu);
 });
 
+test('development loop fits ceremony to risk, routes programs to levels and sandboxes real tools', () => {
+  for (const [file, text] of [['SKILL.md', read(skillPaths[1])], ['managed block', block],
+    ['README.md', read('README.md').split('### development-loop')[1].split('\n### ')[0]]]) {
+    assert.match(text, /fit\s+ceremony\s+to\s+risk/iu, `${file}: no ceremony rule`);
+    assert.match(text, /security,\s+credentials,\s+data\s+migrations/u, `${file}: no risky task list`);
+    assert.match(text, /full\s+check[^.]{0,40}once\s+per\s+issue/iu, `${file}: no once-per-issue check`);
+    assert.match(text, /(?:`roadmap`|\*\*roadmap\*\*)[\s\S]{0,400}levels\s+reference/u, `${file}: programs do not use the levels reference`);
+    assert.ok(text.includes('env -i HOME='), `${file}: no sandbox rule for real tools`);
+    assert.match(text, /"nothing\s+changed"/u, `${file}: does not verify nothing-changed claims`);
+  }
+  assert.match(read(skillPaths[1]), /## 0\. Program check[\s\S]{0,900}levels\s+reference/u);
+  const evals = read('plugins/development-loop/skills/development-loop/references/evals.md');
+  for (const title of ['ceremony fits the risk', 'program runs in levels', 'nothing changed']) {
+    assert.match(evals, new RegExp(`^## Scenario[^\\n]*${title}`, 'imu'), `development-loop evals miss ${title}`);
+  }
+});
+
 test('changed plugins invalidate known installed caches', () => {
   for (const [name, version] of [
-    ['codegraph', '1.2.2'], ['development-loop', '1.3.0'], ['cross-repo-completeness', '1.1.2'],
+    ['codegraph', '1.2.2'], ['development-loop', '1.4.0'], ['cross-repo-completeness', '1.1.2'],
     ['roadmap', '1.2.0'],
   ]) assert.equal(JSON.parse(read(`plugins/${name}/.claude-plugin/plugin.json`)).version, version);
 });
