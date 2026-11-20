@@ -7,10 +7,11 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT/tests/roadmap"
 
-# uv first, as the roadmap launcher does, then the first python3 that is 3.11+.
+# As the roadmap launcher does: a Python 3.11+ that uv already has, then the
+# first python3 that is 3.11+. Nothing is downloaded.
 PY=()
-if command -v uv >/dev/null 2>&1; then
-  PY=(uv run --no-project --python 3.12 python)
+if command -v uv >/dev/null 2>&1 && uv python find --no-project '>=3.11' >/dev/null 2>&1; then
+  PY=(uv run --no-project --no-python-downloads --python '>=3.11' python)
 else
   for candidate in python3 python3.13 python3.12 python3.11; do
     if command -v "$candidate" >/dev/null 2>&1 &&

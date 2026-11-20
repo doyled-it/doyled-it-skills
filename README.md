@@ -130,8 +130,9 @@ each level owns, decides alone and escalates, how it runs in Orca, and which
 decisions reach the user. At kickoff, root asks for the model and effort per
 level and the parallel epic cap, and records the answer in `roadmap.json` as
 `orchestration.levels` for every later session. The command and hooks run
-through `scripts/python.sh`: uv when it is installed, otherwise `python3` only
-when it is 3.11 or newer (macOS ships 3.9).
+through `scripts/python.sh`: a Python 3.11 or newer that uv already has,
+otherwise `python3` only when it is 3.11 or newer (macOS ships 3.9). It never
+downloads Python.
 
 Source checks, fresh-session workflow evaluation and native installation
 acceptance each need their own evidence. Fresh-session and per-account host

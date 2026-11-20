@@ -57,8 +57,8 @@
   tiers for any user: no personal names or model ids as requirements. Level 2
   never asks the user directly. Record the kickoff answer as
   `orchestration.levels` and validate it. Run the roadmap command and hooks
-  through `scripts/python.sh` (uv first, then `python3` 3.11+); its `--hook`
-  mode always exits 0.
+  through `scripts/python.sh` (an installed uv Python 3.11+, then `python3`
+  3.11+, never a download); its `--hook` mode always exits 0.
 - Preserve legacy Orca run inputs and use run-qualified identities for scoped
   tasks. Track requested and full task coverage separately. Hold absence-based
   drift checks and shared drift issue writes on incomplete full coverage.

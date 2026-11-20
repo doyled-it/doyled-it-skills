@@ -113,8 +113,9 @@ and show the lead what it would write.
 
 The roadmap plugin registers two hooks (`hooks/hooks.json`, script
 `hooks/roadmap_hook.py`); installing the plugin turns them on. Each runs
-through `skills/roadmap/scripts/python.sh --hook`: uv when it is on PATH, else
-`python3` only when it is 3.11 or newer.
+through `skills/roadmap/scripts/python.sh --hook`: a Python 3.11 or newer that
+uv already has, else `python3` only when it is 3.11 or newer. A hook never
+downloads Python.
 
 - **PostToolUse** (Bash): after a command that merges a merge request or
   closes an issue (`glab mr merge`, `gh pr merge`, `glab issue close`,

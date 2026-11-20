@@ -6,11 +6,15 @@
 the skill's directory, not in the project: run it by its full path from the
 project directory through the launcher, `sh <skill dir>/scripts/python.sh
 <skill dir>/scripts/roadmap.py <command> roadmap.json [options]` (SKILL.md says
-how to find the skill directory). The launcher runs
-`uv run --no-project --python 3.12 python <script>` when uv is on PATH, else
-`python3 <script>` only when that is 3.11 or newer. With neither it prints what
-to install and exits 1. The hooks use the same launcher with `--hook`, which
-always exits 0. The examples below write `roadmap.py` for the whole command.
+how to find the skill directory). When uv already has a Python 3.11 or newer
+(`uv python find --no-project '>=3.11'`), the launcher runs
+`uv run --no-project --no-python-downloads --python '>=3.11' python <script>`; else it runs
+`python3 <script>` only when that is 3.11 or newer. It never downloads Python:
+with neither, it prints what to install (for example `uv python install 3.12`)
+and exits 1. It looks for uv on PATH, then in `ROADMAP_UV_DIRS` (colon-separated;
+default `~/.local/bin`, `~/.cargo/bin`, `/opt/homebrew/bin`, `/usr/local/bin`).
+The hooks use the same launcher with `--hook`, which always exits 0. The
+examples below write `roadmap.py` for the whole command.
 
 ## validate
 

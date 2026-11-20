@@ -40,10 +40,10 @@ and released), and U (explicit lead approval). [Glossary](references/glossary.md
 Run `scripts/roadmap.py` by its full path in this skill's own directory, from
 the project checkout that supplies the forge context, through the launcher:
 `sh <skill dir>/scripts/python.sh <skill dir>/scripts/roadmap.py <command>`.
-It uses `uv run --no-project --python 3.12 python` when uv is on PATH, else
-`python3` only when it is 3.11 or newer (macOS ships 3.9), and otherwise says
-what to install. If the skill path is unavailable, look up the active
-installation with
+It runs a Python 3.11 or newer that uv already has, with
+`uv run --no-project --no-python-downloads --python '>=3.11' python`, else `python3` only when it is 3.11 or newer
+(macOS ships 3.9). It never downloads Python; otherwise it says what to install.
+If the skill path is unavailable, look up the active installation with
 `find ~/.claude ~/.codex ~/.agents -path '*roadmap/scripts/roadmap.py' 2>/dev/null`.
 Use the loaded copy when several versions exist.
 

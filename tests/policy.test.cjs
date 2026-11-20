@@ -310,11 +310,13 @@ test('roadmap: orchestrators sync at every update, and the enforcement layers ar
 });
 
 test('roadmap: the command and hooks run through the uv-first launcher', () => {
-  const uv = 'uv run --no-project --python 3.12 python';
+  const uv = "uv run --no-project --no-python-downloads --python '>=3.11' python";
   const run = rmSkill().split('## Run the command')[1].split('## Lifecycle')[0];
   assert.ok(run.includes('scripts/python.sh'), 'Run the command does not name the launcher');
   assert.ok(run.includes(uv), 'Run the command does not name the uv invocation');
   assert.match(run, /`python3` only when it is 3\.11 or newer/u);
+  assert.match(run, /never downloads Python/u);
+  assert.doesNotMatch(run, /--python 3\.12/u);
   const commands = read('plugins/roadmap/skills/roadmap/references/commands.md');
   assert.ok(commands.includes(uv) && commands.includes('scripts/python.sh'));
   assert.doesNotMatch(commands, /`python3 <skill dir>/u);
