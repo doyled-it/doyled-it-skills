@@ -188,6 +188,9 @@
           "additionalProperties": {
             "$ref": "#/$defs/coordinator"
           }
+        },
+        "levels": {
+          "$ref": "#/$defs/levels"
         }
       }
     },
@@ -254,6 +257,86 @@
     }
   },
   "$defs": {
+    "levels": {
+      "type": "object",
+      "description": "The lead's answer to the kickoff level question (references/levels.md): the model and effort for each orchestration level and the parallel epic cap. Every later session and handoff reuses it.",
+      "required": [
+        "program",
+        "epic",
+        "worker",
+        "parallel_epics"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "program": {
+          "$ref": "#/$defs/tier",
+          "description": "Level 1: the program orchestrator the user talks to."
+        },
+        "epic": {
+          "$ref": "#/$defs/tier",
+          "description": "Level 2: each epic lead."
+        },
+        "worker": {
+          "type": "object",
+          "description": "Level 3: one choice per worker role. implementer and reviewer are required; mechanical (cheap, exact edits) and final_reviewer are usual; other roles are named exceptions.",
+          "required": [
+            "implementer",
+            "reviewer"
+          ],
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/tier"
+          }
+        },
+        "parallel_epics": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many epic leads may run at once. Default 2."
+        },
+        "answered_by": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Who answered the level question."
+        },
+        "answered_on": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "When it was answered."
+        }
+      }
+    },
+    "tier": {
+      "type": "object",
+      "description": "One model choice.",
+      "required": [
+        "model"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "The model id or alias the agent accepts, for example with --model."
+        },
+        "effort": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Reasoning effort in the agent's own words, for example high or medium."
+        },
+        "agent": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Agent to run, when it differs from the one starting the worker."
+        },
+        "note": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "When this choice applies, or a named exception."
+        }
+      }
+    },
     "timelineEvent": {
       "type": "object",
       "required": [

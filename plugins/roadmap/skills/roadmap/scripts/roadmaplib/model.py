@@ -21,6 +21,19 @@ STATUSES = {
 }
 
 COORDINATOR_ROLES = ("meta", "area", "worker")
+
+# orchestration.levels: the model and effort the lead chose at kickoff for
+# level 1 (program), level 2 (epic lead) and each level 3 worker role, and the
+# parallel epic cap. See references/levels.md.
+LEVELS = ("program", "epic", "worker")
+LEVEL_FIELDS = LEVELS + ("parallel_epics", "answered_by", "answered_on")
+REQUIRED_LEVEL_FIELDS = LEVELS + ("parallel_epics",)
+TIER_FIELDS = ("model", "effort", "agent", "note")
+# The usual level 3 roles. A roadmap may name more, such as security_reviewer.
+WORKER_ROLES = ("implementer", "mechanical", "reviewer", "final_reviewer")
+REQUIRED_WORKER_ROLES = ("implementer", "reviewer")
+ROLE_KEY = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+DEFAULT_PARALLEL_EPICS = 2
 # Short CSS class per status, used by the renderer.
 STATUS_CLASS = {
     "to_do": "todo",

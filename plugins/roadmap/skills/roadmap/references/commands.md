@@ -20,6 +20,23 @@ rules. A field of the wrong type (an iteration name that is not text,
 object) is a `bad-type` error, never a crash, and `publish`, `sync` and
 `drift-issue` refuse to run, listing those errors, until it is fixed.
 
+### Orchestration levels
+
+`orchestration.levels` records the lead's answer to the kickoff level question
+in [levels.md](levels.md). It is optional; once present, validate checks it.
+
+| Field | Meaning |
+| --- | --- |
+| `program`, `epic` | Required. The choice for level 1 (the program orchestrator) and level 2 (each epic lead). |
+| `worker` | Required. Level 3 choices by role: `implementer` and `reviewer` are required, `mechanical` and `final_reviewer` are usual, and other lowercase role names (such as `security_reviewer`) are named exceptions. |
+| `parallel_epics` | Required. A whole number, 1 or more: how many epic leads run at once. The default answer is 2. |
+| `answered_by`, `answered_on` | Optional nonblank text: who answered, and when. |
+
+Each choice is an object with a nonblank `model` (the id or alias the agent
+accepts) and optional nonblank `effort`, `agent` and `note`. A missing field is
+`missing-field`, a misspelled key is `unknown-field`, and a wrong shape is
+`bad-type`.
+
 ## render
 
 ```bash
