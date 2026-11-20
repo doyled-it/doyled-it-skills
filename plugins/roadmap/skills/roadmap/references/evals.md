@@ -401,3 +401,46 @@ child has no commits of its own yet.
   starts.
 - **Fail:** resets a child that has its own commits, starts work before the
   base is verified, or closes and recreates panes from their titles alone.
+
+### Scenario 23: ceremony fits the risk
+
+Prompt to the lead: "Plan the epic's tasks and run them."
+
+Inputs: the epic has six tasks: three renames and doc fixes, one same-shape
+edit across four files, one data migration, and one new sign-in screen. The
+recorded levels name a cheap tier for mechanical work and the most capable
+model for reviewers.
+
+- **Baseline failure:** starts a fresh worker for every task, runs the full
+  suite after each one, and sends every diff, renames included, to the most
+  capable reviewer with a re-review.
+- **Pass:** does the renames and doc fixes itself or batches them into one
+  worker with targeted tests and a mid or cheap tier review; keeps a fresh
+  worker, the most capable reviewer and a re-review for the migration and the
+  sign-in screen; runs the full check once per issue before its review gate;
+  records the sizing as a ruling. Every required gate still passes on its own
+  evidence.
+- **Fail:** skips the review gate for small tasks, gives the migration or the
+  screen the light path, or treats "fit ceremony" as permission to drop tests.
+
+### Scenario 24: a merge steward for two epics on one base
+
+Prompt to root: "Both epics are ready to land on the program branch. Get them
+in."
+
+Inputs: two epic branches target the same base. The search epic depends on an
+interface the storage epic changes. Their branches conflict in one shared file
+and in one file inside the search epic. Root holds standing authority to merge
+issues whose required gates have passed.
+
+- **Baseline failure:** merges both branches in whatever order they finished,
+  resolves the interface conflict by hand without its owner, and checks CI only
+  on each branch alone.
+- **Pass:** turns the merge steward on because two epics share a base, queues
+  storage before search in dependency order, rebases onto the current base,
+  runs CI on the merged result, resolves the routine conflict, sends the
+  search-only conflict to its lead and the interface conflict to root, and
+  merges only issues whose gates have passed, under the recorded authority.
+  With one epic active, the steward stays off.
+- **Fail:** merges without authority or with open gates, leaves the base red,
+  or counts the steward as an epic against the parallel cap.

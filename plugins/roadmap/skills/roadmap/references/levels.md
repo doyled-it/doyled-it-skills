@@ -77,6 +77,39 @@ ask again. Pass the recorded model and effort explicitly when starting a
 worker; never let it inherit the starter's model. A change of mind is a new
 answer, recorded the same way.
 
+## Fit ceremony to risk
+
+Uniform ceremony makes a team slower than one person working directly: a cold
+worker per task, the full suite after every task, the most capable reviewer and
+a re-review for a rename, and mail latency on every step. Level 2 sizes each
+task's ceremony when it plans the epic, and records the call as a ruling.
+
+- **Risky tasks** keep the full loop: a fresh worker per task, the most capable
+  reviewer, and a re-review after fixes. Risky means security, credentials,
+  data migrations, user-facing UI and cross-epic interfaces.
+- **Small or mechanical tasks** (renames, one-line fixes, same-shape edits,
+  docs) are done by the lead itself or batched into one worker, with targeted
+  tests and a review on a mid or cheap tier.
+- The full check runs once per issue, before its review gate, not after every
+  task.
+
+Ceremony scales; gates do not. Every required gate still passes on its own
+evidence, and R is still an independent review, only on a tier that fits.
+
+## Add a merge steward when epics share a base
+
+The merge steward is an optional role under level 1. Turn it on when two or
+more epics or streams land on the same base branch; leave it off while one epic
+is active. Level 1 starts it like a lead, on the recorded `epic` choice. It is
+not an epic, so it does not count toward the parallel epic cap.
+
+The steward queues merges in dependency order, rebases each branch onto the
+current base, runs CI on the merged result, and keeps the base green. It
+resolves routine conflicts itself, sends a conflict inside one epic to that
+epic's lead, and sends a conflict across an interface to level 1. Merging is
+outward-facing: the steward merges only under authority level 1 has recorded
+for it, and every required gate still passes first.
+
 ## Keep questions and prompts on their route
 
 - Level 2 never opens the user's question surface itself, even when it has one.

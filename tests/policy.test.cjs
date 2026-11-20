@@ -321,12 +321,17 @@ test('roadmap: levels.md splits the work into three levels for any user', () => 
     assert.ok(levels.includes(words), `levels.md does not cover ${words}`);
   }
   assert.match(levels, /never opens the user's question surface/u);
+  assert.match(levels, /^## Fit ceremony to risk$/mu);
+  assert.match(levels, /full check runs once per issue/u);
+  assert.match(levels, /^## Add a merge steward when epics share a base$/mu);
+  assert.match(levels, /dependency order[\s\S]{0,300}merged result/u);
   assert.match(levels, /branch and HEAD/u);
   assert.doesNotMatch(levels, /\b(?:claude-|opus|sonnet|haiku|fable|gpt-|gemini|codex-)/iu,
     'levels.md names a model; describe tiers instead');
   const evals = read('plugins/roadmap/skills/roadmap/references/evals.md');
   for (const title of ['kickoff level question', 'level 2 lead meets a consequential decision',
-    'level 3 permission prompt', 'nothing changed', 'child worktree on the wrong base']) {
+    'level 3 permission prompt', 'nothing changed', 'child worktree on the wrong base',
+    'ceremony fits the risk', 'merge steward']) {
     assert.match(evals, new RegExp(`### Scenario \\d+: [^\\n]*${title}`, 'iu'), `evals.md has no scenario for ${title}`);
   }
 });
