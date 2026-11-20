@@ -85,7 +85,7 @@ test('development loop explicitly routes bug diagnosis, reviews and inline execu
 test('changed plugins invalidate known installed caches', () => {
   for (const [name, version] of [
     ['codegraph', '1.2.2'], ['development-loop', '1.3.0'], ['cross-repo-completeness', '1.1.2'],
-    ['roadmap', '1.1.1'],
+    ['roadmap', '1.2.0'],
   ]) assert.equal(JSON.parse(read(`plugins/${name}/.claude-plugin/plugin.json`)).version, version);
 });
 
@@ -259,7 +259,7 @@ test('roadmap: references are linked one level deep and exist', () => {
 test('roadmap: the skill is generic, with no project specifics', () => {
   for (const file of walkFiles('plugins/roadmap')) {
     if (/__pycache__/u.test(file)) continue;
-    assert.doesNotMatch(read(file), /\b(?:ep2p|irmbpmn|mdoyle|CDP|gemma)\b/u, `project specific text in ${file}`);
+    assert.doesNotMatch(read(file), /\b(?:ep2p|irmbpmn|mdoyle|CDP|gemma|Gantry|Michael)\b/u, `project specific text in ${file}`);
   }
 });
 
@@ -304,6 +304,31 @@ test('roadmap: the command and hooks run through the uv-first launcher', () => {
   const enforcement = read('plugins/roadmap/skills/roadmap/references/enforcement.md');
   assert.match(enforcement, /notify = \["sh", "[^"]*\/scripts\/python\.sh", "--hook"/u);
   assert.doesNotMatch(read('plugins/roadmap/hooks/hooks.json'), /"python3 /u);
+});
+
+test('roadmap: levels.md splits the work into three levels for any user', () => {
+  const text = rmSkill();
+  assert.ok(text.includes('references/levels.md'), 'SKILL.md does not link levels.md');
+  assert.match(text, /### 1\. Program kickoff[\s\S]{0,900}level question/u);
+  assert.match(text, /### 2\. Each issue[\s\S]{0,400}level 2/u);
+  assert.ok(text.split('\n').length < 150, 'SKILL.md should stay about its current length');
+  const levels = read('plugins/roadmap/skills/roadmap/references/levels.md');
+  for (const row of ['Owns', 'Brainstorms', 'Decides alone', 'Escalates', 'Does not']) {
+    assert.match(levels, new RegExp(`^\\| ${row} \\|`, 'mu'), `levels table has no ${row} row`);
+  }
+  for (const words of ['Level 1', 'Level 2', 'Level 3', '`orchestration.levels`', '--worktree new-child',
+    '--keep-open', 'orchestration ask', 'reply', 'scoped delta', 'env -i HOME=', 'parallel epic cap']) {
+    assert.ok(levels.includes(words), `levels.md does not cover ${words}`);
+  }
+  assert.match(levels, /never opens the user's question surface/u);
+  assert.match(levels, /branch and HEAD/u);
+  assert.doesNotMatch(levels, /\b(?:claude-|opus|sonnet|haiku|fable|gpt-|gemini|codex-)/iu,
+    'levels.md names a model; describe tiers instead');
+  const evals = read('plugins/roadmap/skills/roadmap/references/evals.md');
+  for (const title of ['kickoff level question', 'level 2 lead meets a consequential decision',
+    'level 3 permission prompt', 'nothing changed', 'child worktree on the wrong base']) {
+    assert.match(evals, new RegExp(`### Scenario \\d+: [^\\n]*${title}`, 'iu'), `evals.md has no scenario for ${title}`);
+  }
 });
 
 test('roadmap: no em dashes in the plugin or its tests', () => {

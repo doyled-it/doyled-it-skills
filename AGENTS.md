@@ -23,7 +23,7 @@
   its description consistent with `.claude-plugin/marketplace.json`.
 - Write meaningful regression tests first for behavior changes. Run
   `bash scripts/check.sh`; run `bash tests/codegraph_smoke.sh` when CodeGraph
-  behavior changes. These checks need Bash, Node.js 18+, Python 3.11+, and
+  behavior changes. These checks need Bash, Node.js 18+, uv or Python 3.11+, and
   ShellCheck; the roadmap tests run offline against recorded forge responses in
   `tests/roadmap/fixtures/` and a stateful fake forge (`tests/roadmap/fakeforge.py`;
   never record private forge content); the smoke check additionally needs the
@@ -53,6 +53,12 @@
   its operating reference only in Orca. Pending user choices require a durable
   owner and blocked-work record across turn end. Verify runtime gate eligibility
   and preserve completed results when a gate cannot attach.
+- Keep the three orchestration levels in the roadmap's `levels.md`, written in
+  tiers for any user: no personal names or model ids as requirements. Level 2
+  never asks the user directly. Record the kickoff answer as
+  `orchestration.levels` and validate it. Run the roadmap command and hooks
+  through `scripts/python.sh` (uv first, then `python3` 3.11+); its `--hook`
+  mode always exits 0.
 - Preserve legacy Orca run inputs and use run-qualified identities for scoped
   tasks. Track requested and full task coverage separately. Hold absence-based
   drift checks and shared drift issue writes on incomplete full coverage.

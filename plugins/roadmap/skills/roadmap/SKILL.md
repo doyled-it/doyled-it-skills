@@ -15,7 +15,9 @@ canonical writer and project coordinator. Give each active epic one lead for
 its issues, dependencies, reviews and routine decisions. For delegated issue
 coordination and shared ownership, read [coordination.md](references/coordination.md).
 In Orca, also read [orca-operation.md](references/orca-operation.md) for placement,
-mail and pending user decisions across turns.
+mail and pending user decisions across turns. A program runs in three levels
+(root, an epic lead per active epic, workers); [levels.md](references/levels.md)
+says what each owns, decides alone and escalates.
 
 | Word | Meaning |
 | --- | --- |
@@ -62,8 +64,9 @@ Use the loaded copy when several versions exist.
 Invoke `superpowers:brainstorming` with the lead to agree the goal, epics, issues,
 dependencies and gates. Draft with `"agreed": false`, validate, and show the
 rendered page. After agreement, record `agreed`, `agreed_by`, the new version
-and a timeline entry. Share the canonical path and preview with coordinators.
-No worker starts before this. If publication is requested,
+and a timeline entry. Ask the level question (model and effort per level, the
+parallel epic cap) and record the answer as `orchestration.levels`. Share the
+canonical path and preview with coordinators. No worker starts before this. If publication is requested,
 show the dry run and an epic preview before applying the authorized writes.
 [Schema](references/roadmap.schema.json) · [Example](references/example-roadmap.json)
 
@@ -71,7 +74,9 @@ show the dry run and an epic preview before applying the authorized writes.
 
 Start work only when the issue is on the agreed roadmap and every dependency
 is Done. Begin the task title and worker brief with the issue's short name and
-link, such as `checked-citations acme/search#412`. Use `development-loop` for
+link, such as `checked-citations acme/search#412`. The issue's epic lead is
+level 2: it escalates consequential decisions to root and never asks the user
+itself. Use `development-loop` for
 design and implementation, resuming approved design and standing authority.
 Keep its phases and gates at every delegation level. For UI work, use
 `frontend-design` and record actual screen checks against the agreed acceptance

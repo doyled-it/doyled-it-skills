@@ -115,6 +115,16 @@ root-only canonical writes, area deltas and preview reuse in Orca. See the
 [command reference](plugins/roadmap/skills/roadmap/references/commands.md) and
 [coordination guide](plugins/roadmap/skills/roadmap/references/coordination.md).
 
+A program runs in three levels: the root session the user talks to, one epic
+lead per active epic, and the workers each lead starts. The
+[levels guide](plugins/roadmap/skills/roadmap/references/levels.md) says what
+each level owns, decides alone and escalates, how it runs in Orca, and which
+decisions reach the user. At kickoff, root asks for the model and effort per
+level and the parallel epic cap, and records the answer in `roadmap.json` as
+`orchestration.levels` for every later session. The command and hooks run
+through `scripts/python.sh`: uv when it is installed, otherwise `python3` only
+when it is 3.11 or newer (macOS ships 3.9).
+
 Source checks, fresh-session workflow evaluation and native installation
 acceptance each need their own evidence. Fresh-session and per-account host
 acceptance for this workflow remain pending.
@@ -294,7 +304,7 @@ marketplace command until it is published; test a local plugin path for local ed
 
 ## Validation
 
-Run `bash scripts/check.sh` with Bash, Node.js 18+, Python 3.11+, and ShellCheck
+Run `bash scripts/check.sh` with Bash, Node.js 18+, uv or Python 3.11+, and ShellCheck
 installed. It checks policy conflicts, plugin metadata, installer behavior in
 disposable homes, the roadmap command against recorded forge responses, syntax,
 and shell lint. No actual plugin installation or account configuration
