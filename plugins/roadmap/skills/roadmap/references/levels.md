@@ -44,8 +44,8 @@ to touch this list goes up before it ships, not after.
 ## Ask the level question at kickoff
 
 At program kickoff, after the roadmap's goal and epics are agreed and before any
-worker starts, level 1 asks the lead one question through the user's question
-surface: which model and effort for each level, and the parallel epic cap.
+worker starts, level 1 asks the program lead (the user) one question through
+the user's question surface: which model and effort for each level, and the parallel epic cap.
 Offer these defaults, described as tiers so they fit any agent:
 
 | Role | Default |
@@ -71,6 +71,9 @@ answered and when, then validate:
              "reviewer": {"model": "<id>"}, "final_reviewer": {"model": "<id>"}},
   "parallel_epics": 2, "answered_by": "<lead>", "answered_on": "<date>"}}
 ```
+
+Each `<id>` is a model id or alias the agent accepts. The example roadmap's
+tier words (`most-capable`, `mid-tier`, `cheapest`) are placeholders, not ids.
 
 Every later session, brief and handoff reuses the recorded answer and does not
 ask again. Pass the recorded model and effort explicitly when starting a
@@ -103,12 +106,15 @@ more epics or streams land on the same base branch; leave it off while one epic
 is active. Level 1 starts it like a lead, on the recorded `epic` choice. It is
 not an epic, so it does not count toward the parallel epic cap.
 
-The steward queues merges in dependency order, rebases each branch onto the
-current base, runs CI on the merged result, and keeps the base green. It
-resolves routine conflicts itself, sends a conflict inside one epic to that
-epic's lead, and sends a conflict across an interface to level 1. Merging is
-outward-facing: the steward merges only under authority level 1 has recorded
-for it, and every required gate still passes first.
+The steward queues merges in dependency order, brings each branch up to date
+with the current base, runs CI on the merged result, and keeps the base green.
+It merges the base into a branch that its lead still owns, and rebases a branch
+only after its lead hands it over, since a rebase of a pushed branch needs a
+force push. It resolves routine conflicts itself, sends a conflict inside one
+epic to that epic's lead, and sends a conflict across an interface to level 1.
+Merging and force pushing are outward-facing: the steward merges only under
+authority level 1 has recorded for it, a force push needs the same recorded
+authority as a merge, and every required gate still passes first.
 
 ## Keep questions and prompts on their route
 
@@ -179,16 +185,20 @@ In Orca, also read [orca-operation.md](orca-operation.md).
    of level 1's HEAD. If the base is wrong, have level 2 confirm it has no
    commits of its own and reset onto the intended base before any work starts,
    or pass the base explicitly where the installed Orca supports it.
-3. Level 2 runs `development-loop` for its epic: brainstorm inside the agreed
+3. `--worktree current` places a worker in the starting session's own
+   worktree, not the shell's working directory. To place a worker in another
+   repository's existing worktree, pass that worktree explicitly or start a
+   child there, and verify the receipt's workspace before the worker starts.
+4. Level 2 runs `development-loop` for its epic: brainstorm inside the agreed
    scope, spec, plan, then subagent-driven development with level 3 workers,
    task reviews and a final review.
-4. Questions climb with `orchestration ask` and answers come down with
+5. Questions climb with `orchestration ask` and answers come down with
    `orchestration reply`.
-5. Level 2 sends level 1 a scoped delta with `orchestration send` when an issue
+6. Level 2 sends level 1 a scoped delta with `orchestration send` when an issue
    changes status or a gate passes, and a short status when level 1 asks.
    Level 1 runs read-only `sync`, applies the deltas, renders, and keeps the
    preview beside its own terminal.
-6. On resume, check that the preview actually shows. A tab that `tab list`
+7. On resume, check that the preview actually shows. A tab that `tab list`
    still reports can be missing after an Orca restart; recreate it as
    [coordination.md](coordination.md#show-the-canonical-preview-in-orca) says.
 

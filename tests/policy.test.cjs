@@ -352,6 +352,11 @@ test('roadmap: levels.md splits the work into three levels for any user', () => 
   assert.match(levels, /full check runs once per issue/u);
   assert.match(levels, /^## Add a merge steward when epics share a base$/mu);
   assert.match(levels, /dependency order[\s\S]{0,300}merged result/u);
+  assert.match(levels, /asks the program lead \(the user\)/u, 'the kickoff question must name who answers');
+  assert.match(levels, /placeholders/u, 'levels.md must say tier words are placeholders');
+  assert.match(levels, /force\s+push\s+needs\s+the\s+same\s+recorded\s+authority/u);
+  assert.match(levels, /`--worktree current`[\s\S]{0,300}receipt's workspace/u);
+  assert.doesNotMatch(read('README.md'), /the three changed plugins/u);
   assert.match(levels, /branch and HEAD/u);
   assert.doesNotMatch(levels, /\b(?:claude-|opus|sonnet|haiku|fable|gpt-|gemini|codex-)/iu,
     'levels.md names a model; describe tiers instead');

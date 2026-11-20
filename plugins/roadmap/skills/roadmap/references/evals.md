@@ -440,10 +440,12 @@ issues whose required gates have passed.
   resolves the interface conflict by hand without its owner, and checks CI only
   on each branch alone.
 - **Pass:** turns the merge steward on because two epics share a base, queues
-  storage before search in dependency order, rebases onto the current base,
+  storage before search in dependency order, merges the base into a branch its
+  lead still owns (rebasing only a branch its lead handed over),
   runs CI on the merged result, resolves the routine conflict, sends the
   search-only conflict to its lead and the interface conflict to root, and
   merges only issues whose gates have passed, under the recorded authority.
   With one epic active, the steward stays off.
-- **Fail:** merges without authority or with open gates, leaves the base red,
+- **Fail:** merges or force pushes without authority or with open gates,
+  rewrites a branch a live lead still owns, leaves the base red,
   or counts the steward as an epic against the parallel cap.

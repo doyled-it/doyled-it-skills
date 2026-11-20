@@ -308,7 +308,7 @@ Before switching to native plugins, inspect `~/.agents/skills` and
 `~/.claude/skills`. Remove only links/copies you recognize as these skills after
 checking their targets or contents. Never delete manual skills or foreign links.
 The native setup does not automatically clean historical fallback installations.
-Refresh marketplaces and the three changed plugins after publication, then restart
+Refresh marketplaces and the changed plugins after publication, then restart
 the runtime to load their new versions. This branch is not installed by a remote
 marketplace command until it is published; test a local plugin path for local edits.
 
