@@ -61,7 +61,19 @@ read -r -d '' BLOCK <<'BLOCK_EOF' || true
   `roadmap` first: the roadmap must be agreed before any worker starts, workers
   start only when their issue's dependencies are Done, orchestrators run `roadmap`
   sync at every update, and each finished issue updates and re-renders the
-  roadmap with a short update.
+  roadmap with a short update. Orchestrate it through the roadmap's levels
+  reference: root, one epic lead per active epic, and workers.
+- Fit ceremony to risk. Risky tasks (security, credentials, data migrations,
+  user-facing UI, cross-repo or cross-epic interfaces) keep fresh workers and the
+  most capable reviewer. Small or mechanical tasks are done by the lead or
+  batched, with targeted tests and a cheaper review.
+  Run the full check once per issue. Required reviews and gates still apply.
+- Run a real external tool (agent CLI, installer, anything reading user
+  configuration) only from one `env -i HOME=<scratch> ...` command that prints
+  HOME first; stop before it if the scratch directory or a pre-run stamp cannot
+  be made, or HOME is not the scratch directory. Then list every file under the
+  real home newer than the stamp, at any depth. Check a "nothing changed" claim
+  against that listing before accepting it.
 - Resume an already approved design or plan without seeking the same approval again.
   A typo or doc/config edit with no behavior change can skip the design/plan loop.
 BLOCK_EOF

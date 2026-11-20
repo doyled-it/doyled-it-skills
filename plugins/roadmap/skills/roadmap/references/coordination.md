@@ -92,7 +92,9 @@ canonical page beside the orchestrator's own terminal, once per context.
    verified from the browser host. Have root record the verified URL and
    browser host in the shared pointer. If no route can be established, report
    the specific missing route or access and continue with the local render.
-3. Reuse a verified adjacent canonical page by its page ID. If its content
+3. A tab that `tab list` reports is not proof that it shows: after a resume or
+   an Orca restart, check that the page is visible and recreate it when it is
+   not. Reuse a verified adjacent canonical page by its page ID. If its content
    needs refreshing after render, use the supported reload on that ID.
    If the page already exists elsewhere in the context, check whether the
    installed tools can bring it alongside the terminal while preserving

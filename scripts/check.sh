@@ -9,7 +9,8 @@ bash tests/roadmap_test.sh
 for script in scripts/check.sh scripts/install-skills.sh tests/install_test.sh \
   tests/codegraph_smoke.sh tests/printable_parts_test.sh tests/roadmap_test.sh \
   tests/printable-parts/hook_test.sh \
-  plugins/development-loop/skills/development-loop/scripts/install.sh; do
+  plugins/development-loop/skills/development-loop/scripts/install.sh \
+  plugins/roadmap/skills/roadmap/scripts/python.sh; do
   bash -n "$script"
   shellcheck "$script"
 done

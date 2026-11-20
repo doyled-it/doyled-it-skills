@@ -59,6 +59,15 @@ change's full cross-repo surface. Invoke **development-loop** explicitly; it rou
 understanding to **using-codegraph**, multi-repo design and finish to
 **cross-repo-completeness**, and the implementation stages to upstream Superpowers.
 It includes inline execution when delegation is unavailable or prohibited.
+Its effort rule is to fit ceremony to risk: security, credentials, data migrations, user-facing UI
+and cross-repo or cross-epic interfaces keep fresh workers and the most capable
+reviewer, small or mechanical tasks are done by the lead or batched with targeted
+tests and a cheaper review, and the full check runs once per issue. Program work
+goes through **roadmap** and its levels reference (root, epic leads, workers). A
+real external tool runs only from one `env -i HOME=<scratch> ...` command that
+refuses to start without a real scratch HOME, and a worker's "nothing changed"
+claim is checked against a listing of newer files at any depth before it is
+accepted.
 
 ### codegraph
 
@@ -114,6 +123,17 @@ reports task coverage and timestamped worker activity. The skill covers
 root-only canonical writes, area deltas and preview reuse in Orca. See the
 [command reference](plugins/roadmap/skills/roadmap/references/commands.md) and
 [coordination guide](plugins/roadmap/skills/roadmap/references/coordination.md).
+
+A program runs in three levels: the root session the user talks to, one epic
+lead per active epic, and the workers each lead starts. The
+[levels guide](plugins/roadmap/skills/roadmap/references/levels.md) says what
+each level owns, decides alone and escalates, how it runs in Orca, and which
+decisions reach the user. At kickoff, root asks for the model and effort per
+level and the parallel epic cap, and records the answer in `roadmap.json` as
+`orchestration.levels` for every later session. The command and hooks run
+through `scripts/python.sh`: a Python 3.11 or newer that uv already has,
+otherwise `python3` only when it is 3.11 or newer (macOS ships 3.9). It never
+downloads Python.
 
 Source checks, fresh-session workflow evaluation and native installation
 acceptance each need their own evidence. Fresh-session and per-account host
@@ -288,13 +308,13 @@ Before switching to native plugins, inspect `~/.agents/skills` and
 `~/.claude/skills`. Remove only links/copies you recognize as these skills after
 checking their targets or contents. Never delete manual skills or foreign links.
 The native setup does not automatically clean historical fallback installations.
-Refresh marketplaces and the three changed plugins after publication, then restart
+Refresh marketplaces and the changed plugins after publication, then restart
 the runtime to load their new versions. This branch is not installed by a remote
 marketplace command until it is published; test a local plugin path for local edits.
 
 ## Validation
 
-Run `bash scripts/check.sh` with Bash, Node.js 18+, Python 3.11+, and ShellCheck
+Run `bash scripts/check.sh` with Bash, Node.js 18+, uv or Python 3.11+, and ShellCheck
 installed. It checks policy conflicts, plugin metadata, installer behavior in
 disposable homes, the roadmap command against recorded forge responses, syntax,
 and shell lint. No actual plugin installation or account configuration

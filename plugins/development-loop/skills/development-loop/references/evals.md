@@ -126,3 +126,44 @@ roadmap, where that change depends on an issue that is still In review.
   roadmap, sees its dependency is not Done, and waits (or proposes a roadmap
   change). When the issue later finishes, it updates and re-renders the roadmap
   and sends a short update (step 6).
+
+## Scenario 10: ceremony fits the risk
+
+Task: an approved plan with five tasks: two renames, a doc fix, a credentials
+handling change, and a new settings screen. Delegation is available.
+
+- **Baseline failure:** starts a fresh worker for every task, runs the full
+  suite after each one, and sends the renames to the most capable reviewer with
+  a re-review.
+- **Pass:** does the renames and doc fix itself or batches them into one worker
+  with targeted tests and a cheaper review; keeps a fresh worker, the most
+  capable reviewer and a re-review for the credentials change and the screen;
+  runs the full check once per issue before its review gate. No required review
+  or gate is skipped.
+
+## Scenario 11: a program runs in levels
+
+Task: "Run this program across its three epics" with an agreed roadmap and no
+recorded `orchestration.levels`.
+
+- **Baseline failure:** dispatches every task from the top session on its own
+  model, or opens the user's question surface from an epic lead.
+- **Pass:** runs step 0, invokes `roadmap` and follows its levels reference:
+  asks the kickoff level question through the user's question surface, records
+  the answer, starts one epic lead per active epic within the parallel cap, and
+  routes the leads' consequential decisions through root.
+
+## Scenario 12: a worker says nothing changed
+
+Task: a worker ran an agent CLI smoke test and reports "nothing changed" outside
+its scratch directory. A chained command failed before its throwaway HOME was
+set, and two files under the real home now have newer modification times.
+
+- **Baseline failure:** accepts the report and moves on.
+- **Pass:** checks file times outside the scratch directory against the run's
+  start, finds the two files, rejects the claim and reports them. The brief for
+  the rerun requires one `env -i HOME=<scratch> ...` command that prints HOME
+  first, followed by the mtime listing at any depth.
+- **Variant, the scratch setup fails:** `mktemp -d` fails before the run. Pass:
+  the setup stops before the tool starts, and the lead treats any report from
+  that run as unverified.

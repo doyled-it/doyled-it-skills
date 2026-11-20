@@ -4,8 +4,17 @@
 
 `scripts/roadmap.py`, standard library only, Python 3.11 or newer. It lives in
 the skill's directory, not in the project: run it by its full path from the
-project directory, `python3 <skill dir>/scripts/roadmap.py <command>
-roadmap.json [options]` (SKILL.md says how to find the skill directory).
+project directory through the launcher, `sh <skill dir>/scripts/python.sh
+<skill dir>/scripts/roadmap.py <command> roadmap.json [options]` (SKILL.md says
+how to find the skill directory). When uv already has a Python 3.11 or newer
+(`uv python find --no-project '>=3.11'`), the launcher runs
+`uv run --no-project --no-python-downloads --python '>=3.11' python <script>`; else it runs
+`python3 <script>` only when that is 3.11 or newer. It never downloads Python:
+with neither, it prints what to install (for example `uv python install 3.12`)
+and exits 1. It looks for uv on PATH, then in `ROADMAP_UV_DIRS` (colon-separated;
+default `~/.local/bin`, `~/.cargo/bin`, `/opt/homebrew/bin`, `/usr/local/bin`).
+The hooks use the same launcher with `--hook`, which always exits 0. The
+examples below write `roadmap.py` for the whole command.
 
 ## validate
 
@@ -19,6 +28,28 @@ rules. A field of the wrong type (an iteration name that is not text,
 `allowed_terms` that is not a list of words, `orca` or `forge` that is not an
 object) is a `bad-type` error, never a crash, and `publish`, `sync` and
 `drift-issue` refuse to run, listing those errors, until it is fixed.
+
+### Orchestration levels
+
+`orchestration.levels` records the program lead's (the user's) answer to the
+kickoff level question in [levels.md](levels.md). It is optional; once present,
+validate checks it.
+
+| Field | Meaning |
+| --- | --- |
+| `program`, `epic` | Required. The choice for level 1 (the program orchestrator) and level 2 (each epic lead). |
+| `worker` | Required. Level 3 choices by role: `implementer` and `reviewer` are required, `mechanical` and `final_reviewer` are usual, and other lowercase role names (such as `security_reviewer`) are named exceptions. |
+| `parallel_epics` | Required. A whole number, 1 or more: how many epic leads run at once. The default answer is 2. |
+| `answered_by`, `answered_on` | Optional nonblank text: who answered, and when. |
+
+Each choice is an object with a nonblank `model` (the id or alias the agent
+accepts) and optional nonblank `effort`, `agent` and `note`. The example
+roadmap's tier words (`most-capable`, `mid-tier`, `cheapest`) are placeholders;
+record the real ids from the kickoff answer.
+
+The record is advisory, so each problem in it (a missing or misspelled field,
+or a wrong shape) is a `bad-levels` warning. validate names it, and render,
+sync, publish and the hooks keep working.
 
 ## render
 

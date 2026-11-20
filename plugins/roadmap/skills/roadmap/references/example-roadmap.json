@@ -11,6 +11,21 @@
     "host": "github.com",
     "project": "example-org/search-service"
   },
+  "orchestration": {
+    "levels": {
+      "program": {"model": "most-capable", "effort": "high"},
+      "epic": {"model": "mid-tier", "effort": "high"},
+      "worker": {
+        "implementer": {"model": "mid-tier", "effort": "medium"},
+        "mechanical": {"model": "cheapest", "effort": "medium", "note": "exact or same-shape edits"},
+        "reviewer": {"model": "most-capable", "effort": "high"},
+        "final_reviewer": {"model": "most-capable", "effort": "high"}
+      },
+      "parallel_epics": 2,
+      "answered_by": "the program lead",
+      "answered_on": "2026-11-16"
+    }
+  },
   "gates": {
     "D": "Design agreed with the program lead before building",
     "R": "Independent review, every finding fixed and re-checked, pipeline green on the exact head",

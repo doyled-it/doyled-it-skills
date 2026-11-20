@@ -82,10 +82,35 @@ test('development loop explicitly routes bug diagnosis, reviews and inline execu
   assert.match(text, /(?:push|remote writes)[\s\S]{0,70}authoriz/iu);
 });
 
+test('development loop fits ceremony to risk, routes programs to levels and sandboxes real tools', () => {
+  for (const [file, text] of [['SKILL.md', read(skillPaths[1])], ['managed block', block],
+    ['README.md', read('README.md').split('### development-loop')[1].split('\n### ')[0]]]) {
+    assert.match(text, /fit\s+ceremony\s+to\s+risk/iu, `${file}: no ceremony rule`);
+    assert.match(text, /security,\s+credentials,\s+data\s+migrations/u, `${file}: no risky task list`);
+    assert.match(text, /full\s+check[^.]{0,40}once\s+per\s+issue/iu, `${file}: no once-per-issue check`);
+    assert.match(text, /(?:`roadmap`|\*\*roadmap\*\*)[\s\S]{0,400}levels\s+reference/u, `${file}: programs do not use the levels reference`);
+    assert.ok(text.includes('env -i HOME='), `${file}: no sandbox rule for real tools`);
+    assert.match(text, /(?:stop before it|refuses to start)/iu, `${file}: the sandbox does not fail closed`);
+    assert.match(text, /"nothing\s+changed"/u, `${file}: does not verify nothing-changed claims`);
+  }
+  assert.match(read(skillPaths[1]), /## 0\. Program check[\s\S]{0,900}levels\s+reference/u);
+  assert.match(read(skillPaths[1]), /roadmap\s+skill's\s+`references\/levels\.md`/u);
+  assert.match(read(skillPaths[1]), /at any depth/u);
+  assert.match(block, /at any depth/u);
+  assert.match(read('plugins/development-loop/skills/development-loop/references/evals.md'),
+    /## Scenario 12:[\s\S]{0,1500}scratch setup fails/u);
+  assert.match(read('plugins/roadmap/skills/roadmap/references/evals.md'),
+    /### Scenario 21:[\s\S]{0,1800}scratch setup fails/u);
+  const evals = read('plugins/development-loop/skills/development-loop/references/evals.md');
+  for (const title of ['ceremony fits the risk', 'program runs in levels', 'nothing changed']) {
+    assert.match(evals, new RegExp(`^## Scenario[^\\n]*${title}`, 'imu'), `development-loop evals miss ${title}`);
+  }
+});
+
 test('changed plugins invalidate known installed caches', () => {
   for (const [name, version] of [
-    ['codegraph', '1.2.2'], ['development-loop', '1.3.0'], ['cross-repo-completeness', '1.1.2'],
-    ['roadmap', '1.1.1'],
+    ['codegraph', '1.2.2'], ['development-loop', '1.4.0'], ['cross-repo-completeness', '1.1.2'],
+    ['roadmap', '1.2.0'],
   ]) assert.equal(JSON.parse(read(`plugins/${name}/.claude-plugin/plugin.json`)).version, version);
 });
 
@@ -259,7 +284,7 @@ test('roadmap: references are linked one level deep and exist', () => {
 test('roadmap: the skill is generic, with no project specifics', () => {
   for (const file of walkFiles('plugins/roadmap')) {
     if (/__pycache__/u.test(file)) continue;
-    assert.doesNotMatch(read(file), /\b(?:ep2p|irmbpmn|mdoyle|CDP|gemma)\b/u, `project specific text in ${file}`);
+    assert.doesNotMatch(read(file), /\b(?:ep2p|irmbpmn|mdoyle|CDP|gemma|Gantry|Michael)\b/u, `project specific text in ${file}`);
   }
 });
 
@@ -290,6 +315,57 @@ test('roadmap: orchestrators sync at every update, and the enforcement layers ar
   assert.match(block, /run `roadmap`\s+sync at every update/u);
   const plugin = JSON.parse(read('plugins/roadmap/.claude-plugin/plugin.json'));
   assert.match(plugin.description, /closes only its own drift issue/u);
+});
+
+test('roadmap: the command and hooks run through the uv-first launcher', () => {
+  const uv = "uv run --no-project --no-python-downloads --python '>=3.11' python";
+  const run = rmSkill().split('## Run the command')[1].split('## Lifecycle')[0];
+  assert.ok(run.includes('scripts/python.sh'), 'Run the command does not name the launcher');
+  assert.ok(run.includes(uv), 'Run the command does not name the uv invocation');
+  assert.match(run, /`python3` only when it is 3\.11 or newer/u);
+  assert.match(run, /never downloads Python/u);
+  assert.doesNotMatch(run, /--python 3\.12/u);
+  const commands = read('plugins/roadmap/skills/roadmap/references/commands.md');
+  assert.ok(commands.includes(uv) && commands.includes('scripts/python.sh'));
+  assert.doesNotMatch(commands, /`python3 <skill dir>/u);
+  const enforcement = read('plugins/roadmap/skills/roadmap/references/enforcement.md');
+  assert.match(enforcement, /notify = \["sh", "[^"]*\/scripts\/python\.sh", "--hook"/u);
+  assert.doesNotMatch(read('plugins/roadmap/hooks/hooks.json'), /"python3 /u);
+});
+
+test('roadmap: levels.md splits the work into three levels for any user', () => {
+  const text = rmSkill();
+  assert.ok(text.includes('references/levels.md'), 'SKILL.md does not link levels.md');
+  assert.match(text, /### 1\. Program kickoff[\s\S]{0,900}level question/u);
+  assert.match(text, /### 2\. Each issue[\s\S]{0,400}level 2/u);
+  assert.ok(text.split('\n').length < 150, 'SKILL.md should stay about its current length');
+  const levels = read('plugins/roadmap/skills/roadmap/references/levels.md');
+  for (const row of ['Owns', 'Brainstorms', 'Decides alone', 'Escalates', 'Does not']) {
+    assert.match(levels, new RegExp(`^\\| ${row} \\|`, 'mu'), `levels table has no ${row} row`);
+  }
+  for (const words of ['Level 1', 'Level 2', 'Level 3', '`orchestration.levels`', '--worktree new-child',
+    '--keep-open', 'orchestration ask', 'reply', 'scoped delta', 'env -i HOME=', 'parallel epic cap']) {
+    assert.ok(levels.includes(words), `levels.md does not cover ${words}`);
+  }
+  assert.match(levels, /never opens the user's question surface/u);
+  assert.match(levels, /^## Fit ceremony to risk$/mu);
+  assert.match(levels, /full check runs once per issue/u);
+  assert.match(levels, /^## Add a merge steward when epics share a base$/mu);
+  assert.match(levels, /dependency order[\s\S]{0,300}merged result/u);
+  assert.match(levels, /asks the program lead \(the user\)/u, 'the kickoff question must name who answers');
+  assert.match(levels, /placeholders/u, 'levels.md must say tier words are placeholders');
+  assert.match(levels, /force\s+push\s+needs\s+the\s+same\s+recorded\s+authority/u);
+  assert.match(levels, /`--worktree current`[\s\S]{0,300}receipt's workspace/u);
+  assert.doesNotMatch(read('README.md'), /the three changed plugins/u);
+  assert.match(levels, /branch and HEAD/u);
+  assert.doesNotMatch(levels, /\b(?:claude-|opus|sonnet|haiku|fable|gpt-|gemini|codex-)/iu,
+    'levels.md names a model; describe tiers instead');
+  const evals = read('plugins/roadmap/skills/roadmap/references/evals.md');
+  for (const title of ['kickoff level question', 'level 2 lead meets a consequential decision',
+    'level 3 permission prompt', 'nothing changed', 'child worktree on the wrong base',
+    'ceremony fits the risk', 'merge steward']) {
+    assert.match(evals, new RegExp(`### Scenario \\d+: [^\\n]*${title}`, 'iu'), `evals.md has no scenario for ${title}`);
+  }
 });
 
 test('roadmap: no em dashes in the plugin or its tests', () => {
