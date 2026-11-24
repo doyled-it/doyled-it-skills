@@ -1,6 +1,6 @@
 ---
 name: session-zero
-description: Use when setting up a D&D campaign and about to run its first session (session zero): safety tools (X-Card, lines and veils, consent checklists), table expectations and tone, scheduling, and gathering each player character's bonds and wants to seed the world and hooks.
+description: Use when setting up a D&D campaign and about to run its first session (session zero): safety tools (lines and veils, an anonymous channel, an open door), table expectations and tone, scheduling, and gathering each player character's bonds and wants to seed the world and hooks.
 ---
 
 # Session zero
@@ -19,8 +19,6 @@ Run it as a short real session with the players, not solo prep. It feeds `party-
 
 Set these up explicitly. They are standard, and skipping them is a false economy.
 
-- **X-Card.** Anyone can tap or raise the card to edit out content, no explanation owed. Agree
-  on it out loud.
 - **Lines and veils.** Lines are content that will not appear. Veils are content that happens
   off screen. Collect them privately (a shared anonymous doc) so no one has to out a limit in
   front of the group.
