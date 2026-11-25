@@ -238,7 +238,7 @@ For manual Claude Code installation, add both marketplaces and install the plugi
 ```
 /plugin marketplace add obra/superpowers-marketplace
 /plugin install superpowers@superpowers-marketplace
-/plugin marketplace add doyled-it/claude-skills
+/plugin marketplace add doyled-it/doyled-it-skills
 /plugin install development-loop@doyled-it-skills
 /plugin install codegraph@doyled-it-skills
 /plugin install cross-repo-completeness@doyled-it-skills
